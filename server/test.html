@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSocket Test</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            padding: 2rem;
+            color: #e4e4e7;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 2rem;
+            font-weight: 600;
+            color: #f4f4f5;
+        }
+        .status {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 1.5rem;
+            padding: 1rem;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #ef4444;
+            transition: background 0.3s;
+        }
+        .status-dot.connected {
+            background: #22c55e;
+            box-shadow: 0 0 10px #22c55e;
+        }
+        .controls {
+            display: flex;
+            gap: 0.75rem;
+            margin-bottom: 1.5rem;
+        }
+        button {
+            flex: 1;
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        button:hover {
+            transform: translateY(-1px);
+        }
+        button:active {
+            transform: translateY(0);
+        }
+        .btn-connect {
+            background: #3b82f6;
+            color: white;
+        }
+        .btn-connect:hover {
+            background: #2563eb;
+        }
+        .btn-disconnect {
+            background: #ef4444;
+            color: white;
+        }
+        .btn-disconnect:hover {
+            background: #dc2626;
+        }
+        .input-group {
+            display: flex;
+            gap: 0.75rem;
+            margin-bottom: 1.5rem;
+        }
+        input[type="text"] {
+            flex: 1;
+            padding: 0.75rem 1rem;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.05);
+            color: #f4f4f5;
+            font-size: 0.95rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        input[type="text"]:focus {
+            border-color: #3b82f6;
+        }
+        input[type="text"]::placeholder {
+            color: #71717a;
+        }
+        .btn-send {
+            background: #8b5cf6;
+            color: white;
+            flex-shrink: 0;
+        }
+        .btn-send:hover {
+            background: #7c3aed;
+        }
+        .btn-send:disabled {
+            background: #52525b;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .messages {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 1rem;
+            height: 400px;
+            overflow-y: auto;
+        }
+        .messages::-webkit-scrollbar {
+            width: 6px;
+        }
+        .messages::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .messages::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 3px;
+        }
+        .message {
+            padding: 0.5rem 0.75rem;
+            margin-bottom: 0.5rem;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+        }
+        .message.sent {
+            background: rgba(139, 92, 246, 0.2);
+            border-left: 3px solid #8b5cf6;
+        }
+        .message.received {
+            background: rgba(34, 197, 94, 0.2);
+            border-left: 3px solid #22c55e;
+        }
+        .message.system {
+            background: rgba(59, 130, 246, 0.2);
+            border-left: 3px solid #3b82f6;
+            font-style: italic;
+        }
+        .message.error {
+            background: rgba(239, 68, 68, 0.2);
+            border-left: 3px solid #ef4444;
+        }
+        .timestamp {
+            color: #71717a;
+            font-size: 0.75rem;
+            margin-right: 0.5rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>WebSocket Test</h1>
+        
+        <div class="status">
+            <div class="status-dot" id="statusDot"></div>
+            <span id="statusText">Disconnected</span>
+        </div>
+        
+        <div class="controls">
+            <button class="btn-connect" id="connectBtn" onclick="connect()">Connect</button>
+            <button class="btn-disconnect" id="disconnectBtn" onclick="disconnect()">Disconnect</button>
+        </div>
+        
+        <div class="input-group">
+            <input type="text" id="messageInput" placeholder="Type a message..." onkeypress="handleKeyPress(event)">
+            <button class="btn-send" id="sendBtn" onclick="sendMessage()" disabled>Send</button>
+        </div>
+        
+        <div class="messages" id="messages"></div>
+    </div>
+
+    <script>
+        let ws = null;
+        const messagesDiv = document.getElementById('messages');
+        const statusDot = document.getElementById('statusDot');
+        const statusText = document.getElementById('statusText');
+        const sendBtn = document.getElementById('sendBtn');
+        const messageInput = document.getElementById('messageInput');
+
+        function getTimestamp() {
+            return new Date().toLocaleTimeString('en-US', { hour12: false });
+        }
+
+        function addMessage(text, type) {
+            const msg = document.createElement('div');
+            msg.className = `message ${type}`;
+            msg.innerHTML = `<span class="timestamp">[${getTimestamp()}]</span>${text}`;
+            messagesDiv.appendChild(msg);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        function connect() {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                addMessage('Already connected', 'system');
+                return;
+            }
+
+            const wsUrl = `ws://${window.location.hostname}:8000/ws`;
+            addMessage(`Connecting to ${wsUrl}...`, 'system');
+            
+            ws = new WebSocket(wsUrl);
+
+            ws.onopen = () => {
+                statusDot.classList.add('connected');
+                statusText.textContent = 'Connected';
+                sendBtn.disabled = false;
+                addMessage('Connection established', 'system');
+            };
+
+            ws.onmessage = (event) => {
+                addMessage(event.data, 'received');
+            };
+
+            ws.onclose = () => {
+                statusDot.classList.remove('connected');
+                statusText.textContent = 'Disconnected';
+                sendBtn.disabled = true;
+                addMessage('Connection closed', 'system');
+                ws = null;
+            };
+
+            ws.onerror = (error) => {
+                addMessage('WebSocket error occurred', 'error');
+                console.error('WebSocket error:', error);
+            };
+        }
+
+        function disconnect() {
+            if (ws) {
+                ws.close();
+            } else {
+                addMessage('Not connected', 'system');
+            }
+        }
+
+        function sendMessage() {
+            const message = messageInput.value.trim();
+            if (!message) return;
+            
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(message);
+                addMessage(`Sent: ${message}`, 'sent');
+                messageInput.value = '';
+            } else {
+                addMessage('Not connected. Please connect first.', 'error');
+            }
+        }
+
+        function handleKeyPress(event) {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
+        }
+
+        // Auto-focus input
+        messageInput.focus();
+    </script>
+</body>
+</html>

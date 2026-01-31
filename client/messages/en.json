@@ -1,0 +1,168 @@
+{
+  "common": {
+    "appName": "A-Tree",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "save": "Save",
+    "skip": "Skip",
+    "next": "Next",
+    "finish": "Finish",
+    "close": "Close",
+    "open": "Open",
+    "download": "Download",
+    "back": "Back",
+    "loading": "Loading...",
+    "error": "An error occurred",
+    "success": "Success",
+    "confirm": "Confirm",
+    "search": "Search",
+    "select": "Select",
+    "change": "Change",
+    "submit": "Submit",
+    "edit": "Edit",
+    "rename": "Rename",
+    "create": "Create",
+    "new": "New"
+  },
+  "nav": {
+    "agent": "Agent",
+    "admin": "Admin",
+    "adminDashboard": "Admin Dashboard",
+    "home": "Home",
+    "profile": "Profile",
+    "logout": "Logout"
+  },
+  "auth": {
+    "signInTitle": "Sign in to access your account",
+    "emailLabel": "Email",
+    "emailPlaceholder": "you@example.com",
+    "sendLoginCode": "Send Login Code",
+    "enterOtpCode": "Enter the {count}-digit code sent to your email",
+    "verifyAndLogin": "Verify & Login",
+    "useDifferentEmail": "Use a different email",
+    "resendCode": "Resend code",
+    "signInWithPasskey": "Sign in with Passkey",
+    "newUserHint": "New user? First-time login requires email verification. You can set up passkey during onboarding for faster access next time.",
+    "codeSentTo": "Code sent to:",
+    "invalidOtpCode": "Invalid OTP code",
+    "verifying": "Verifying...",
+    "passkeyAuthCancelled": "Passkey authentication cancelled.",
+    "failedToSendOtp": "Failed to send OTP",
+    "failedToVerifyOtp": "Failed to verify OTP",
+    "passkeyLoginFailed": "Passkey login failed",
+    "verificationFailed": "Verification failed"
+  },
+  "onboarding": {
+    "welcomeTitle": "Welcome to A-Tree!",
+    "enhanceSecurityTitle": "Enhance your Security",
+    "whatToCallYou": "What should A-Tree call you?",
+    "yourName": "Your name",
+    "addPasskey": "Add Passkey",
+    "passkeyDescription": "Want an easier and faster way to login? Add a passkey to sign in without a password, and no more waiting for the email code.",
+    "passkeyAddedTitle": "Passkey Added!",
+    "failedToCompleteOnboarding": "Failed to complete onboarding",
+    "passkeyAddedSuccess": "Passkey added successfully",
+    "failedToAddPasskey": "Failed to add passkey"
+  },
+  "chat": {
+    "startConversation": "Start a conversation with A-Tree",
+    "newChat": "New Chat",
+    "renameChat": "Rename Chat",
+    "deleteChat": "Delete Chat",
+    "deleteConfirm": "Are you sure you want to delete this chat? This action cannot be undone.",
+    "noChatsYet": "No chats yet",
+    "typeMessage": "Type a message...",
+    "recordVoice": "Record voice",
+    "send": "Send",
+    "timeRemaining": "{seconds}s remaining",
+    "failedToForkChat": "Failed to fork chat",
+    "retryMessages": {
+      "rethink": "Oops! Let me think about that again...",
+      "rephrase": "Hmm, let me rephrase that better!",
+      "organizing": "One sec, organizing my thoughts...",
+      "better": "Wait, I can do better!",
+      "sparkle": "Let me try that again with more sparkle!"
+    },
+    "thinkingProcess": "Thinking Process",
+    "editMessage": "Edit message",
+    "editInNewChatTitle": "Edit in new chat?",
+    "editInNewChatDescription": "This will create a new chat starting from here, preserving the conversation history up to this point.",
+    "editAndFork": "Edit & Fork",
+    "errorMessages": {
+      "overwhelmed": "Oops! Our agent got a bit overwhelmed... Mind trying again?",
+      "coffeeBreak": "So sorry! Our agent is taking a coffee break. Please try again!",
+      "tripped": "Uh oh! Our agent tripped over their thoughts. Give it another go?"
+    }
+  },
+  "profile": {
+    "title": "Profile Settings",
+    "subtitle": "Manage your account information and security",
+    "personalInfo": "Personal Information",
+    "firstName": "First Name",
+    "lastName": "Last Name",
+    "email": "Email",
+    "saveChanges": "Save Changes",
+    "security": "Security",
+    "managePasskeys": "Manage your passkeys for passwordless login",
+    "passkeys": "Passkeys",
+    "noPasskeysYet": "No passkeys registered yet.",
+    "passkeyDevice": "Passkey ({deviceType})",
+    "addedOn": "Added on {date}",
+    "profileUpdated": "Profile updated successfully",
+    "failedToUpdateProfile": "Failed to update profile",
+    "failedToFetchPasskeys": "Failed to fetch passkeys"
+  },
+  "notifications": {
+    "enableTitle": "Enable Notifications",
+    "enableDescription": "Enable notifications to get alerted when your results are ready, so you can freely browse other tabs or pages.",
+    "noThanks": "No thanks",
+    "enable": "Enable Notifications"
+  },
+  "install": {
+    "title": "Install A-Tree",
+    "description": "Add to your home screen for a full-screen experience and quick access",
+    "step1": "Tap the Share button below",
+    "step2": "Scroll and tap \"Add to Home Screen\"",
+    "maybeLater": "Maybe Later"
+  },
+  "admin": {
+    "title": "Admin Dashboard",
+    "unauthorized": "Unauthorized",
+    "users": {
+      "title": "Users",
+      "subtitle": "Management",
+      "description": "Manage users, roles, invitations, and OTPs.",
+      "goTo": "Go to User Management"
+    },
+    "chats": {
+      "title": "Chats",
+      "description": "View all chats, monitor activity, and history.",
+      "goTo": "Go to Chat Management"
+    },
+    "events": {
+      "title": "Events",
+      "subtitle": "Telemetry",
+      "description": "View system events, user actions, and errors.",
+      "goTo": "Go to Events"
+    },
+    "system": {
+      "title": "System",
+      "description": "Manage system settings, cleanup tokens, and maintenance.",
+      "goTo": "Go to System Management"
+    }
+  },
+  "dashboard": {
+    "welcomeBack": "Welcome back!",
+    "authProvider": "Auth Provider",
+    "roles": "Roles",
+    "memberSince": "Member Since",
+    "testProtectedApi": "Test Protected API",
+    "goToAgent": "Go to agent",
+    "apiResponse": "Response from /api/test/protected:"
+  },
+  "language": {
+    "switchLanguage": "Language",
+    "english": "English",
+    "chinese": "简体中文"
+  }
+}

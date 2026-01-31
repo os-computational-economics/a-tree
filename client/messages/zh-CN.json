@@ -1,0 +1,168 @@
+{
+  "common": {
+    "appName": "A-Tree",
+    "cancel": "取消",
+    "delete": "删除",
+    "save": "保存",
+    "skip": "跳过",
+    "next": "下一步",
+    "finish": "完成",
+    "close": "关闭",
+    "open": "打开",
+    "download": "下载",
+    "back": "返回",
+    "loading": "加载中...",
+    "error": "发生错误",
+    "success": "成功",
+    "confirm": "确认",
+    "search": "搜索",
+    "select": "选择",
+    "change": "更改",
+    "submit": "提交",
+    "edit": "编辑",
+    "rename": "重命名",
+    "create": "创建",
+    "new": "新建"
+  },
+  "nav": {
+    "agent": "助手",
+    "admin": "管理",
+    "adminDashboard": "管理面板",
+    "home": "首页",
+    "profile": "个人资料",
+    "logout": "退出登录"
+  },
+  "auth": {
+    "signInTitle": "登录以访问您的账户",
+    "emailLabel": "邮箱",
+    "emailPlaceholder": "you@example.com",
+    "sendLoginCode": "发送登录验证码",
+    "enterOtpCode": "请输入发送到您邮箱的{count}位验证码",
+    "verifyAndLogin": "验证并登录",
+    "useDifferentEmail": "使用其他邮箱",
+    "resendCode": "重新发送验证码",
+    "signInWithPasskey": "使用通行密钥登录",
+    "newUserHint": "新用户？首次登录需要邮箱验证。您可以在引导流程中设置通行密钥以便下次更快登录。",
+    "codeSentTo": "验证码已发送至：",
+    "invalidOtpCode": "验证码无效",
+    "verifying": "验证中...",
+    "passkeyAuthCancelled": "通行密钥验证已取消。",
+    "failedToSendOtp": "发送验证码失败",
+    "failedToVerifyOtp": "验证失败",
+    "passkeyLoginFailed": "通行密钥登录失败",
+    "verificationFailed": "验证失败"
+  },
+  "onboarding": {
+    "welcomeTitle": "欢迎使用 A-Tree！",
+    "enhanceSecurityTitle": "增强您的安全性",
+    "whatToCallYou": "A-Tree 应该怎么称呼您？",
+    "yourName": "您的名字",
+    "addPasskey": "添加通行密钥",
+    "passkeyDescription": "想要更简单快捷的登录方式吗？添加通行密钥后，无需密码即可登录，也无需等待邮箱验证码。",
+    "passkeyAddedTitle": "通行密钥已添加！",
+    "failedToCompleteOnboarding": "完成引导流程失败",
+    "passkeyAddedSuccess": "通行密钥添加成功",
+    "failedToAddPasskey": "添加通行密钥失败"
+  },
+  "chat": {
+    "startConversation": "开始与 A-Tree 对话",
+    "newChat": "新对话",
+    "renameChat": "重命名对话",
+    "deleteChat": "删除对话",
+    "deleteConfirm": "确定要删除这个对话吗？此操作无法撤销。",
+    "noChatsYet": "暂无对话",
+    "typeMessage": "输入消息...",
+    "recordVoice": "录制语音",
+    "send": "发送",
+    "timeRemaining": "剩余 {seconds} 秒",
+    "failedToForkChat": "复制对话失败",
+    "retryMessages": {
+      "rethink": "哎呀！让我重新思考一下...",
+      "rephrase": "嗯，让我换个方式表达！",
+      "organizing": "稍等，正在整理思路...",
+      "better": "等等，我可以做得更好！",
+      "sparkle": "让我再试一次，加点创意！"
+    },
+    "thinkingProcess": "思考过程",
+    "editMessage": "编辑消息",
+    "editInNewChatTitle": "在新对话中编辑？",
+    "editInNewChatDescription": "这将从这里开始创建一个新对话，并保留到此为止的对话历史。",
+    "editAndFork": "编辑并分支",
+    "errorMessages": {
+      "overwhelmed": "哎呀！我们的助手有点忙不过来了... 请再试一次？",
+      "coffeeBreak": "抱歉！我们的助手正在休息中，请稍后再试！",
+      "tripped": "糟糕！我们的助手走神了，请再试一次？"
+    }
+  },
+  "profile": {
+    "title": "个人设置",
+    "subtitle": "管理您的账户信息和安全设置",
+    "personalInfo": "个人信息",
+    "firstName": "名字",
+    "lastName": "姓氏",
+    "email": "邮箱",
+    "saveChanges": "保存更改",
+    "security": "安全设置",
+    "managePasskeys": "管理您的通行密钥以实现免密登录",
+    "passkeys": "通行密钥",
+    "noPasskeysYet": "暂未注册通行密钥。",
+    "passkeyDevice": "通行密钥（{deviceType}）",
+    "addedOn": "添加于 {date}",
+    "profileUpdated": "个人资料更新成功",
+    "failedToUpdateProfile": "更新个人资料失败",
+    "failedToFetchPasskeys": "获取通行密钥失败"
+  },
+  "notifications": {
+    "enableTitle": "启用通知",
+    "enableDescription": "启用通知后，当结果准备就绪时会提醒您，您可以自由浏览其他标签页或页面。",
+    "noThanks": "暂不需要",
+    "enable": "启用通知"
+  },
+  "install": {
+    "title": "安装 A-Tree",
+    "description": "添加到主屏幕以获得全屏体验和快速访问",
+    "step1": "点击下方的分享按钮",
+    "step2": "滚动并点击「添加到主屏幕」",
+    "maybeLater": "稍后再说"
+  },
+  "admin": {
+    "title": "管理面板",
+    "unauthorized": "未授权",
+    "users": {
+      "title": "用户",
+      "subtitle": "管理",
+      "description": "管理用户、角色、邀请和验证码。",
+      "goTo": "前往用户管理"
+    },
+    "chats": {
+      "title": "对话",
+      "description": "查看所有对话、监控活动和历史记录。",
+      "goTo": "前往对话管理"
+    },
+    "events": {
+      "title": "事件",
+      "subtitle": "遥测",
+      "description": "查看系统事件、用户操作和错误。",
+      "goTo": "前往事件"
+    },
+    "system": {
+      "title": "系统",
+      "description": "管理系统设置、清理令牌和维护。",
+      "goTo": "前往系统管理"
+    }
+  },
+  "dashboard": {
+    "welcomeBack": "欢迎回来！",
+    "authProvider": "认证方式",
+    "roles": "角色",
+    "memberSince": "注册时间",
+    "testProtectedApi": "测试受保护的 API",
+    "goToAgent": "前往助手",
+    "apiResponse": "/api/test/protected 的响应："
+  },
+  "language": {
+    "switchLanguage": "语言",
+    "english": "English",
+    "chinese": "简体中文"
+  }
+}
