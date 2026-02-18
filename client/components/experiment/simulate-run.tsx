@@ -25,10 +25,10 @@ interface SimulateRunProps {
 }
 
 type RunEntry = {
+  blockIndex: number;
   roundIndex: number;
-  repIndex: number;
+  blockId: string;
   roundId: string;
-  repId: string;
   params: Record<string, ResolvedParam>;
 };
 
@@ -73,7 +73,7 @@ function TableView({
 
   const columns = useMemo(() => {
     return [
-      { key: "location", label: "ROUND / REP" },
+      { key: "location", label: "BLOCK / ROUND" },
       ...allParamIds.map((id) => ({ key: id, label: id })),
     ];
   }, [allParamIds]);
@@ -111,17 +111,17 @@ function TableView({
           </TableHeader>
           <TableBody>
             {runData.map((entry) => {
-              const roundLabel =
-                config.rounds[entry.roundIndex]?.label || `Round ${entry.roundIndex + 1}`;
+              const blockLabel =
+                config.blocks[entry.blockIndex]?.label || `Block ${entry.blockIndex + 1}`;
               return (
-                <TableRow key={`${entry.roundId}-${entry.repId}`}>
+                <TableRow key={`${entry.blockId}-${entry.roundId}`}>
                   {columns.map((col) => {
                     if (col.key === "location") {
                       return (
                         <TableCell key="location">
                           <div>
-                            <span className="font-medium">{roundLabel}</span>
-                            <span className="text-default-400">, Rep {entry.repIndex + 1}</span>
+                            <span className="font-medium">{blockLabel}</span>
+                            <span className="text-default-400">, Round {entry.roundIndex + 1}</span>
                           </div>
                         </TableCell>
                       );
@@ -190,39 +190,39 @@ function StudentInputField({
 }
 
 function StepThrough({ config }: { config: ExperimentConfig }) {
+  const [currentBlock, setCurrentBlock] = useState(0);
   const [currentRound, setCurrentRound] = useState(0);
-  const [currentRep, setCurrentRep] = useState(0);
   const [studentInputs, setStudentInputs] = useState<Record<string, string | number>>({});
   const [resolvedParams, setResolvedParams] = useState<Record<string, ResolvedParam> | null>(
     null,
   );
 
   const totalSteps = useMemo(() => {
-    return config.rounds.reduce((acc, r) => acc + r.repetitions.length, 0);
+    return config.blocks.reduce((acc, b) => acc + b.rounds.length, 0);
   }, [config]);
 
   const currentStep = useMemo(() => {
     let step = 0;
-    for (let ri = 0; ri < currentRound; ri++) {
-      step += config.rounds[ri].repetitions.length;
+    for (let bi = 0; bi < currentBlock; bi++) {
+      step += config.blocks[bi].rounds.length;
     }
-    return step + currentRep + 1;
-  }, [config, currentRound, currentRep]);
+    return step + currentRound + 1;
+  }, [config, currentBlock, currentRound]);
 
   const resolve = useCallback(() => {
-    const params = resolveParameters(config, currentRound, currentRep, studentInputs);
+    const params = resolveParameters(config, currentBlock, currentRound, studentInputs);
     setResolvedParams(params);
-  }, [config, currentRound, currentRep, studentInputs]);
+  }, [config, currentBlock, currentRound, studentInputs]);
 
   useMemo(() => {
     setStudentInputs({});
-    const params = resolveParameters(config, currentRound, currentRep);
+    const params = resolveParameters(config, currentBlock, currentRound);
     setResolvedParams(params);
-  }, [config, currentRound, currentRep]);
+  }, [config, currentBlock, currentRound]);
 
   const template = useMemo(() => {
-    return resolveTemplate(config, currentRound, currentRep);
-  }, [config, currentRound, currentRep]);
+    return resolveTemplate(config, currentBlock, currentRound);
+  }, [config, currentBlock, currentRound]);
 
   const segments = useMemo(() => {
     if (!resolvedParams) return [];
@@ -249,41 +249,41 @@ function StepThrough({ config }: { config: ExperimentConfig }) {
 
   const goNext = () => {
     setStudentInputs({});
-    const round = config.rounds[currentRound];
-    if (currentRep < round.repetitions.length - 1) {
-      setCurrentRep(currentRep + 1);
-    } else if (currentRound < config.rounds.length - 1) {
+    const block = config.blocks[currentBlock];
+    if (currentRound < block.rounds.length - 1) {
       setCurrentRound(currentRound + 1);
-      setCurrentRep(0);
+    } else if (currentBlock < config.blocks.length - 1) {
+      setCurrentBlock(currentBlock + 1);
+      setCurrentRound(0);
     }
   };
 
   const goPrev = () => {
     setStudentInputs({});
-    if (currentRep > 0) {
-      setCurrentRep(currentRep - 1);
-    } else if (currentRound > 0) {
-      const prevRound = config.rounds[currentRound - 1];
+    if (currentRound > 0) {
       setCurrentRound(currentRound - 1);
-      setCurrentRep(prevRound.repetitions.length - 1);
+    } else if (currentBlock > 0) {
+      const prevBlock = config.blocks[currentBlock - 1];
+      setCurrentBlock(currentBlock - 1);
+      setCurrentRound(prevBlock.rounds.length - 1);
     }
   };
 
-  const isFirst = currentRound === 0 && currentRep === 0;
+  const isFirst = currentBlock === 0 && currentRound === 0;
   const isLast =
-    currentRound === config.rounds.length - 1 &&
-    currentRep === config.rounds[currentRound].repetitions.length - 1;
+    currentBlock === config.blocks.length - 1 &&
+    currentRound === config.blocks[currentBlock].rounds.length - 1;
 
-  const roundLabel =
-    config.rounds[currentRound]?.label || `Round ${currentRound + 1}`;
+  const blockLabel =
+    config.blocks[currentBlock]?.label || `Block ${currentBlock + 1}`;
 
   return (
     <div className="space-y-6">
       <div className="space-y-2">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Chip variant="flat" color="primary">{roundLabel}</Chip>
-            <Chip variant="flat">Repetition {currentRep + 1}</Chip>
+            <Chip variant="flat" color="primary">{blockLabel}</Chip>
+            <Chip variant="flat">Round {currentRound + 1}</Chip>
           </div>
           <span className="text-sm text-default-400">
             Step {currentStep} of {totalSteps}

@@ -159,7 +159,7 @@
       "name": "Name",
       "description_field": "Description",
       "status": "Status",
-      "rounds": "Rounds",
+      "blocks": "Blocks",
       "parameters": "Parameters",
       "templates": "Templates",
       "simulate": "Simulate",
@@ -173,8 +173,8 @@
       "active": "Active",
       "completed": "Completed",
       "archived": "Archived",
+      "addBlock": "Add Block",
       "addRound": "Add Round",
-      "addRepetition": "Add Repetition",
       "addParameter": "Add Parameter",
       "paramName": "Parameter Name",
       "paramId": "Parameter ID",
@@ -197,13 +197,13 @@
       "tableView": "Table View",
       "stepThrough": "Step-Through",
       "continue": "Continue",
+      "block": "Block",
       "round": "Round",
-      "repetition": "Repetition",
       "insertParam": "Insert Parameter",
       "templatePreview": "Preview",
       "experimentLevel": "Experiment Level",
-      "roundLevel": "Round Level",
-      "repetitionLevel": "Repetition Level"
+      "blockLevel": "Block Level",
+      "roundLevel": "Round Level"
     }
   },
   "dashboard": {

@@ -6,13 +6,13 @@ import type {
 } from "./types";
 
 /**
- * Merge params from all three levels for a given round/rep.
+ * Merge params from all three levels for a given block/round.
  * Returns entries tagged with their source level.
  */
 function mergeParams(
   config: ExperimentConfig,
+  blockIndex: number,
   roundIndex: number,
-  repIndex: number,
 ): Record<string, { def: ParamDefinition; source: ParamSource }> {
   const result: Record<string, { def: ParamDefinition; source: ParamSource }> = {};
 
@@ -20,17 +20,17 @@ function mergeParams(
     result[k] = { def: v, source: "experiment" };
   }
 
-  const round = config.rounds[roundIndex];
-  if (round?.params) {
-    for (const [k, v] of Object.entries(round.params)) {
-      result[k] = { def: v, source: "round" };
+  const block = config.blocks[blockIndex];
+  if (block?.params) {
+    for (const [k, v] of Object.entries(block.params)) {
+      result[k] = { def: v, source: "block" };
     }
   }
 
-  const rep = round?.repetitions?.[repIndex];
-  if (rep?.params) {
-    for (const [k, v] of Object.entries(rep.params)) {
-      result[k] = { def: v, source: "repetition" };
+  const round = block?.rounds?.[roundIndex];
+  if (round?.params) {
+    for (const [k, v] of Object.entries(round.params)) {
+      result[k] = { def: v, source: "round" };
     }
   }
 
@@ -146,18 +146,17 @@ function resolveValue(
 }
 
 /**
- * Main entry: resolve all parameters for a given (round, rep) pair.
+ * Main entry: resolve all parameters for a given (block, round) pair.
  */
 export function resolveParameters(
   config: ExperimentConfig,
+  blockIndex: number,
   roundIndex: number,
-  repIndex: number,
   studentInputs?: Record<string, string | number>,
 ): Record<string, ResolvedParam> {
-  const merged = mergeParams(config, roundIndex, repIndex);
+  const merged = mergeParams(config, blockIndex, roundIndex);
   const paramIds = Object.keys(merged);
 
-  // Build dependency map (only equations have deps)
   const depsMap: Record<string, string[]> = {};
   for (const id of paramIds) {
     const { def } = merged[id];
@@ -194,23 +193,23 @@ export function resolveParameters(
 }
 
 /**
- * Resolve all params for an entire experiment run (all rounds, all reps).
+ * Resolve all params for an entire experiment run (all blocks, all rounds).
  */
 export function resolveFullRun(
   config: ExperimentConfig,
-): { roundIndex: number; repIndex: number; roundId: string; repId: string; params: Record<string, ResolvedParam> }[] {
-  const results: { roundIndex: number; repIndex: number; roundId: string; repId: string; params: Record<string, ResolvedParam> }[] = [];
+): { blockIndex: number; roundIndex: number; blockId: string; roundId: string; params: Record<string, ResolvedParam> }[] {
+  const results: { blockIndex: number; roundIndex: number; blockId: string; roundId: string; params: Record<string, ResolvedParam> }[] = [];
 
-  for (let ri = 0; ri < config.rounds.length; ri++) {
-    const round = config.rounds[ri];
-    for (let pi = 0; pi < round.repetitions.length; pi++) {
-      const rep = round.repetitions[pi];
+  for (let bi = 0; bi < config.blocks.length; bi++) {
+    const block = config.blocks[bi];
+    for (let ri = 0; ri < block.rounds.length; ri++) {
+      const round = block.rounds[ri];
       results.push({
+        blockIndex: bi,
         roundIndex: ri,
-        repIndex: pi,
+        blockId: block.id,
         roundId: round.id,
-        repId: rep.id,
-        params: resolveParameters(config, ri, pi),
+        params: resolveParameters(config, bi, ri),
       });
     }
   }

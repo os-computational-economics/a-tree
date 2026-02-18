@@ -5,27 +5,27 @@ export type ParamDefinition =
   | { type: "equation"; expression: string }
   | { type: "student_input"; inputLabel?: string; inputType?: "number" | "text" };
 
-export interface RepetitionConfig {
+export interface RoundConfig {
   id: string;
   params?: Record<string, ParamDefinition>;
   template?: string;
 }
 
-export interface RoundConfig {
+export interface BlockConfig {
   id: string;
   label?: string;
   params?: Record<string, ParamDefinition>;
   template?: string;
-  repetitions: RepetitionConfig[];
+  rounds: RoundConfig[];
 }
 
 export interface ExperimentConfig {
   params: Record<string, ParamDefinition>;
   template: string;
-  rounds: RoundConfig[];
+  blocks: BlockConfig[];
 }
 
-export type ParamSource = "experiment" | "round" | "repetition";
+export type ParamSource = "experiment" | "block" | "round";
 
 export interface ResolvedParam {
   paramId: string;

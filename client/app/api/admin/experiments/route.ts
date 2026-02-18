@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
       name: exp.name,
       description: exp.description,
       status: exp.status,
-      roundCount: exp.config.rounds.length,
+      blockCount: exp.config.blocks.length,
       paramCount: Object.keys(exp.config.params).length,
       createdBy: exp.createdBy,
       createdAt: exp.createdAt,

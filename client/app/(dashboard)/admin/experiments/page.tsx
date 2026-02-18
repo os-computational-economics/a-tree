@@ -34,7 +34,7 @@ interface ExperimentListItem {
   name: string;
   description: string | null;
   status: string;
-  roundCount: number;
+  blockCount: number;
   paramCount: number;
   createdAt: string;
 }
@@ -50,10 +50,10 @@ function makeDefaultConfig(): ExperimentConfig {
   return {
     params: {},
     template: "",
-    rounds: [
+    blocks: [
       {
-        id: `r_${crypto.randomUUID().slice(0, 8)}`,
-        repetitions: [{ id: `rep_${crypto.randomUUID().slice(0, 8)}` }],
+        id: `b_${crypto.randomUUID().slice(0, 8)}`,
+        rounds: [{ id: `r_${crypto.randomUUID().slice(0, 8)}` }],
       },
     ],
   };
@@ -153,7 +153,7 @@ export default function ExperimentsPage() {
         <TableHeader>
           <TableColumn>NAME</TableColumn>
           <TableColumn>STATUS</TableColumn>
-          <TableColumn>ROUNDS</TableColumn>
+          <TableColumn>BLOCKS</TableColumn>
           <TableColumn>PARAMS</TableColumn>
           <TableColumn>CREATED</TableColumn>
         </TableHeader>
@@ -173,7 +173,7 @@ export default function ExperimentsPage() {
                   {exp.status}
                 </Chip>
               </TableCell>
-              <TableCell>{exp.roundCount}</TableCell>
+              <TableCell>{exp.blockCount}</TableCell>
               <TableCell>{exp.paramCount}</TableCell>
               <TableCell>{new Date(exp.createdAt).toLocaleDateString()}</TableCell>
             </TableRow>

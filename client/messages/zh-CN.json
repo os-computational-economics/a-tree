@@ -159,7 +159,7 @@
       "name": "名称",
       "description_field": "描述",
       "status": "状态",
-      "rounds": "轮次",
+      "blocks": "区组",
       "parameters": "参数",
       "templates": "模板",
       "simulate": "模拟",
@@ -173,8 +173,8 @@
       "active": "进行中",
       "completed": "已完成",
       "archived": "已归档",
+      "addBlock": "添加区组",
       "addRound": "添加轮次",
-      "addRepetition": "添加重复",
       "addParameter": "添加参数",
       "paramName": "参数名称",
       "paramId": "参数 ID",
@@ -197,13 +197,13 @@
       "tableView": "表格视图",
       "stepThrough": "逐步模拟",
       "continue": "继续",
+      "block": "区组",
       "round": "轮次",
-      "repetition": "重复",
       "insertParam": "插入参数",
       "templatePreview": "预览",
       "experimentLevel": "实验级别",
-      "roundLevel": "轮次级别",
-      "repetitionLevel": "重复级别"
+      "blockLevel": "区组级别",
+      "roundLevel": "轮次级别"
     }
   },
   "dashboard": {

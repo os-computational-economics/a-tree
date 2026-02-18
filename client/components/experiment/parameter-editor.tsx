@@ -13,7 +13,7 @@ import { Plus, Trash2, Copy } from "lucide-react";
 import type {
   ExperimentConfig,
   ParamDefinition,
-  RoundConfig,
+  BlockConfig,
 } from "@/lib/experiment/types";
 
 interface ParameterEditorProps {
@@ -404,59 +404,59 @@ export function ParameterEditor({ config, onChange }: ParameterEditorProps) {
     onChange({ ...config, params });
   };
 
+  const handleBlockParamsChange = (
+    blockIdx: number,
+    params: Record<string, ParamDefinition>,
+  ) => {
+    const blocks = [...config.blocks];
+    blocks[blockIdx] = { ...blocks[blockIdx], params };
+    onChange({ ...config, blocks });
+  };
+
   const handleRoundParamsChange = (
+    blockIdx: number,
     roundIdx: number,
     params: Record<string, ParamDefinition>,
   ) => {
-    const rounds = [...config.rounds];
+    const blocks = [...config.blocks];
+    const rounds = [...blocks[blockIdx].rounds];
     rounds[roundIdx] = { ...rounds[roundIdx], params };
-    onChange({ ...config, rounds });
+    blocks[blockIdx] = { ...blocks[blockIdx], rounds };
+    onChange({ ...config, blocks });
   };
 
-  const handleRepParamsChange = (
-    roundIdx: number,
-    repIdx: number,
-    params: Record<string, ParamDefinition>,
-  ) => {
-    const rounds = [...config.rounds];
-    const reps = [...rounds[roundIdx].repetitions];
-    reps[repIdx] = { ...reps[repIdx], params };
-    rounds[roundIdx] = { ...rounds[roundIdx], repetitions: reps };
-    onChange({ ...config, rounds });
-  };
-
-  const addRound = () => {
-    const newRound: RoundConfig = {
-      id: `r_${crypto.randomUUID().slice(0, 8)}`,
-      repetitions: [{ id: `rep_${crypto.randomUUID().slice(0, 8)}` }],
+  const addBlock = () => {
+    const newBlock: BlockConfig = {
+      id: `b_${crypto.randomUUID().slice(0, 8)}`,
+      rounds: [{ id: `r_${crypto.randomUUID().slice(0, 8)}` }],
     };
-    onChange({ ...config, rounds: [...config.rounds, newRound] });
+    onChange({ ...config, blocks: [...config.blocks, newBlock] });
   };
 
-  const removeRound = (idx: number) => {
-    const rounds = config.rounds.filter((_, i) => i !== idx);
-    onChange({ ...config, rounds });
+  const removeBlock = (idx: number) => {
+    const blocks = config.blocks.filter((_, i) => i !== idx);
+    onChange({ ...config, blocks });
   };
 
-  const addRepetition = (roundIdx: number) => {
-    const rounds = [...config.rounds];
-    rounds[roundIdx] = {
-      ...rounds[roundIdx],
-      repetitions: [
-        ...rounds[roundIdx].repetitions,
-        { id: `rep_${crypto.randomUUID().slice(0, 8)}` },
+  const addRound = (blockIdx: number) => {
+    const blocks = [...config.blocks];
+    blocks[blockIdx] = {
+      ...blocks[blockIdx],
+      rounds: [
+        ...blocks[blockIdx].rounds,
+        { id: `r_${crypto.randomUUID().slice(0, 8)}` },
       ],
     };
-    onChange({ ...config, rounds });
+    onChange({ ...config, blocks });
   };
 
-  const removeRepetition = (roundIdx: number, repIdx: number) => {
-    const rounds = [...config.rounds];
-    rounds[roundIdx] = {
-      ...rounds[roundIdx],
-      repetitions: rounds[roundIdx].repetitions.filter((_, i) => i !== repIdx),
+  const removeRound = (blockIdx: number, roundIdx: number) => {
+    const blocks = [...config.blocks];
+    blocks[blockIdx] = {
+      ...blocks[blockIdx],
+      rounds: blocks[blockIdx].rounds.filter((_, i) => i !== roundIdx),
     };
-    onChange({ ...config, rounds });
+    onChange({ ...config, blocks });
   };
 
   return (
@@ -466,7 +466,7 @@ export function ParameterEditor({ config, onChange }: ParameterEditorProps) {
           <Card>
             <CardHeader>
               <h4 className="text-medium font-semibold">
-                Experiment-Level Parameters (defaults for all rounds)
+                Experiment-Level Parameters (defaults for all blocks)
               </h4>
             </CardHeader>
             <CardBody>
@@ -479,41 +479,41 @@ export function ParameterEditor({ config, onChange }: ParameterEditorProps) {
           </Card>
         </Tab>
 
-        <Tab key="rounds" title="Round Overrides">
+        <Tab key="blocks" title="Block Overrides">
           <div className="space-y-4">
             <Accordion variant="bordered">
-              {config.rounds.map((round, ri) => (
+              {config.blocks.map((block, bi) => (
                 <AccordionItem
-                  key={round.id}
+                  key={block.id}
                   title={
                     <div className="flex items-center gap-2">
-                      <span>Round {ri + 1}</span>
-                      {round.label && (
+                      <span>Block {bi + 1}</span>
+                      {block.label && (
                         <Chip size="sm" variant="flat">
-                          {round.label}
+                          {block.label}
                         </Chip>
                       )}
                       <Chip size="sm" variant="flat" color="secondary">
-                        {round.id}
+                        {block.id}
                       </Chip>
                     </div>
                   }
                 >
                   <div className="space-y-3">
                     <Input
-                      label="Round Label"
+                      label="Block Label"
                       size="sm"
-                      value={round.label || ""}
+                      value={block.label || ""}
                       onValueChange={(v) => {
-                        const rounds = [...config.rounds];
-                        rounds[ri] = { ...rounds[ri], label: v || undefined };
-                        onChange({ ...config, rounds });
+                        const blocks = [...config.blocks];
+                        blocks[bi] = { ...blocks[bi], label: v || undefined };
+                        onChange({ ...config, blocks });
                       }}
-                      placeholder="e.g. Practice Round"
+                      placeholder="e.g. Practice Block"
                     />
                     <ParamList
-                      params={round.params || {}}
-                      onChange={(p) => handleRoundParamsChange(ri, p)}
+                      params={block.params || {}}
+                      onChange={(p) => handleBlockParamsChange(bi, p)}
                       allParamIds={allParamIds}
                       inheritedParams={Object.fromEntries(
                         Object.entries(config.params).map(([k, v]) => [
@@ -527,10 +527,10 @@ export function ParameterEditor({ config, onChange }: ParameterEditorProps) {
                         size="sm"
                         variant="flat"
                         color="danger"
-                        onPress={() => removeRound(ri)}
-                        isDisabled={config.rounds.length <= 1}
+                        onPress={() => removeBlock(bi)}
+                        isDisabled={config.blocks.length <= 1}
                       >
-                        Remove Round
+                        Remove Block
                       </Button>
                     </div>
                   </div>
@@ -542,42 +542,42 @@ export function ParameterEditor({ config, onChange }: ParameterEditorProps) {
               variant="flat"
               color="primary"
               startContent={<Plus className="w-4 h-4" />}
-              onPress={addRound}
+              onPress={addBlock}
             >
-              Add Round
+              Add Block
             </Button>
           </div>
         </Tab>
 
-        <Tab key="repetitions" title="Repetition Overrides">
+        <Tab key="rounds" title="Round Overrides">
           <div className="space-y-4">
             <Accordion variant="bordered">
-              {config.rounds.map((round, ri) => (
+              {config.blocks.map((block, bi) => (
                 <AccordionItem
-                  key={round.id}
+                  key={block.id}
                   title={
                     <span>
-                      Round {ri + 1} {round.label ? `(${round.label})` : ""}
+                      Block {bi + 1} {block.label ? `(${block.label})` : ""}
                     </span>
                   }
                 >
                   <Accordion variant="splitted">
-                    {round.repetitions.map((rep, pi) => (
+                    {block.rounds.map((round, ri) => (
                       <AccordionItem
-                        key={rep.id}
+                        key={round.id}
                         title={
                           <div className="flex items-center gap-2">
-                            <span>Repetition {pi + 1}</span>
+                            <span>Round {ri + 1}</span>
                             <Chip size="sm" variant="flat" color="secondary">
-                              {rep.id}
+                              {round.id}
                             </Chip>
                           </div>
                         }
                       >
                         <div className="space-y-3">
                           <ParamList
-                            params={rep.params || {}}
-                            onChange={(p) => handleRepParamsChange(ri, pi, p)}
+                            params={round.params || {}}
+                            onChange={(p) => handleRoundParamsChange(bi, ri, p)}
                             allParamIds={allParamIds}
                             inheritedParams={{
                               ...Object.fromEntries(
@@ -587,9 +587,9 @@ export function ParameterEditor({ config, onChange }: ParameterEditorProps) {
                                 ]),
                               ),
                               ...Object.fromEntries(
-                                Object.entries(round.params || {}).map(([k, v]) => [
+                                Object.entries(block.params || {}).map(([k, v]) => [
                                   k,
-                                  { def: v, source: `round ${ri + 1}` },
+                                  { def: v, source: `block ${bi + 1}` },
                                 ]),
                               ),
                             }}
@@ -598,10 +598,10 @@ export function ParameterEditor({ config, onChange }: ParameterEditorProps) {
                             size="sm"
                             variant="flat"
                             color="danger"
-                            onPress={() => removeRepetition(ri, pi)}
-                            isDisabled={round.repetitions.length <= 1}
+                            onPress={() => removeRound(bi, ri)}
+                            isDisabled={block.rounds.length <= 1}
                           >
-                            Remove Repetition
+                            Remove Round
                           </Button>
                         </div>
                       </AccordionItem>
@@ -613,9 +613,9 @@ export function ParameterEditor({ config, onChange }: ParameterEditorProps) {
                     color="primary"
                     className="mt-3"
                     startContent={<Plus className="w-4 h-4" />}
-                    onPress={() => addRepetition(ri)}
+                    onPress={() => addRound(bi)}
                   >
-                    Add Repetition
+                    Add Round
                   </Button>
                 </AccordionItem>
               ))}

@@ -5,19 +5,19 @@ import type {
 } from "./types";
 
 /**
- * Resolve which template to use for a given (round, rep) pair.
- * Walks: repetition -> round -> experiment level.
+ * Resolve which template to use for a given (block, round) pair.
+ * Walks: round -> block -> experiment level.
  */
 export function resolveTemplate(
   config: ExperimentConfig,
+  blockIndex: number,
   roundIndex: number,
-  repIndex: number,
 ): string {
-  const round = config.rounds[roundIndex];
-  const rep = round?.repetitions?.[repIndex];
+  const block = config.blocks[blockIndex];
+  const round = block?.rounds?.[roundIndex];
 
-  if (rep?.template) return rep.template;
   if (round?.template) return round.template;
+  if (block?.template) return block.template;
   return config.template;
 }
 

@@ -66,27 +66,27 @@ function ParamInsertToolbar({
 
 function TemplatePreview({
   config,
+  blockIndex,
   roundIndex,
-  repIndex,
   templateContent,
 }: {
   config: ExperimentConfig;
+  blockIndex: number;
   roundIndex: number;
-  repIndex: number;
   templateContent: string;
 }) {
   const segments = useMemo(() => {
     try {
-      const resolved = resolveParameters(config, roundIndex, repIndex);
+      const resolved = resolveParameters(config, blockIndex, roundIndex);
       return renderTemplate(templateContent, resolved);
     } catch {
       return [{ type: "text" as const, content: "[Error resolving parameters]" }];
     }
-  }, [config, roundIndex, repIndex, templateContent]);
+  }, [config, blockIndex, roundIndex, templateContent]);
 
   return (
     <div className="p-4 rounded-lg bg-content2/50 border border-divider">
-      <p className="text-tiny text-default-400 mb-2">Preview (Round {roundIndex + 1}, Rep {repIndex + 1}):</p>
+      <p className="text-tiny text-default-400 mb-2">Preview (Block {blockIndex + 1}, Round {roundIndex + 1}):</p>
       <div className="prose prose-sm dark:prose-invert max-w-none whitespace-pre-wrap">
         {segments.map((seg, i) => {
           if (seg.type === "text") {
@@ -178,22 +178,22 @@ export function TemplateEditor({ config, onChange }: TemplateEditorProps) {
     onChange({ ...config, template });
   };
 
-  const handleRoundTemplateChange = (roundIdx: number, template: string) => {
-    const rounds = [...config.rounds];
-    rounds[roundIdx] = { ...rounds[roundIdx], template: template || undefined };
-    onChange({ ...config, rounds });
+  const handleBlockTemplateChange = (blockIdx: number, template: string) => {
+    const blocks = [...config.blocks];
+    blocks[blockIdx] = { ...blocks[blockIdx], template: template || undefined };
+    onChange({ ...config, blocks });
   };
 
-  const handleRepTemplateChange = (
+  const handleRoundTemplateChange = (
+    blockIdx: number,
     roundIdx: number,
-    repIdx: number,
     template: string,
   ) => {
-    const rounds = [...config.rounds];
-    const reps = [...rounds[roundIdx].repetitions];
-    reps[repIdx] = { ...reps[repIdx], template: template || undefined };
-    rounds[roundIdx] = { ...rounds[roundIdx], repetitions: reps };
-    onChange({ ...config, rounds });
+    const blocks = [...config.blocks];
+    const rounds = [...blocks[blockIdx].rounds];
+    rounds[roundIdx] = { ...rounds[roundIdx], template: template || undefined };
+    blocks[blockIdx] = { ...blocks[blockIdx], rounds };
+    onChange({ ...config, blocks });
   };
 
   return (
@@ -216,26 +216,26 @@ export function TemplateEditor({ config, onChange }: TemplateEditorProps) {
               <Divider />
               <TemplatePreview
                 config={config}
+                blockIndex={0}
                 roundIndex={0}
-                repIndex={0}
                 templateContent={config.template}
               />
             </CardBody>
           </Card>
         </Tab>
 
-        <Tab key="rounds" title="Round Overrides">
+        <Tab key="blocks" title="Block Overrides">
           <Accordion variant="bordered">
-            {config.rounds.map((round, ri) => (
+            {config.blocks.map((block, bi) => (
               <AccordionItem
-                key={round.id}
+                key={block.id}
                 title={
                   <div className="flex items-center gap-2">
-                    <span>Round {ri + 1}</span>
-                    {round.label && (
-                      <Chip size="sm" variant="flat">{round.label}</Chip>
+                    <span>Block {bi + 1}</span>
+                    {block.label && (
+                      <Chip size="sm" variant="flat">{block.label}</Chip>
                     )}
-                    {round.template ? (
+                    {block.template ? (
                       <Chip size="sm" variant="flat" color="primary">Custom template</Chip>
                     ) : (
                       <Chip size="sm" variant="dot" color="warning">Using default</Chip>
@@ -245,12 +245,12 @@ export function TemplateEditor({ config, onChange }: TemplateEditorProps) {
               >
                 <div className="space-y-4">
                   <TemplateTextarea
-                    value={round.template || ""}
-                    onChange={(v) => handleRoundTemplateChange(ri, v)}
+                    value={block.template || ""}
+                    onChange={(v) => handleBlockTemplateChange(bi, v)}
                     paramIds={paramIds}
                     studentInputIds={studentInputIds}
                   />
-                  {!round.template && (
+                  {!block.template && (
                     <p className="text-tiny text-default-400">
                       Leave empty to use the experiment-level template.
                     </p>
@@ -258,9 +258,9 @@ export function TemplateEditor({ config, onChange }: TemplateEditorProps) {
                   <Divider />
                   <TemplatePreview
                     config={config}
-                    roundIndex={ri}
-                    repIndex={0}
-                    templateContent={round.template || config.template}
+                    blockIndex={bi}
+                    roundIndex={0}
+                    templateContent={block.template || config.template}
                   />
                 </div>
               </AccordionItem>
@@ -268,21 +268,21 @@ export function TemplateEditor({ config, onChange }: TemplateEditorProps) {
           </Accordion>
         </Tab>
 
-        <Tab key="repetitions" title="Repetition Overrides">
+        <Tab key="rounds" title="Round Overrides">
           <Accordion variant="bordered">
-            {config.rounds.map((round, ri) => (
+            {config.blocks.map((block, bi) => (
               <AccordionItem
-                key={round.id}
-                title={`Round ${ri + 1} ${round.label ? `(${round.label})` : ""}`}
+                key={block.id}
+                title={`Block ${bi + 1} ${block.label ? `(${block.label})` : ""}`}
               >
                 <Accordion variant="splitted">
-                  {round.repetitions.map((rep, pi) => (
+                  {block.rounds.map((round, ri) => (
                     <AccordionItem
-                      key={rep.id}
+                      key={round.id}
                       title={
                         <div className="flex items-center gap-2">
-                          <span>Repetition {pi + 1}</span>
-                          {rep.template ? (
+                          <span>Round {ri + 1}</span>
+                          {round.template ? (
                             <Chip size="sm" variant="flat" color="primary">Custom</Chip>
                           ) : (
                             <Chip size="sm" variant="dot" color="warning">Inherited</Chip>
@@ -292,23 +292,23 @@ export function TemplateEditor({ config, onChange }: TemplateEditorProps) {
                     >
                       <div className="space-y-4">
                         <TemplateTextarea
-                          value={rep.template || ""}
-                          onChange={(v) => handleRepTemplateChange(ri, pi, v)}
+                          value={round.template || ""}
+                          onChange={(v) => handleRoundTemplateChange(bi, ri, v)}
                           paramIds={paramIds}
                           studentInputIds={studentInputIds}
                         />
-                        {!rep.template && (
+                        {!round.template && (
                           <p className="text-tiny text-default-400">
-                            Leave empty to inherit from round or experiment level.
+                            Leave empty to inherit from block or experiment level.
                           </p>
                         )}
                         <Divider />
                         <TemplatePreview
                           config={config}
+                          blockIndex={bi}
                           roundIndex={ri}
-                          repIndex={pi}
                           templateContent={
-                            rep.template || round.template || config.template
+                            round.template || block.template || config.template
                           }
                         />
                       </div>

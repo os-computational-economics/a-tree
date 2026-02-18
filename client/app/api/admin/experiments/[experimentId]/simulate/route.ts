@@ -35,15 +35,15 @@ export async function POST(
     const runResults = resolveFullRun(config);
 
     const simulation = runResults.map((entry) => {
-      const tpl = resolveTemplate(config, entry.roundIndex, entry.repIndex);
+      const tpl = resolveTemplate(config, entry.blockIndex, entry.roundIndex);
       const segments = renderTemplate(tpl, entry.params);
 
       return {
+        blockIndex: entry.blockIndex,
         roundIndex: entry.roundIndex,
-        repIndex: entry.repIndex,
+        blockId: entry.blockId,
         roundId: entry.roundId,
-        repId: entry.repId,
-        roundLabel: config.rounds[entry.roundIndex]?.label,
+        blockLabel: config.blocks[entry.blockIndex]?.label,
         params: entry.params,
         template: tpl,
         segments,
