@@ -23,7 +23,7 @@ import ChatInput from "./chat-input";
 import ParallelMessage from "./parallel-message";
 import { siteConfig } from "@/config/site";
 import { useVoiceRecorder } from "./use-voice-recorder";
-import { SYSTEM_PROMPT_STORAGE_KEY } from "@/components/test-kit";
+const SYSTEM_PROMPT_STORAGE_KEY = "system_prompt_override";
 
 // Helper to group consecutive assistant messages with the same timestamp as variants
 interface MessageGroup {
