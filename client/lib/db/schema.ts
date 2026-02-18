@@ -8,6 +8,7 @@ import {
   jsonb,
   bigint,
 } from "drizzle-orm/pg-core";
+import type { ExperimentConfig } from "../experiment/types";
 
 /**
  * Users table
@@ -157,3 +158,19 @@ export type NewAuthChallenge = typeof authChallenges.$inferInsert;
 
 export type Event = typeof events.$inferSelect;
 export type NewEvent = typeof events.$inferInsert;
+
+export const experiments = pgTable("experiments", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: varchar("name", { length: 255 }).notNull(),
+  description: text("description"),
+  status: varchar("status", { length: 20 }).notNull().default("draft"),
+  config: jsonb("config").$type<ExperimentConfig>().notNull(),
+  createdBy: uuid("created_by")
+    .notNull()
+    .references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export type Experiment = typeof experiments.$inferSelect;
+export type NewExperiment = typeof experiments.$inferInsert;
