@@ -2,23 +2,48 @@ import type {
   ExperimentConfig,
   ResolvedParam,
   TemplateSegment,
+  TemplateKind,
+  TemplateSet,
 } from "./types";
 
+const TEMPLATE_FIELD_MAP: Record<TemplateKind, "introTemplate" | "decisionTemplate" | "resultTemplate"> = {
+  intro: "introTemplate",
+  decision: "decisionTemplate",
+  result: "resultTemplate",
+};
+
 /**
- * Resolve which template to use for a given (block, round) pair.
+ * Resolve which template to use for a given (block, round) pair and template kind.
  * Walks: round -> block -> experiment level.
  */
 export function resolveTemplate(
   config: ExperimentConfig,
   blockIndex: number,
   roundIndex: number,
+  kind: TemplateKind,
 ): string {
+  const field = TEMPLATE_FIELD_MAP[kind];
   const block = config.blocks[blockIndex];
   const round = block?.rounds?.[roundIndex];
 
-  if (round?.template) return round.template;
-  if (block?.template) return block.template;
-  return config.template;
+  if (round?.[field]) return round[field];
+  if (block?.[field]) return block[field];
+  return config[field];
+}
+
+/**
+ * Resolve all three templates for a given (block, round) pair.
+ */
+export function resolveTemplates(
+  config: ExperimentConfig,
+  blockIndex: number,
+  roundIndex: number,
+): TemplateSet {
+  return {
+    introTemplate: resolveTemplate(config, blockIndex, roundIndex, "intro"),
+    decisionTemplate: resolveTemplate(config, blockIndex, roundIndex, "decision"),
+    resultTemplate: resolveTemplate(config, blockIndex, roundIndex, "result"),
+  };
 }
 
 /**

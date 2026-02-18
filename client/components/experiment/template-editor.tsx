@@ -7,7 +7,8 @@ import { Accordion, AccordionItem } from "@heroui/accordion";
 import { Chip } from "@heroui/chip";
 import { Textarea } from "@heroui/input";
 import { Divider } from "@heroui/divider";
-import type { ExperimentConfig } from "@/lib/experiment/types";
+import type { ExperimentConfig, TemplateKind } from "@/lib/experiment/types";
+import { TEMPLATE_KINDS } from "@/lib/experiment/types";
 import { resolveParameters } from "@/lib/experiment/params";
 import { renderTemplate } from "@/lib/experiment/template";
 
@@ -15,6 +16,18 @@ interface TemplateEditorProps {
   config: ExperimentConfig;
   onChange: (config: ExperimentConfig) => void;
 }
+
+const TEMPLATE_FIELD_MAP: Record<TemplateKind, "introTemplate" | "decisionTemplate" | "resultTemplate"> = {
+  intro: "introTemplate",
+  decision: "decisionTemplate",
+  result: "resultTemplate",
+};
+
+const TEMPLATE_LABELS: Record<TemplateKind, string> = {
+  intro: "Intro Template",
+  decision: "Decision Template",
+  result: "Result Template",
+};
 
 function ParamInsertToolbar({
   paramIds,
@@ -121,11 +134,13 @@ function TemplateTextarea({
   onChange,
   paramIds,
   studentInputIds,
+  label,
 }: {
   value: string;
   onChange: (v: string) => void;
   paramIds: string[];
   studentInputIds: string[];
+  label: string;
 }) {
   const [localValue, setLocalValue] = useState(value);
 
@@ -147,18 +162,84 @@ function TemplateTextarea({
         onInsert={handleInsert}
       />
       <Textarea
-        label="Template"
+        label={label}
         value={localValue}
         onValueChange={setLocalValue}
         onBlur={() => {
           if (localValue !== value) onChange(localValue);
         }}
         placeholder="Enter display text with {{param_id}} placeholders..."
-        minRows={4}
+        minRows={3}
         maxRows={20}
       />
     </div>
   );
+}
+
+function TripleTemplateEditor({
+  introValue,
+  decisionValue,
+  resultValue,
+  onIntroChange,
+  onDecisionChange,
+  onResultChange,
+  paramIds,
+  studentInputIds,
+  config,
+  blockIndex,
+  roundIndex,
+}: {
+  introValue: string;
+  decisionValue: string;
+  resultValue: string;
+  onIntroChange: (v: string) => void;
+  onDecisionChange: (v: string) => void;
+  onResultChange: (v: string) => void;
+  paramIds: string[];
+  studentInputIds: string[];
+  config: ExperimentConfig;
+  blockIndex: number;
+  roundIndex: number;
+}) {
+  return (
+    <div className="space-y-6">
+      {([
+        { kind: "intro" as TemplateKind, label: TEMPLATE_LABELS.intro, value: introValue, onChange: onIntroChange },
+        { kind: "decision" as TemplateKind, label: TEMPLATE_LABELS.decision, value: decisionValue, onChange: onDecisionChange },
+        { kind: "result" as TemplateKind, label: TEMPLATE_LABELS.result, value: resultValue, onChange: onResultChange },
+      ]).map(({ kind, label, value, onChange }) => (
+        <div key={kind} className="space-y-3">
+          <h5 className="text-sm font-semibold text-default-700">{label}</h5>
+          <TemplateTextarea
+            value={value}
+            onChange={onChange}
+            paramIds={paramIds}
+            studentInputIds={studentInputIds}
+            label={label}
+          />
+          <TemplatePreview
+            config={config}
+            blockIndex={blockIndex}
+            roundIndex={roundIndex}
+            templateContent={value}
+          />
+          <Divider />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function resolveBlockTemplate(config: ExperimentConfig, blockIndex: number, kind: TemplateKind): string {
+  const field = TEMPLATE_FIELD_MAP[kind];
+  return config.blocks[blockIndex]?.[field] || config[field];
+}
+
+function resolveRoundTemplate(config: ExperimentConfig, blockIndex: number, roundIndex: number, kind: TemplateKind): string {
+  const field = TEMPLATE_FIELD_MAP[kind];
+  const block = config.blocks[blockIndex];
+  const round = block?.rounds?.[roundIndex];
+  return round?.[field] || block?.[field] || config[field];
 }
 
 export function TemplateEditor({ config, onChange }: TemplateEditorProps) {
@@ -174,27 +255,37 @@ export function TemplateEditor({ config, onChange }: TemplateEditorProps) {
       .map(([id]) => id);
   }, [config.params]);
 
-  const handleExpTemplateChange = (template: string) => {
-    onChange({ ...config, template });
+  const handleExpTemplateChange = (kind: TemplateKind, value: string) => {
+    const field = TEMPLATE_FIELD_MAP[kind];
+    onChange({ ...config, [field]: value });
   };
 
-  const handleBlockTemplateChange = (blockIdx: number, template: string) => {
+  const handleBlockTemplateChange = (blockIdx: number, kind: TemplateKind, value: string) => {
+    const field = TEMPLATE_FIELD_MAP[kind];
     const blocks = [...config.blocks];
-    blocks[blockIdx] = { ...blocks[blockIdx], template: template || undefined };
+    blocks[blockIdx] = { ...blocks[blockIdx], [field]: value || undefined };
     onChange({ ...config, blocks });
   };
 
   const handleRoundTemplateChange = (
     blockIdx: number,
     roundIdx: number,
-    template: string,
+    kind: TemplateKind,
+    value: string,
   ) => {
+    const field = TEMPLATE_FIELD_MAP[kind];
     const blocks = [...config.blocks];
     const rounds = [...blocks[blockIdx].rounds];
-    rounds[roundIdx] = { ...rounds[roundIdx], template: template || undefined };
+    rounds[roundIdx] = { ...rounds[roundIdx], [field]: value || undefined };
     blocks[blockIdx] = { ...blocks[blockIdx], rounds };
     onChange({ ...config, blocks });
   };
+
+  const hasBlockOverride = (block: ExperimentConfig["blocks"][number]) =>
+    TEMPLATE_KINDS.some((k) => block[TEMPLATE_FIELD_MAP[k]]);
+
+  const hasRoundOverride = (round: ExperimentConfig["blocks"][number]["rounds"][number]) =>
+    TEMPLATE_KINDS.some((k) => round[TEMPLATE_FIELD_MAP[k]]);
 
   return (
     <div className="space-y-6">
@@ -203,22 +294,22 @@ export function TemplateEditor({ config, onChange }: TemplateEditorProps) {
           <Card>
             <CardHeader>
               <h4 className="text-medium font-semibold">
-                Default Template (used unless overridden)
+                Default Templates (used unless overridden)
               </h4>
             </CardHeader>
             <CardBody className="space-y-4">
-              <TemplateTextarea
-                value={config.template}
-                onChange={handleExpTemplateChange}
+              <TripleTemplateEditor
+                introValue={config.introTemplate}
+                decisionValue={config.decisionTemplate}
+                resultValue={config.resultTemplate}
+                onIntroChange={(v) => handleExpTemplateChange("intro", v)}
+                onDecisionChange={(v) => handleExpTemplateChange("decision", v)}
+                onResultChange={(v) => handleExpTemplateChange("result", v)}
                 paramIds={paramIds}
                 studentInputIds={studentInputIds}
-              />
-              <Divider />
-              <TemplatePreview
                 config={config}
                 blockIndex={0}
                 roundIndex={0}
-                templateContent={config.template}
               />
             </CardBody>
           </Card>
@@ -235,33 +326,33 @@ export function TemplateEditor({ config, onChange }: TemplateEditorProps) {
                     {block.label && (
                       <Chip size="sm" variant="flat">{block.label}</Chip>
                     )}
-                    {block.template ? (
-                      <Chip size="sm" variant="flat" color="primary">Custom template</Chip>
+                    {hasBlockOverride(block) ? (
+                      <Chip size="sm" variant="flat" color="primary">Custom templates</Chip>
                     ) : (
-                      <Chip size="sm" variant="dot" color="warning">Using default</Chip>
+                      <Chip size="sm" variant="dot" color="warning">Using defaults</Chip>
                     )}
                   </div>
                 }
               >
                 <div className="space-y-4">
-                  <TemplateTextarea
-                    value={block.template || ""}
-                    onChange={(v) => handleBlockTemplateChange(bi, v)}
+                  <TripleTemplateEditor
+                    introValue={block.introTemplate || ""}
+                    decisionValue={block.decisionTemplate || ""}
+                    resultValue={block.resultTemplate || ""}
+                    onIntroChange={(v) => handleBlockTemplateChange(bi, "intro", v)}
+                    onDecisionChange={(v) => handleBlockTemplateChange(bi, "decision", v)}
+                    onResultChange={(v) => handleBlockTemplateChange(bi, "result", v)}
                     paramIds={paramIds}
                     studentInputIds={studentInputIds}
-                  />
-                  {!block.template && (
-                    <p className="text-tiny text-default-400">
-                      Leave empty to use the experiment-level template.
-                    </p>
-                  )}
-                  <Divider />
-                  <TemplatePreview
                     config={config}
                     blockIndex={bi}
                     roundIndex={0}
-                    templateContent={block.template || config.template}
                   />
+                  {!hasBlockOverride(block) && (
+                    <p className="text-tiny text-default-400">
+                      Leave empty to use the experiment-level templates.
+                    </p>
+                  )}
                 </div>
               </AccordionItem>
             ))}
@@ -282,7 +373,7 @@ export function TemplateEditor({ config, onChange }: TemplateEditorProps) {
                       title={
                         <div className="flex items-center gap-2">
                           <span>Round {ri + 1}</span>
-                          {round.template ? (
+                          {hasRoundOverride(round) ? (
                             <Chip size="sm" variant="flat" color="primary">Custom</Chip>
                           ) : (
                             <Chip size="sm" variant="dot" color="warning">Inherited</Chip>
@@ -291,26 +382,24 @@ export function TemplateEditor({ config, onChange }: TemplateEditorProps) {
                       }
                     >
                       <div className="space-y-4">
-                        <TemplateTextarea
-                          value={round.template || ""}
-                          onChange={(v) => handleRoundTemplateChange(bi, ri, v)}
+                        <TripleTemplateEditor
+                          introValue={round.introTemplate || ""}
+                          decisionValue={round.decisionTemplate || ""}
+                          resultValue={round.resultTemplate || ""}
+                          onIntroChange={(v) => handleRoundTemplateChange(bi, ri, "intro", v)}
+                          onDecisionChange={(v) => handleRoundTemplateChange(bi, ri, "decision", v)}
+                          onResultChange={(v) => handleRoundTemplateChange(bi, ri, "result", v)}
                           paramIds={paramIds}
                           studentInputIds={studentInputIds}
+                          config={config}
+                          blockIndex={bi}
+                          roundIndex={ri}
                         />
-                        {!round.template && (
+                        {!hasRoundOverride(round) && (
                           <p className="text-tiny text-default-400">
                             Leave empty to inherit from block or experiment level.
                           </p>
                         )}
-                        <Divider />
-                        <TemplatePreview
-                          config={config}
-                          blockIndex={bi}
-                          roundIndex={ri}
-                          templateContent={
-                            round.template || block.template || config.template
-                          }
-                        />
                       </div>
                     </AccordionItem>
                   ))}

@@ -16,7 +16,8 @@ import {
   TableCell,
 } from "@heroui/table";
 import { Dices, FunctionSquare, RefreshCw, ChevronLeft, ChevronRight, PenLine } from "lucide-react";
-import type { ExperimentConfig, ResolvedParam } from "@/lib/experiment/types";
+import type { ExperimentConfig, ResolvedParam, TemplateKind } from "@/lib/experiment/types";
+import { TEMPLATE_KINDS } from "@/lib/experiment/types";
 import { resolveFullRun, resolveParameters } from "@/lib/experiment/params";
 import { resolveTemplate, renderTemplate } from "@/lib/experiment/template";
 
@@ -30,6 +31,18 @@ type RunEntry = {
   blockId: string;
   roundId: string;
   params: Record<string, ResolvedParam>;
+};
+
+const TEMPLATE_KIND_LABELS: Record<TemplateKind, string> = {
+  intro: "Intro",
+  decision: "Decision",
+  result: "Result",
+};
+
+const TEMPLATE_KIND_COLORS: Record<TemplateKind, "primary" | "secondary" | "success"> = {
+  intro: "primary",
+  decision: "secondary",
+  result: "success",
 };
 
 function ParamTypeIcon({ type }: { type: string }) {
@@ -189,6 +202,58 @@ function StudentInputField({
   );
 }
 
+function TemplateSegmentsRenderer({
+  segments,
+  resolvedParams,
+  studentInputs,
+  onStudentInput,
+}: {
+  segments: ReturnType<typeof renderTemplate>;
+  resolvedParams: Record<string, ResolvedParam> | null;
+  studentInputs: Record<string, string | number>;
+  onStudentInput: (id: string, v: string | number) => void;
+}) {
+  return (
+    <div className="prose prose-sm dark:prose-invert max-w-none whitespace-pre-wrap leading-relaxed">
+      {segments.map((seg, i) => {
+        if (seg.type === "text") {
+          return <span key={i}>{seg.content}</span>;
+        }
+        if (seg.type === "value") {
+          return (
+            <span key={i} className="inline-flex items-center gap-1 mx-0.5">
+              <Chip size="sm" variant="flat" color="primary">
+                <span className="flex items-center gap-1">
+                  <ParamTypeIcon type={resolvedParams?.[seg.paramId]?.definition.type || "constant"} />
+                  {formatValue(seg.value)}
+                </span>
+              </Chip>
+            </span>
+          );
+        }
+        if (seg.type === "input") {
+          const resolved = resolvedParams?.[seg.paramId];
+          const inputType = resolved?.definition.type === "student_input"
+            ? (resolved.definition as { inputType?: string }).inputType || "text"
+            : "text";
+          return (
+            <span key={i} className="inline-flex items-center mx-0.5">
+              <StudentInputField
+                paramId={seg.paramId}
+                placeholder={seg.inputLabel || seg.paramId}
+                inputType={inputType}
+                value={studentInputs[seg.paramId] ?? ""}
+                onCommit={onStudentInput}
+              />
+            </span>
+          );
+        }
+        return null;
+      })}
+    </div>
+  );
+}
+
 function StepThrough({ config }: { config: ExperimentConfig }) {
   const [currentBlock, setCurrentBlock] = useState(0);
   const [currentRound, setCurrentRound] = useState(0);
@@ -209,31 +274,33 @@ function StepThrough({ config }: { config: ExperimentConfig }) {
     return step + currentRound + 1;
   }, [config, currentBlock, currentRound]);
 
-  const resolve = useCallback(() => {
-    const params = resolveParameters(config, currentBlock, currentRound, studentInputs);
-    setResolvedParams(params);
-  }, [config, currentBlock, currentRound, studentInputs]);
-
   useMemo(() => {
     setStudentInputs({});
     const params = resolveParameters(config, currentBlock, currentRound);
     setResolvedParams(params);
   }, [config, currentBlock, currentRound]);
 
-  const template = useMemo(() => {
-    return resolveTemplate(config, currentBlock, currentRound);
+  const templates = useMemo(() => {
+    return TEMPLATE_KINDS.map((kind) => ({
+      kind,
+      content: resolveTemplate(config, currentBlock, currentRound, kind),
+    }));
   }, [config, currentBlock, currentRound]);
 
-  const segments = useMemo(() => {
-    if (!resolvedParams) return [];
+  const segmentsByKind = useMemo((): Partial<Record<TemplateKind, ReturnType<typeof renderTemplate>>> => {
+    if (!resolvedParams) return {};
     const merged = { ...resolvedParams };
     for (const [k, v] of Object.entries(studentInputs)) {
       if (merged[k]) {
         merged[k] = { ...merged[k], value: v };
       }
     }
-    return renderTemplate(template, merged);
-  }, [resolvedParams, template, studentInputs]);
+    const result: Partial<Record<TemplateKind, ReturnType<typeof renderTemplate>>> = {};
+    for (const { kind, content } of templates) {
+      result[kind] = renderTemplate(content, merged);
+    }
+    return result;
+  }, [resolvedParams, templates, studentInputs]);
 
   const allStudentInputsFilled = useMemo(() => {
     if (!resolvedParams) return true;
@@ -277,6 +344,10 @@ function StepThrough({ config }: { config: ExperimentConfig }) {
   const blockLabel =
     config.blocks[currentBlock]?.label || `Block ${currentBlock + 1}`;
 
+  const handleStudentInput = (id: string, v: string | number) => {
+    setStudentInputs((prev) => ({ ...prev, [id]: v }));
+  };
+
   return (
     <div className="space-y-6">
       <div className="space-y-2">
@@ -292,52 +363,35 @@ function StepThrough({ config }: { config: ExperimentConfig }) {
         <Progress value={(currentStep / totalSteps) * 100} size="sm" color="primary" />
       </div>
 
-      <Card>
-        <CardHeader>
-          <h4 className="text-medium font-semibold">Student View</h4>
-        </CardHeader>
-        <CardBody>
-          <div className="prose prose-sm dark:prose-invert max-w-none whitespace-pre-wrap leading-relaxed">
-            {segments.map((seg, i) => {
-              if (seg.type === "text") {
-                return <span key={i}>{seg.content}</span>;
-              }
-              if (seg.type === "value") {
-                return (
-                  <span key={i} className="inline-flex items-center gap-1 mx-0.5">
-                    <Chip size="sm" variant="flat" color="primary">
-                      <span className="flex items-center gap-1">
-                        <ParamTypeIcon type={resolvedParams?.[seg.paramId]?.definition.type || "constant"} />
-                        {formatValue(seg.value)}
-                      </span>
-                    </Chip>
-                  </span>
-                );
-              }
-              if (seg.type === "input") {
-                const resolved = resolvedParams?.[seg.paramId];
-                const inputType = resolved?.definition.type === "student_input"
-                  ? (resolved.definition as { inputType?: string }).inputType || "text"
-                  : "text";
-                return (
-                  <span key={i} className="inline-flex items-center mx-0.5">
-                    <StudentInputField
-                      paramId={seg.paramId}
-                      placeholder={seg.inputLabel || seg.paramId}
-                      inputType={inputType}
-                      value={studentInputs[seg.paramId] ?? ""}
-                      onCommit={(id, v) => {
-                        setStudentInputs((prev) => ({ ...prev, [id]: v }));
-                      }}
-                    />
-                  </span>
-                );
-              }
-              return null;
-            })}
-          </div>
-        </CardBody>
-      </Card>
+      {TEMPLATE_KINDS.map((kind) => {
+        const kindSegments = segmentsByKind[kind];
+        if (!kindSegments || kindSegments.length === 0) return null;
+        const hasContent = kindSegments.some(
+          (s) => s.type !== "text" || s.content.trim().length > 0,
+        );
+        if (!hasContent) return null;
+
+        return (
+          <Card key={kind}>
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <Chip size="sm" variant="flat" color={TEMPLATE_KIND_COLORS[kind]}>
+                  {TEMPLATE_KIND_LABELS[kind]}
+                </Chip>
+                <h4 className="text-medium font-semibold">Student View</h4>
+              </div>
+            </CardHeader>
+            <CardBody>
+              <TemplateSegmentsRenderer
+                segments={kindSegments}
+                resolvedParams={resolvedParams}
+                studentInputs={studentInputs}
+                onStudentInput={handleStudentInput}
+              />
+            </CardBody>
+          </Card>
+        );
+      })}
 
       {resolvedParams && (
         <Card>

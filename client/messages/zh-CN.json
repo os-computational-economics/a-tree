@@ -201,6 +201,9 @@
       "round": "轮次",
       "insertParam": "插入参数",
       "templatePreview": "预览",
+      "introTemplate": "介绍模板",
+      "decisionTemplate": "决策模板",
+      "resultTemplate": "结果模板",
       "experimentLevel": "实验级别",
       "blockLevel": "区组级别",
       "roundLevel": "轮次级别"

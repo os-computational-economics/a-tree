@@ -5,7 +5,8 @@ import { db } from "@/lib/db";
 import { experiments } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { resolveFullRun } from "@/lib/experiment/params";
-import { resolveTemplate, renderTemplate } from "@/lib/experiment/template";
+import { resolveTemplates, renderTemplate } from "@/lib/experiment/template";
+import { TEMPLATE_KINDS } from "@/lib/experiment/types";
 
 export async function POST(
   request: NextRequest,
@@ -35,8 +36,13 @@ export async function POST(
     const runResults = resolveFullRun(config);
 
     const simulation = runResults.map((entry) => {
-      const tpl = resolveTemplate(config, entry.blockIndex, entry.roundIndex);
-      const segments = renderTemplate(tpl, entry.params);
+      const templates = resolveTemplates(config, entry.blockIndex, entry.roundIndex);
+
+      const segmentsByTemplate: Record<string, ReturnType<typeof renderTemplate>> = {};
+      for (const kind of TEMPLATE_KINDS) {
+        const field = `${kind}Template` as keyof typeof templates;
+        segmentsByTemplate[kind] = renderTemplate(templates[field], entry.params);
+      }
 
       return {
         blockIndex: entry.blockIndex,
@@ -45,8 +51,8 @@ export async function POST(
         roundId: entry.roundId,
         blockLabel: config.blocks[entry.blockIndex]?.label,
         params: entry.params,
-        template: tpl,
-        segments,
+        templates,
+        segmentsByTemplate,
       };
     });
 

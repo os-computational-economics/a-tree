@@ -49,7 +49,9 @@ const statusColorMap: Record<string, "default" | "primary" | "success" | "warnin
 function makeDefaultConfig(): ExperimentConfig {
   return {
     params: {},
-    template: "",
+    introTemplate: "",
+    decisionTemplate: "",
+    resultTemplate: "",
     blocks: [
       {
         id: `b_${crypto.randomUUID().slice(0, 8)}`,

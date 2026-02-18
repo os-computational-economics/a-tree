@@ -201,6 +201,9 @@
       "round": "Round",
       "insertParam": "Insert Parameter",
       "templatePreview": "Preview",
+      "introTemplate": "Intro Template",
+      "decisionTemplate": "Decision Template",
+      "resultTemplate": "Result Template",
       "experimentLevel": "Experiment Level",
       "blockLevel": "Block Level",
       "roundLevel": "Round Level"

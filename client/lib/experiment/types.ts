@@ -5,23 +5,39 @@ export type ParamDefinition =
   | { type: "equation"; expression: string }
   | { type: "student_input"; inputLabel?: string; inputType?: "number" | "text" };
 
+export type TemplateKind = "intro" | "decision" | "result";
+
+export const TEMPLATE_KINDS: TemplateKind[] = ["intro", "decision", "result"];
+
+export interface TemplateSet {
+  introTemplate: string;
+  decisionTemplate: string;
+  resultTemplate: string;
+}
+
 export interface RoundConfig {
   id: string;
   params?: Record<string, ParamDefinition>;
-  template?: string;
+  introTemplate?: string;
+  decisionTemplate?: string;
+  resultTemplate?: string;
 }
 
 export interface BlockConfig {
   id: string;
   label?: string;
   params?: Record<string, ParamDefinition>;
-  template?: string;
+  introTemplate?: string;
+  decisionTemplate?: string;
+  resultTemplate?: string;
   rounds: RoundConfig[];
 }
 
 export interface ExperimentConfig {
   params: Record<string, ParamDefinition>;
-  template: string;
+  introTemplate: string;
+  decisionTemplate: string;
+  resultTemplate: string;
   blocks: BlockConfig[];
 }
 
