@@ -63,7 +63,6 @@ export class GameEngine {
     const round = this.flatConfig[this.currentRoundIndex];
     if (!round) return;
 
-    // Build a modified param map that swaps random defs for cached constants
     const effectiveParams: Record<string, { def: ParamDefinition; source: typeof round.params[string]["source"] }> = {};
     for (const [paramId, entry] of Object.entries(round.params)) {
       if ((entry.def.type === "norm" || entry.def.type === "unif") && this.randomCache[paramId] !== undefined) {
@@ -76,6 +75,11 @@ export class GameEngine {
       }
     }
 
+    const hasHistoryParams = Object.values(effectiveParams).some(
+      (e) => e.def.type === "history",
+    );
+
+    // First pass: resolve all params (history params may see stale current-row data)
     this.resolvedParams = resolveFromMerged(
       effectiveParams,
       studentInputs,
@@ -83,7 +87,22 @@ export class GameEngine {
       this.currentRoundIndex,
     );
 
-    // Update or create the current row in the history table
+    this.writeHistoryRow();
+
+    // Second pass: if there are history params, re-resolve so they see the
+    // up-to-date current-row values that were just written above.
+    if (hasHistoryParams) {
+      this.resolvedParams = resolveFromMerged(
+        effectiveParams,
+        studentInputs,
+        this.historyTable,
+        this.currentRoundIndex,
+      );
+      this.writeHistoryRow();
+    }
+  }
+
+  private writeHistoryRow(): void {
     const row: HistoryRow = {
       roundIndex: this.currentRoundIndex,
       values: {},
