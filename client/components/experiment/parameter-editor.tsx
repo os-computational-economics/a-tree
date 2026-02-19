@@ -60,6 +60,11 @@ const HISTORY_AGGREGATIONS = [
   { key: "latest", label: "latest (prev row)" },
 ];
 
+const RESERVED_NAMES: ReadonlySet<string> = new Set([
+  ...HISTORY_AGGREGATIONS.map((a) => a.key),
+  "this",
+]);
+
 function makeDefaultParam(type: string = "constant"): ParamDefinition {
   switch (type) {
     case "norm":
@@ -362,6 +367,7 @@ function ParamRow({
     paramId.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
   );
   const [duplicateError, setDuplicateError] = useState(false);
+  const [reservedError, setReservedError] = useState(false);
 
   return (
     <div className="flex items-start gap-2 p-3 rounded-lg bg-content2/50">
@@ -373,10 +379,18 @@ function ParamRow({
           onValueChange={(v) => {
             setNameInput(v);
             setDuplicateError(false);
+            setReservedError(false);
           }}
           onBlur={() => {
             const newSlug = slugify(nameInput);
             if (!newSlug || newSlug === paramId) return;
+            if (RESERVED_NAMES.has(newSlug)) {
+              setReservedError(true);
+              setNameInput(
+                paramId.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
+              );
+              return;
+            }
             const isDuplicate =
               allParamIds.filter((id) => id !== paramId).includes(newSlug);
             if (isDuplicate) {
@@ -386,11 +400,18 @@ function ParamRow({
               );
             } else {
               setDuplicateError(false);
+              setReservedError(false);
               onChangeId(paramId, newSlug, nameInput);
             }
           }}
-          isInvalid={duplicateError}
-          errorMessage={duplicateError ? "A parameter with this name already exists" : undefined}
+          isInvalid={duplicateError || reservedError}
+          errorMessage={
+            reservedError
+              ? `"${slugify(nameInput)}" is a reserved name and cannot be used`
+              : duplicateError
+                ? "A parameter with this name already exists"
+                : undefined
+          }
         />
         <Chip size="sm" variant="flat" color="secondary">
           {paramId}
@@ -463,6 +484,7 @@ function ParamList({
   const handleChangeId = (oldId: string, newId: string) => {
     if (newId === oldId) return;
     if (params[newId] || allParamIds.includes(newId)) return;
+    if (RESERVED_NAMES.has(newId)) return;
     const entries = Object.entries(params);
     const newParams: Record<string, ParamDefinition> = {};
     for (const [k, v] of entries) {
