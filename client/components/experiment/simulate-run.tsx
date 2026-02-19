@@ -203,20 +203,45 @@ function StudentInputField({
   inputType,
   value,
   onCommit,
+  onReset,
+  isLocked,
   isInvalid,
+  validationHint,
 }: {
   paramId: string;
   placeholder: string;
   inputType: string;
   value: string | number;
   onCommit: (paramId: string, value: string | number) => void;
+  onReset: (paramId: string) => void;
+  isLocked: boolean;
   isInvalid?: boolean;
+  validationHint?: string;
 }) {
   const [localValue, setLocalValue] = useState(String(value ?? ""));
 
   useEffect(() => {
     setLocalValue(String(value ?? ""));
   }, [value]);
+
+  if (isLocked) {
+    const hasValue = value !== "" && value !== undefined && value !== null;
+    return (
+      <span className="inline-flex items-center gap-1 rounded-lg bg-content2 px-2 py-1">
+        <span className={`text-sm font-mono ${hasValue ? "" : "text-default-400"}`}>
+          {hasValue ? formatValue(value) : placeholder}
+        </span>
+        <button
+          type="button"
+          className="p-0.5 rounded hover:bg-content3 text-default-400 hover:text-primary transition-colors"
+          onClick={() => onReset(paramId)}
+          aria-label={`Edit ${paramId}`}
+        >
+          <PenLine className="w-3.5 h-3.5" />
+        </button>
+      </span>
+    );
+  }
 
   return (
     <Input
@@ -231,7 +256,8 @@ function StudentInputField({
         onCommit(paramId, committed);
       }}
       isInvalid={isInvalid}
-      errorMessage={isInvalid ? "Validation failed" : undefined}
+      errorMessage={isInvalid ? (validationHint || "Invalid value") : undefined}
+      autoFocus
     />
   );
 }
@@ -242,13 +268,17 @@ function TemplateSegmentsRenderer({
   segments,
   resolvedParams,
   studentInputs,
+  editingInputs,
   onStudentInput,
+  onResetInput,
   validationErrors,
 }: {
   segments: ReturnType<typeof renderTemplate>;
   resolvedParams: Record<string, ResolvedParam> | null;
   studentInputs: Record<string, string | number>;
+  editingInputs: ReadonlySet<string>;
   onStudentInput: (id: string, v: string | number) => void;
+  onResetInput: (id: string) => void;
   validationErrors?: Set<string>;
 }) {
   return (
@@ -274,6 +304,7 @@ function TemplateSegmentsRenderer({
           const inputType = resolved?.definition.type === "student_input"
             ? (resolved.definition as { inputType?: string }).inputType || "text"
             : "text";
+          const validation = seg.validation;
           return (
             <span key={i} className="inline-flex items-center mx-0.5">
               <StudentInputField
@@ -282,7 +313,10 @@ function TemplateSegmentsRenderer({
                 inputType={inputType}
                 value={studentInputs[seg.paramId] ?? ""}
                 onCommit={onStudentInput}
+                onReset={onResetInput}
+                isLocked={!editingInputs.has(seg.paramId)}
                 isInvalid={validationErrors?.has(seg.paramId)}
+                validationHint={validation ? `Required: ${validation}` : undefined}
               />
             </span>
           );
@@ -378,11 +412,15 @@ function StepThrough({ config }: { config: ExperimentConfig }) {
   const rerender = useCallback(() => forceUpdate((n) => n + 1), []);
 
   const [studentInputs, setStudentInputs] = useState<Record<string, string | number>>({});
+  const [validationErrors, setValidationErrors] = useState<Set<string>>(new Set());
+  const [editingInputs, setEditingInputs] = useState<Set<string>>(new Set());
 
   // Reset engine when config changes
   useEffect(() => {
     engineRef.current = new GameEngine(config);
     setStudentInputs({});
+    setValidationErrors(new Set());
+    setEditingInputs(new Set());
     rerender();
   }, [config, rerender]);
 
@@ -397,13 +435,15 @@ function StepThrough({ config }: { config: ExperimentConfig }) {
 
   const blockLabel = currentRound?.blockLabel || `Block ${(currentRound?.blockIndex ?? 0) + 1}`;
 
-  // Render template segments for all three kinds
+  // Render template segments for all three kinds.
+  // For student_input params, keep value as null so renderTemplate emits
+  // editable "input" segments instead of read-only "value" chips.
   const segmentsByKind = useMemo((): Partial<Record<TemplateKind, ReturnType<typeof renderTemplate>>> => {
     if (!resolvedParams || !currentRound) return {};
-    const merged = { ...resolvedParams };
-    for (const [k, v] of Object.entries(studentInputs)) {
-      if (merged[k]) {
-        merged[k] = { ...merged[k], value: v };
+    const forRendering = { ...resolvedParams };
+    for (const [k, r] of Object.entries(forRendering)) {
+      if (r.definition.type === "student_input") {
+        forRendering[k] = { ...r, value: null };
       }
     }
     const result: Partial<Record<TemplateKind, ReturnType<typeof renderTemplate>>> = {};
@@ -413,56 +453,105 @@ function StepThrough({ config }: { config: ExperimentConfig }) {
       result: currentRound.resultTemplate,
     };
     for (const kind of TEMPLATE_KINDS) {
-      result[kind] = renderTemplate(templateFields[kind], merged);
+      result[kind] = renderTemplate(templateFields[kind], forRendering);
     }
     return result;
-  }, [resolvedParams, currentRound, studentInputs]);
+  }, [resolvedParams, currentRound]);
 
-  const { allInputsValid, validationErrors } = useMemo(() => {
-    const errors = new Set<string>();
-    if (!resolvedParams) return { allInputsValid: true, validationErrors: errors };
+  const studentInputParamIds = useMemo(() => {
+    if (!resolvedParams || !currentRound) return [];
     const activeKind = TEMPLATE_KINDS[currentTemplateIndex];
-    const activeSegments = segmentsByKind[activeKind];
-    if (!activeSegments) return { allInputsValid: true, validationErrors: errors };
-    const inputSegments = activeSegments.filter(
-      (s): s is Extract<typeof s, { type: "input" }> => s.type === "input",
-    );
-    if (inputSegments.length === 0) return { allInputsValid: true, validationErrors: errors };
-
-    let allFilled = true;
-    for (const seg of inputSegments) {
-      const v = studentInputs[seg.paramId];
-      if (v === undefined || v === "") {
-        allFilled = false;
-        continue;
+    const templateFields: Record<TemplateKind, string> = {
+      intro: currentRound.introTemplate,
+      decision: currentRound.decisionTemplate,
+      result: currentRound.resultTemplate,
+    };
+    const template = templateFields[activeKind];
+    const ids: string[] = [];
+    const re = /\{\{(\w+)\}\}/g;
+    let m;
+    while ((m = re.exec(template)) !== null) {
+      const id = m[1];
+      if (resolvedParams[id]?.definition.type === "student_input") {
+        ids.push(id);
       }
-      if (seg.validation) {
-        const valid = runValidation(seg.validation, v, resolvedParams, studentInputs);
-        if (!valid) errors.add(seg.paramId);
+    }
+    return ids;
+  }, [resolvedParams, currentRound, currentTemplateIndex]);
+
+  const allInputsValid = useMemo(() => {
+    if (studentInputParamIds.length === 0) return true;
+    if (validationErrors.size > 0) return false;
+    return studentInputParamIds.every(
+      (id) => studentInputs[id] !== undefined && studentInputs[id] !== "",
+    );
+  }, [studentInputParamIds, studentInputs, validationErrors]);
+
+  const handleStudentInput = useCallback((id: string, v: string | number) => {
+    if (v === "" || v === undefined) {
+      setValidationErrors((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+      return;
+    }
+
+    const def = resolvedParams?.[id]?.definition;
+    if (def?.type === "student_input" && def.validation) {
+      const valid = runValidation(def.validation, v, resolvedParams, studentInputs);
+      if (!valid) {
+        setValidationErrors((prev) => new Set(prev).add(id));
+        return;
       }
     }
 
-    return { allInputsValid: allFilled && errors.size === 0, validationErrors: errors };
-  }, [resolvedParams, studentInputs, segmentsByKind, currentTemplateIndex]);
-
-  const handleStudentInput = useCallback((id: string, v: string | number) => {
+    setValidationErrors((prev) => {
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
+    setEditingInputs((prev) => {
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
     setStudentInputs((prev) => {
       const next = { ...prev, [id]: v };
       engine.recalculate(next);
       rerender();
       return next;
     });
+  }, [engine, rerender, resolvedParams, studentInputs]);
+
+  const handleResetInput = useCallback((id: string) => {
+    setEditingInputs((prev) => new Set(prev).add(id));
+    setValidationErrors((prev) => {
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
+    setStudentInputs((prev) => {
+      const { [id]: _, ...rest } = prev;
+      engine.recalculate(rest);
+      rerender();
+      return rest;
+    });
   }, [engine, rerender]);
 
   const goNext = useCallback(() => {
     engine.advance(studentInputs);
     setStudentInputs(engine.getStudentInputs());
+    setValidationErrors(new Set());
+    setEditingInputs(new Set());
     rerender();
   }, [engine, studentInputs, rerender]);
 
   const goPrev = useCallback(() => {
     engine.goBack();
     setStudentInputs(engine.getStudentInputs());
+    setValidationErrors(new Set());
+    setEditingInputs(new Set());
     rerender();
   }, [engine, rerender]);
 
@@ -519,8 +608,10 @@ function StepThrough({ config }: { config: ExperimentConfig }) {
                 segments={kindSegments}
                 resolvedParams={resolvedParams}
                 studentInputs={studentInputs}
+                editingInputs={editingInputs}
                 onStudentInput={handleStudentInput}
-                validationErrors={isActive ? validationErrors : undefined}
+                onResetInput={handleResetInput}
+                validationErrors={!isFuture ? validationErrors : undefined}
               />
             </CardBody>
           </Card>
