@@ -249,7 +249,7 @@ function ParamValueEditor({
             onValueChange={(v) => onChange({ ...definition, validation: v || undefined })}
             minRows={1}
           />
-          {allParamIds.length > 0 && definition.validation !== undefined && (
+          {allParamIds.length > 0 && (
             <div className="flex gap-1 flex-wrap">
               <span className="text-tiny text-default-400 self-center">Insert:</span>
               <Chip
