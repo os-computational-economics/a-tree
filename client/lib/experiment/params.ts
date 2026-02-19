@@ -2,13 +2,12 @@ import type {
   ExperimentConfig,
   ParamDefinition,
   ParamSource,
+  ParamValue,
   ResolvedParam,
+  HistoryRow,
+  HistoryAggregation,
 } from "./types";
 
-/**
- * Merge params from all three levels for a given block/round.
- * Returns entries tagged with their source level.
- */
 function mergeParams(
   config: ExperimentConfig,
   blockIndex: number,
@@ -37,9 +36,6 @@ function mergeParams(
   return result;
 }
 
-/**
- * Extract {{param_id}} references from an equation expression.
- */
 function extractDependencies(expression: string): string[] {
   const deps: string[] = [];
   const re = /\{\{(\w+)\}\}/g;
@@ -51,8 +47,19 @@ function extractDependencies(expression: string): string[] {
 }
 
 /**
- * Topological sort of param IDs. Throws on circular dependencies.
+ * Extract dependencies from a history expression.
+ * Matches patterns like sum({{price}}), latest({{cost}}), etc.
  */
+function extractHistoryDependencies(expression: string): string[] {
+  const deps: string[] = [];
+  const re = /(?:min|max|mean|mode|sum|latest)\(\{\{(\w+)\}\}\)/g;
+  let match;
+  while ((match = re.exec(expression)) !== null) {
+    deps.push(match[1]);
+  }
+  return deps;
+}
+
 function topoSort(
   paramIds: string[],
   depsMap: Record<string, string[]>,
@@ -84,7 +91,6 @@ function topoSort(
   return sorted;
 }
 
-/** Box-Muller transform for normal distribution sampling. */
 function sampleNorm(mean: number, std: number): number {
   let u = 0, v = 0;
   while (u === 0) u = Math.random();
@@ -97,10 +103,6 @@ function sampleUnif(min: number, max: number): number {
   return min + Math.random() * (max - min);
 }
 
-/**
- * Safely evaluate a JS expression with a given variable scope.
- * Only allows Math and the provided variables.
- */
 function safeEval(expression: string, scope: Record<string, number | string | boolean>): number {
   const keys = Object.keys(scope);
   const values = keys.map((k) => scope[k]);
@@ -112,14 +114,82 @@ function safeEval(expression: string, scope: Record<string, number | string | bo
   }
 }
 
+function computeAggregate(fn: HistoryAggregation, values: number[]): number {
+  if (values.length === 0) return 0;
+  switch (fn) {
+    case "min":
+      return Math.min(...values);
+    case "max":
+      return Math.max(...values);
+    case "mean":
+      return values.reduce((a, b) => a + b, 0) / values.length;
+    case "mode": {
+      const freq: Record<number, number> = {};
+      for (const v of values) freq[v] = (freq[v] || 0) + 1;
+      let maxCount = 0, modeVal = values[0];
+      for (const key of Object.keys(freq)) {
+        const val = Number(key);
+        if (freq[val] > maxCount) { maxCount = freq[val]; modeVal = val; }
+      }
+      return modeVal;
+    }
+    case "sum":
+      return values.reduce((a, b) => a + b, 0);
+    case "latest":
+      return values[values.length - 1];
+    default:
+      return 0;
+  }
+}
+
 /**
- * Resolve a single param definition into a concrete value.
+ * Resolve a history expression against the history table.
+ * Replaces `agg({{param}})` calls with computed aggregates,
+ * then evaluates the resulting arithmetic expression.
+ *
+ * For `latest`, only the previous row (not current) is used.
+ * For all others, all rows from 0..currentRowIndex (inclusive) are used.
  */
+function resolveHistoryExpression(
+  expression: string,
+  historyTable: HistoryRow[],
+  currentRowIndex: number,
+): number {
+  const scope: Record<string, number> = {};
+  let counter = 0;
+  const AGGREGATIONS: HistoryAggregation[] = ["min", "max", "mean", "mode", "sum", "latest"];
+  const pattern = new RegExp(
+    `(${AGGREGATIONS.join("|")})\\(\\{\\{(\\w+)\\}\\}\\)`,
+    "g",
+  );
+
+  const substituted = expression.replace(pattern, (_, fn: HistoryAggregation, paramId: string) => {
+    const isLatest = fn === "latest";
+    const endIdx = isLatest ? currentRowIndex : currentRowIndex + 1;
+    const startIdx = isLatest ? Math.max(0, endIdx - 1) : 0;
+    const values: number[] = [];
+    for (let i = startIdx; i < endIdx; i++) {
+      const v = historyTable[i]?.values[paramId];
+      if (typeof v === "number") values.push(v);
+    }
+    const result = computeAggregate(fn, values);
+    const placeholder = `__hist_${counter++}`;
+    scope[placeholder] = result;
+    return placeholder;
+  });
+
+  if (Object.keys(scope).length === 0) {
+    return safeEval(substituted, {});
+  }
+  return safeEval(substituted, scope);
+}
+
 function resolveValue(
   def: ParamDefinition,
   resolvedScope: Record<string, number | string | boolean>,
-  studentInputs?: Record<string, string | number>,
-): number | string | boolean | null {
+  historyTable?: HistoryRow[],
+  currentRowIndex?: number,
+): ParamValue {
   switch (def.type) {
     case "constant":
       return def.value;
@@ -134,34 +204,56 @@ function resolveValue(
       );
       return safeEval(expr, resolvedScope);
     }
-    case "student_input": {
-      if (studentInputs && studentInputs[Object.keys(resolvedScope).find(() => false) ?? ""] !== undefined) {
-        // handled below
-      }
-      return null;
+    case "history": {
+      if (!historyTable || currentRowIndex === undefined) return null;
+      return resolveHistoryExpression(def.expression, historyTable, currentRowIndex);
     }
+    case "student_input":
+      return null;
     default:
       return null;
   }
 }
 
 /**
- * Main entry: resolve all parameters for a given (block, round) pair.
+ * Resolve all parameters for a given (block, round) pair.
+ * Optionally accepts historyTable for resolving history-type params.
  */
 export function resolveParameters(
   config: ExperimentConfig,
   blockIndex: number,
   roundIndex: number,
   studentInputs?: Record<string, string | number>,
+  historyTable?: HistoryRow[],
+  currentRowIndex?: number,
 ): Record<string, ResolvedParam> {
   const merged = mergeParams(config, blockIndex, roundIndex);
+  return resolveFromMerged(merged, studentInputs, historyTable, currentRowIndex);
+}
+
+/**
+ * Resolve params from an already-merged param map (used by GameEngine).
+ */
+export function resolveFromMerged(
+  merged: Record<string, { def: ParamDefinition; source: ParamSource }>,
+  studentInputs?: Record<string, string | number>,
+  historyTable?: HistoryRow[],
+  currentRowIndex?: number,
+): Record<string, ResolvedParam> {
   const paramIds = Object.keys(merged);
 
   const depsMap: Record<string, string[]> = {};
+  const historyParamIds = new Set(
+    paramIds.filter((id) => merged[id].def.type === "history"),
+  );
   for (const id of paramIds) {
     const { def } = merged[id];
     if (def.type === "equation") {
       depsMap[id] = extractDependencies(def.expression);
+    } else if (def.type === "history") {
+      // History params read from the history table, never from other history params
+      depsMap[id] = extractHistoryDependencies(def.expression)
+        .filter((dep) => !historyParamIds.has(dep));
     } else {
       depsMap[id] = [];
     }
@@ -174,12 +266,12 @@ export function resolveParameters(
 
   for (const paramId of sorted) {
     const { def, source } = merged[paramId];
-    let value: number | string | boolean | null;
+    let value: ParamValue;
 
     if (def.type === "student_input") {
       value = studentInputs?.[paramId] ?? null;
     } else {
-      value = resolveValue(def, resolvedScope, studentInputs);
+      value = resolveValue(def, resolvedScope, historyTable, currentRowIndex);
     }
 
     if (value !== null) {
@@ -194,23 +286,38 @@ export function resolveParameters(
 
 /**
  * Resolve all params for an entire experiment run (all blocks, all rounds).
+ * History params are resolved sequentially, each round seeing all prior rows.
  */
 export function resolveFullRun(
   config: ExperimentConfig,
 ): { blockIndex: number; roundIndex: number; blockId: string; roundId: string; params: Record<string, ResolvedParam> }[] {
   const results: { blockIndex: number; roundIndex: number; blockId: string; roundId: string; params: Record<string, ResolvedParam> }[] = [];
+  const historyTable: HistoryRow[] = [];
+  let globalRoundIdx = 0;
 
   for (let bi = 0; bi < config.blocks.length; bi++) {
     const block = config.blocks[bi];
     for (let ri = 0; ri < block.rounds.length; ri++) {
       const round = block.rounds[ri];
+      const params = resolveParameters(config, bi, ri, undefined, historyTable, globalRoundIdx);
+
+      const row: HistoryRow = {
+        roundIndex: globalRoundIdx,
+        values: {},
+      };
+      for (const [k, v] of Object.entries(params)) {
+        row.values[k] = v.value;
+      }
+      historyTable.push(row);
+
       results.push({
         blockIndex: bi,
         roundIndex: ri,
         blockId: block.id,
         roundId: round.id,
-        params: resolveParameters(config, bi, ri),
+        params,
       });
+      globalRoundIdx++;
     }
   }
 

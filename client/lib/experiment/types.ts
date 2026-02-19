@@ -1,9 +1,12 @@
+export type HistoryAggregation = "min" | "max" | "mean" | "mode" | "sum" | "latest";
+
 export type ParamDefinition =
   | { type: "constant"; dataType: "number" | "string" | "boolean"; value: number | string | boolean }
   | { type: "norm"; mean: number; std: number }
   | { type: "unif"; min: number; max: number }
   | { type: "equation"; expression: string }
-  | { type: "student_input"; inputLabel?: string; inputType?: "number" | "text" };
+  | { type: "student_input"; inputLabel?: string; inputType?: "number" | "text"; validation?: string }
+  | { type: "history"; expression: string };
 
 export type TemplateKind = "intro" | "decision" | "result";
 
@@ -53,4 +56,23 @@ export interface ResolvedParam {
 export type TemplateSegment =
   | { type: "text"; content: string }
   | { type: "value"; paramId: string; value: number | string | boolean; source: ParamSource }
-  | { type: "input"; paramId: string; inputLabel?: string; inputType?: "number" | "text" };
+  | { type: "input"; paramId: string; inputLabel?: string; inputType?: "number" | "text"; validation?: string };
+
+export type ParamValue = number | string | boolean | null;
+
+export interface HistoryRow {
+  roundIndex: number;
+  values: Record<string, ParamValue>;
+}
+
+export interface FlatRoundConfig {
+  blockIndex: number;
+  roundIndex: number;
+  blockId: string;
+  roundId: string;
+  blockLabel?: string;
+  params: Record<string, { def: ParamDefinition; source: ParamSource }>;
+  introTemplate: string;
+  decisionTemplate: string;
+  resultTemplate: string;
+}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback, useEffect } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { Button } from "@heroui/button";
 import { Card, CardBody, CardHeader } from "@heroui/card";
 import { Chip } from "@heroui/chip";
@@ -15,23 +15,16 @@ import {
   TableRow,
   TableCell,
 } from "@heroui/table";
-import { Dices, FunctionSquare, RefreshCw, ChevronLeft, ChevronRight, PenLine } from "lucide-react";
-import type { ExperimentConfig, ResolvedParam, TemplateKind } from "@/lib/experiment/types";
+import { Dices, FunctionSquare, ChevronLeft, ChevronRight, PenLine, History, ChevronDown } from "lucide-react";
+import type { ExperimentConfig, ParamDefinition, ParamSource, ResolvedParam, TemplateKind, HistoryRow, FlatRoundConfig } from "@/lib/experiment/types";
 import { TEMPLATE_KINDS } from "@/lib/experiment/types";
-import { resolveFullRun, resolveParameters } from "@/lib/experiment/params";
-import { resolveTemplate, renderTemplate } from "@/lib/experiment/template";
+import { renderTemplate } from "@/lib/experiment/template";
+import { GameEngine } from "@/lib/experiment/engine";
+import { flattenConfig } from "@/lib/experiment/flatten";
 
 interface SimulateRunProps {
   config: ExperimentConfig;
 }
-
-type RunEntry = {
-  blockIndex: number;
-  roundIndex: number;
-  blockId: string;
-  roundId: string;
-  params: Record<string, ResolvedParam>;
-};
 
 const TEMPLATE_KIND_LABELS: Record<TemplateKind, string> = {
   intro: "Intro",
@@ -54,35 +47,88 @@ function ParamTypeIcon({ type }: { type: string }) {
       return <FunctionSquare className="w-3 h-3 text-secondary" />;
     case "student_input":
       return <PenLine className="w-3 h-3 text-primary" />;
+    case "history":
+      return <History className="w-3 h-3 text-success" />;
     default:
       return null;
   }
 }
 
 function formatValue(val: number | string | boolean | null): string {
-  if (val === null) return "—";
+  if (val === null) return "\u2014";
   if (typeof val === "number") return Number.isInteger(val) ? String(val) : val.toFixed(4);
   return String(val);
 }
 
-function TableView({
-  runData,
-  config,
-  onResample,
-}: {
-  runData: RunEntry[];
-  config: ExperimentConfig;
-  onResample: () => void;
-}) {
+/**
+ * Run a validation expression for a student input.
+ * {{this}} is replaced with the input value; {{param_id}} with resolved param values.
+ * Returns true if valid, false if invalid, true if no validation defined.
+ */
+function runValidation(
+  validationExpr: string | undefined,
+  inputValue: string | number,
+  resolvedParams: Record<string, ResolvedParam> | null,
+  studentInputs: Record<string, string | number>,
+): boolean {
+  if (!validationExpr) return true;
+  if (inputValue === "" || inputValue === undefined) return true;
+  try {
+    const scope: Record<string, number | string | boolean> = {};
+    if (resolvedParams) {
+      for (const [id, r] of Object.entries(resolvedParams)) {
+        if (r.value !== null) scope[id] = r.value;
+      }
+    }
+    for (const [id, v] of Object.entries(studentInputs)) {
+      scope[id] = v;
+    }
+    const thisVal = typeof inputValue === "number" ? inputValue : inputValue;
+    const expr = validationExpr
+      .replace(/\{\{this\}\}/g, "__inputVal__")
+      .replace(/\{\{(\w+)\}\}/g, (_, id) => id);
+    const keys = ["Math", "__inputVal__", ...Object.keys(scope)];
+    const values = [Math, thisVal, ...Object.keys(scope).map((k) => scope[k])];
+    const fn = new Function(...keys, `"use strict"; return !!(${expr});`);
+    return fn(...values);
+  } catch {
+    return true;
+  }
+}
+
+function formatDefinition(def: ParamDefinition): string {
+  switch (def.type) {
+    case "constant":
+      return String(def.value);
+    case "norm":
+      return `norm(\u03BC=${def.mean}, \u03C3=${def.std})`;
+    case "unif":
+      return `unif(${def.min}, ${def.max})`;
+    case "equation":
+      return def.expression || "(empty)";
+    case "student_input":
+      return `input(${def.inputType || "text"})`;
+    case "history":
+      return def.expression || "(empty)";
+    default:
+      return "?";
+  }
+}
+
+/* ---------- Table View (flattened config inspector) ---------- */
+
+function TableView({ config }: { config: ExperimentConfig }) {
+  const flatRounds = useMemo(() => flattenConfig(config), [config]);
+
   const allParamIds = useMemo(() => {
     const ids = new Set<string>();
-    for (const entry of runData) {
-      for (const key of Object.keys(entry.params)) {
+    for (const round of flatRounds) {
+      for (const key of Object.keys(round.params)) {
         ids.add(key);
       }
     }
     return Array.from(ids);
-  }, [runData]);
+  }, [flatRounds]);
 
   const columns = useMemo(() => {
     return [
@@ -93,64 +139,46 @@ function TableView({
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
-        <Button
-          size="sm"
-          variant="flat"
-          startContent={<RefreshCw className="w-4 h-4" />}
-          onPress={onResample}
-        >
-          Re-sample
-        </Button>
-      </div>
-
+      <p className="text-sm text-default-500">
+        Flattened parameter definitions for each round after merging experiment, block, and round overrides.
+      </p>
       <div className="overflow-x-auto">
-        <Table aria-label="Simulation results" isStriped>
+        <Table aria-label="Flattened config" isStriped>
           <TableHeader columns={columns}>
             {(col) => (
               <TableColumn key={col.key} className={col.key === "location" ? "min-w-[120px]" : ""}>
-                {col.key === "location" ? (
-                  col.label
-                ) : (
-                  <div className="flex items-center gap-1">
-                    {col.label}
-                    {runData[0]?.params[col.key] && (
-                      <ParamTypeIcon type={runData[0].params[col.key].definition.type} />
-                    )}
-                  </div>
-                )}
+                {col.label}
               </TableColumn>
             )}
           </TableHeader>
           <TableBody>
-            {runData.map((entry) => {
-              const blockLabel =
-                config.blocks[entry.blockIndex]?.label || `Block ${entry.blockIndex + 1}`;
+            {flatRounds.map((round) => {
+              const blockLabel = round.blockLabel || `Block ${round.blockIndex + 1}`;
               return (
-                <TableRow key={`${entry.blockId}-${entry.roundId}`}>
+                <TableRow key={`${round.blockId}-${round.roundId}`}>
                   {columns.map((col) => {
                     if (col.key === "location") {
                       return (
                         <TableCell key="location">
                           <div>
                             <span className="font-medium">{blockLabel}</span>
-                            <span className="text-default-400">, Round {entry.roundIndex + 1}</span>
+                            <span className="text-default-400">, Round {round.roundIndex + 1}</span>
                           </div>
                         </TableCell>
                       );
                     }
-                    const resolved = entry.params[col.key];
-                    if (!resolved) {
-                      return <TableCell key={col.key}>—</TableCell>;
+                    const entry = round.params[col.key];
+                    if (!entry) {
+                      return <TableCell key={col.key}>{"\u2014"}</TableCell>;
                     }
                     return (
                       <TableCell key={col.key}>
                         <div className="flex items-center gap-1">
-                          <ParamTypeIcon type={resolved.definition.type} />
-                          <span>{formatValue(resolved.value)}</span>
-                          {resolved.source !== "experiment" && (
+                          <ParamTypeIcon type={entry.def.type} />
+                          <span className="text-sm font-mono">{formatDefinition(entry.def)}</span>
+                          {entry.source !== "experiment" && (
                             <Chip size="sm" variant="dot" color="warning" className="ml-1">
-                              {resolved.source}
+                              {entry.source}
                             </Chip>
                           )}
                         </div>
@@ -167,18 +195,22 @@ function TableView({
   );
 }
 
+/* ---------- Student Input Field ---------- */
+
 function StudentInputField({
   paramId,
   placeholder,
   inputType,
   value,
   onCommit,
+  isInvalid,
 }: {
   paramId: string;
   placeholder: string;
   inputType: string;
   value: string | number;
   onCommit: (paramId: string, value: string | number) => void;
+  isInvalid?: boolean;
 }) {
   const [localValue, setLocalValue] = useState(String(value ?? ""));
 
@@ -198,20 +230,26 @@ function StudentInputField({
         const committed = inputType === "number" ? Number(localValue) || 0 : localValue;
         onCommit(paramId, committed);
       }}
+      isInvalid={isInvalid}
+      errorMessage={isInvalid ? "Validation failed" : undefined}
     />
   );
 }
+
+/* ---------- Template Segments Renderer ---------- */
 
 function TemplateSegmentsRenderer({
   segments,
   resolvedParams,
   studentInputs,
   onStudentInput,
+  validationErrors,
 }: {
   segments: ReturnType<typeof renderTemplate>;
   resolvedParams: Record<string, ResolvedParam> | null;
   studentInputs: Record<string, string | number>;
   onStudentInput: (id: string, v: string | number) => void;
+  validationErrors?: Set<string>;
 }) {
   return (
     <div className="prose prose-sm dark:prose-invert max-w-none whitespace-pre-wrap leading-relaxed">
@@ -244,6 +282,7 @@ function TemplateSegmentsRenderer({
                 inputType={inputType}
                 value={studentInputs[seg.paramId] ?? ""}
                 onCommit={onStudentInput}
+                isInvalid={validationErrors?.has(seg.paramId)}
               />
             </span>
           );
@@ -254,41 +293,113 @@ function TemplateSegmentsRenderer({
   );
 }
 
-function StepThrough({ config }: { config: ExperimentConfig }) {
-  const [currentBlock, setCurrentBlock] = useState(0);
-  const [currentRound, setCurrentRound] = useState(0);
-  const [studentInputs, setStudentInputs] = useState<Record<string, string | number>>({});
-  const [resolvedParams, setResolvedParams] = useState<Record<string, ResolvedParam> | null>(
-    null,
-  );
+/* ---------- History Table Debug View ---------- */
 
-  const totalSteps = useMemo(() => {
-    return config.blocks.reduce((acc, b) => acc + b.rounds.length, 0);
-  }, [config]);
+function HistoryTableView({
+  historyTable,
+  flatConfig,
+}: {
+  historyTable: HistoryRow[];
+  flatConfig: { blockLabel?: string; roundIndex: number }[];
+}) {
+  const [isOpen, setIsOpen] = useState(false);
 
-  const currentStep = useMemo(() => {
-    let step = 0;
-    for (let bi = 0; bi < currentBlock; bi++) {
-      step += config.blocks[bi].rounds.length;
+  if (historyTable.length === 0) return null;
+
+  const allKeys = useMemo(() => {
+    const keys = new Set<string>();
+    for (const row of historyTable) {
+      for (const k of Object.keys(row.values)) keys.add(k);
     }
-    return step + currentRound + 1;
-  }, [config, currentBlock, currentRound]);
+    return Array.from(keys);
+  }, [historyTable]);
 
-  useMemo(() => {
+  const columns = [
+    { key: "round", label: "ROUND" },
+    ...allKeys.map((k) => ({ key: k, label: k })),
+  ];
+
+  return (
+    <Card>
+      <CardHeader
+        className="cursor-pointer"
+        onClick={() => setIsOpen(!isOpen)}
+      >
+        <div className="flex items-center gap-2 w-full">
+          <History className="w-4 h-4 text-success" />
+          <h4 className="text-medium font-semibold text-default-500">History Table</h4>
+          <Chip size="sm" variant="flat">{historyTable.length} row{historyTable.length !== 1 ? "s" : ""}</Chip>
+          <div className="flex-1" />
+          <ChevronDown className={`w-4 h-4 text-default-400 transition-transform ${isOpen ? "rotate-180" : ""}`} />
+        </div>
+      </CardHeader>
+      {isOpen && (
+        <CardBody>
+          <div className="overflow-x-auto">
+            <Table aria-label="History table" isStriped>
+              <TableHeader columns={columns}>
+                {(col) => <TableColumn key={col.key}>{col.label}</TableColumn>}
+              </TableHeader>
+              <TableBody>
+                {historyTable.map((row, idx) => {
+                  const cfg = flatConfig[idx];
+                  const label = cfg
+                    ? `${cfg.blockLabel || "Block"}, R${cfg.roundIndex + 1}`
+                    : `Round ${idx + 1}`;
+                  return (
+                    <TableRow key={idx}>
+                      {columns.map((col) => {
+                        if (col.key === "round") {
+                          return <TableCell key="round"><span className="text-sm">{label}</span></TableCell>;
+                        }
+                        return (
+                          <TableCell key={col.key}>
+                            <span className="text-sm">{formatValue(row.values[col.key] ?? null)}</span>
+                          </TableCell>
+                        );
+                      })}
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
+        </CardBody>
+      )}
+    </Card>
+  );
+}
+
+/* ---------- Step-Through (refactored with GameEngine) ---------- */
+
+function StepThrough({ config }: { config: ExperimentConfig }) {
+  const engineRef = useRef<GameEngine>(new GameEngine(config));
+  const [, forceUpdate] = useState(0);
+  const rerender = useCallback(() => forceUpdate((n) => n + 1), []);
+
+  const [studentInputs, setStudentInputs] = useState<Record<string, string | number>>({});
+
+  // Reset engine when config changes
+  useEffect(() => {
+    engineRef.current = new GameEngine(config);
     setStudentInputs({});
-    const params = resolveParameters(config, currentBlock, currentRound);
-    setResolvedParams(params);
-  }, [config, currentBlock, currentRound]);
+    rerender();
+  }, [config, rerender]);
 
-  const templates = useMemo(() => {
-    return TEMPLATE_KINDS.map((kind) => ({
-      kind,
-      content: resolveTemplate(config, currentBlock, currentRound, kind),
-    }));
-  }, [config, currentBlock, currentRound]);
+  const engine = engineRef.current;
+  const currentRound = engine.getCurrentRound();
+  const resolvedParams = engine.getResolvedParams();
+  const currentTemplateIndex = engine.getCurrentTemplateIndex();
+  const currentTemplateKind = engine.getCurrentTemplateKind();
+  const historyTable = engine.getHistoryTable();
+  const totalSteps = engine.getTotalSteps();
+  const currentStep = engine.getCurrentStep();
 
+  const blockLabel = currentRound?.blockLabel || `Block ${(currentRound?.blockIndex ?? 0) + 1}`;
+
+  // Render template segments for all three kinds
   const segmentsByKind = useMemo((): Partial<Record<TemplateKind, ReturnType<typeof renderTemplate>>> => {
-    if (!resolvedParams) return {};
+    if (!resolvedParams || !currentRound) return {};
     const merged = { ...resolvedParams };
     for (const [k, v] of Object.entries(studentInputs)) {
       if (merged[k]) {
@@ -296,65 +407,76 @@ function StepThrough({ config }: { config: ExperimentConfig }) {
       }
     }
     const result: Partial<Record<TemplateKind, ReturnType<typeof renderTemplate>>> = {};
-    for (const { kind, content } of templates) {
-      result[kind] = renderTemplate(content, merged);
+    const templateFields: Record<TemplateKind, string> = {
+      intro: currentRound.introTemplate,
+      decision: currentRound.decisionTemplate,
+      result: currentRound.resultTemplate,
+    };
+    for (const kind of TEMPLATE_KINDS) {
+      result[kind] = renderTemplate(templateFields[kind], merged);
     }
     return result;
-  }, [resolvedParams, templates, studentInputs]);
+  }, [resolvedParams, currentRound, studentInputs]);
 
-  const allStudentInputsFilled = useMemo(() => {
-    if (!resolvedParams) return true;
-    const inputParams = Object.entries(resolvedParams).filter(
-      ([, r]) => r.definition.type === "student_input",
+  const { allInputsValid, validationErrors } = useMemo(() => {
+    const errors = new Set<string>();
+    if (!resolvedParams) return { allInputsValid: true, validationErrors: errors };
+    const activeKind = TEMPLATE_KINDS[currentTemplateIndex];
+    const activeSegments = segmentsByKind[activeKind];
+    if (!activeSegments) return { allInputsValid: true, validationErrors: errors };
+    const inputSegments = activeSegments.filter(
+      (s): s is Extract<typeof s, { type: "input" }> => s.type === "input",
     );
-    if (inputParams.length === 0) return true;
-    return inputParams.every(([id]) => {
-      const v = studentInputs[id];
-      return v !== undefined && v !== "";
+    if (inputSegments.length === 0) return { allInputsValid: true, validationErrors: errors };
+
+    let allFilled = true;
+    for (const seg of inputSegments) {
+      const v = studentInputs[seg.paramId];
+      if (v === undefined || v === "") {
+        allFilled = false;
+        continue;
+      }
+      if (seg.validation) {
+        const valid = runValidation(seg.validation, v, resolvedParams, studentInputs);
+        if (!valid) errors.add(seg.paramId);
+      }
+    }
+
+    return { allInputsValid: allFilled && errors.size === 0, validationErrors: errors };
+  }, [resolvedParams, studentInputs, segmentsByKind, currentTemplateIndex]);
+
+  const handleStudentInput = useCallback((id: string, v: string | number) => {
+    setStudentInputs((prev) => {
+      const next = { ...prev, [id]: v };
+      engine.recalculate(next);
+      rerender();
+      return next;
     });
-  }, [resolvedParams, studentInputs]);
+  }, [engine, rerender]);
 
-  const goNext = () => {
-    setStudentInputs({});
-    const block = config.blocks[currentBlock];
-    if (currentRound < block.rounds.length - 1) {
-      setCurrentRound(currentRound + 1);
-    } else if (currentBlock < config.blocks.length - 1) {
-      setCurrentBlock(currentBlock + 1);
-      setCurrentRound(0);
-    }
-  };
+  const goNext = useCallback(() => {
+    engine.advance(studentInputs);
+    setStudentInputs(engine.getStudentInputs());
+    rerender();
+  }, [engine, studentInputs, rerender]);
 
-  const goPrev = () => {
-    setStudentInputs({});
-    if (currentRound > 0) {
-      setCurrentRound(currentRound - 1);
-    } else if (currentBlock > 0) {
-      const prevBlock = config.blocks[currentBlock - 1];
-      setCurrentBlock(currentBlock - 1);
-      setCurrentRound(prevBlock.rounds.length - 1);
-    }
-  };
-
-  const isFirst = currentBlock === 0 && currentRound === 0;
-  const isLast =
-    currentBlock === config.blocks.length - 1 &&
-    currentRound === config.blocks[currentBlock].rounds.length - 1;
-
-  const blockLabel =
-    config.blocks[currentBlock]?.label || `Block ${currentBlock + 1}`;
-
-  const handleStudentInput = (id: string, v: string | number) => {
-    setStudentInputs((prev) => ({ ...prev, [id]: v }));
-  };
+  const goPrev = useCallback(() => {
+    engine.goBack();
+    setStudentInputs(engine.getStudentInputs());
+    rerender();
+  }, [engine, rerender]);
 
   return (
     <div className="space-y-6">
+      {/* Progress Header */}
       <div className="space-y-2">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Chip variant="flat" color="primary">{blockLabel}</Chip>
-            <Chip variant="flat">Round {currentRound + 1}</Chip>
+            <Chip variant="flat">Round {(currentRound?.roundIndex ?? 0) + 1}</Chip>
+            <Chip variant="flat" color={TEMPLATE_KIND_COLORS[currentTemplateKind]}>
+              {TEMPLATE_KIND_LABELS[currentTemplateKind]}
+            </Chip>
           </div>
           <span className="text-sm text-default-400">
             Step {currentStep} of {totalSteps}
@@ -363,7 +485,8 @@ function StepThrough({ config }: { config: ExperimentConfig }) {
         <Progress value={(currentStep / totalSteps) * 100} size="sm" color="primary" />
       </div>
 
-      {TEMPLATE_KINDS.map((kind) => {
+      {/* Template Cards */}
+      {TEMPLATE_KINDS.map((kind, kindIdx) => {
         const kindSegments = segmentsByKind[kind];
         if (!kindSegments || kindSegments.length === 0) return null;
         const hasContent = kindSegments.some(
@@ -371,14 +494,24 @@ function StepThrough({ config }: { config: ExperimentConfig }) {
         );
         if (!hasContent) return null;
 
+        const isActive = kindIdx === currentTemplateIndex;
+        const isPast = kindIdx < currentTemplateIndex;
+        const isFuture = kindIdx > currentTemplateIndex;
+
+        let cardClasses = "transition-all duration-200";
+        if (isFuture) cardClasses += " opacity-30 pointer-events-none";
+        else if (isPast) cardClasses += " opacity-60";
+
         return (
-          <Card key={kind}>
+          <Card key={kind} className={cardClasses}>
             <CardHeader>
               <div className="flex items-center gap-2">
-                <Chip size="sm" variant="flat" color={TEMPLATE_KIND_COLORS[kind]}>
+                <Chip size="sm" variant={isActive ? "solid" : "flat"} color={TEMPLATE_KIND_COLORS[kind]}>
                   {TEMPLATE_KIND_LABELS[kind]}
                 </Chip>
-                <h4 className="text-medium font-semibold">Student View</h4>
+                {isActive && <h4 className="text-medium font-semibold">Active</h4>}
+                {isPast && <span className="text-sm text-default-400">Completed</span>}
+                {isFuture && <span className="text-sm text-default-400">Upcoming</span>}
               </div>
             </CardHeader>
             <CardBody>
@@ -387,12 +520,14 @@ function StepThrough({ config }: { config: ExperimentConfig }) {
                 resolvedParams={resolvedParams}
                 studentInputs={studentInputs}
                 onStudentInput={handleStudentInput}
+                validationErrors={isActive ? validationErrors : undefined}
               />
             </CardBody>
           </Card>
         );
       })}
 
+      {/* Resolved Parameters Debug */}
       {resolvedParams && (
         <Card>
           <CardHeader>
@@ -414,11 +549,21 @@ function StepThrough({ config }: { config: ExperimentConfig }) {
         </Card>
       )}
 
+      {/* History Table */}
+      <HistoryTableView
+        historyTable={historyTable}
+        flatConfig={engine.getFlatConfig().map((r) => ({
+          blockLabel: r.blockLabel,
+          roundIndex: r.roundIndex,
+        }))}
+      />
+
+      {/* Navigation */}
       <div className="flex items-center justify-between">
         <Button
           variant="flat"
           startContent={<ChevronLeft className="w-4 h-4" />}
-          isDisabled={isFirst}
+          isDisabled={engine.isFirst()}
           onPress={goPrev}
         >
           Previous
@@ -426,28 +571,24 @@ function StepThrough({ config }: { config: ExperimentConfig }) {
         <Button
           color="primary"
           endContent={<ChevronRight className="w-4 h-4" />}
-          isDisabled={isLast || !allStudentInputsFilled}
+          isDisabled={engine.isFinished() || !allInputsValid}
           onPress={goNext}
         >
-          {isLast ? "Done" : "Continue"}
+          {engine.isFinished() ? "Done" : "Continue"}
         </Button>
       </div>
     </div>
   );
 }
 
+/* ---------- Main Export ---------- */
+
 export function SimulateRun({ config }: SimulateRunProps) {
-  const [runData, setRunData] = useState<RunEntry[]>(() => resolveFullRun(config));
-
-  const handleResample = () => {
-    setRunData(resolveFullRun(config));
-  };
-
   return (
     <div className="space-y-6">
       <Tabs aria-label="Simulation views" variant="underlined">
         <Tab key="table" title="Table View">
-          <TableView runData={runData} config={config} onResample={handleResample} />
+          <TableView config={config} />
         </Tab>
         <Tab key="step" title="Step-Through">
           <StepThrough config={config} />

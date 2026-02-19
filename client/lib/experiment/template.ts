@@ -83,6 +83,7 @@ export function renderTemplate(
           paramId,
           inputLabel: resolved.definition.inputLabel,
           inputType: resolved.definition.inputType,
+          validation: resolved.definition.validation,
         });
       }
     } else {
