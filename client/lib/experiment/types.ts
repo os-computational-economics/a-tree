@@ -1,12 +1,12 @@
 export type HistoryAggregation = "min" | "max" | "mean" | "mode" | "sum" | "latest";
 
 export type ParamDefinition =
-  | { type: "constant"; dataType: "number" | "string" | "boolean"; value: number | string | boolean; visualize?: boolean; visualizeMax?: number }
-  | { type: "norm"; mean: number; std: number; visualize?: boolean; visualizeMax?: number }
-  | { type: "unif"; min: number; max: number; visualize?: boolean; visualizeMax?: number }
-  | { type: "equation"; expression: string; visualize?: boolean; visualizeMax?: number }
-  | { type: "student_input"; inputLabel?: string; inputType?: "number" | "text"; validation?: string; visualize?: boolean; visualizeMax?: number }
-  | { type: "history"; expression: string; visualize?: boolean; visualizeMax?: number };
+  | { type: "constant"; dataType: "number" | "string" | "boolean"; value: number | string | boolean; visualize?: boolean; visualizeMax?: number; displayOnStudentSide?: boolean }
+  | { type: "norm"; mean: number; std: number; visualize?: boolean; visualizeMax?: number; displayOnStudentSide?: boolean }
+  | { type: "unif"; min: number; max: number; visualize?: boolean; visualizeMax?: number; displayOnStudentSide?: boolean }
+  | { type: "equation"; expression: string; visualize?: boolean; visualizeMax?: number; displayOnStudentSide?: boolean }
+  | { type: "student_input"; inputLabel?: string; inputType?: "number" | "text"; validation?: string; visualize?: boolean; visualizeMax?: number; displayOnStudentSide?: boolean }
+  | { type: "history"; expression: string; visualize?: boolean; visualizeMax?: number; displayOnStudentSide?: boolean };
 
 export type TemplateKind = "intro" | "decision" | "result";
 

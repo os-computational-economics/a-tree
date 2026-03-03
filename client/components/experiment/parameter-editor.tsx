@@ -478,6 +478,17 @@ function ParamRow({
         </div>
       )}
 
+      <Checkbox
+        size="sm"
+        className="mt-2"
+        isSelected={!!definition.displayOnStudentSide}
+        onValueChange={(checked) =>
+          onChangeDef(paramId, { ...definition, displayOnStudentSide: checked || undefined })
+        }
+      >
+        <span className="text-xs">Display on student side</span>
+      </Checkbox>
+
       <Button
         isIconOnly
         variant="light"
