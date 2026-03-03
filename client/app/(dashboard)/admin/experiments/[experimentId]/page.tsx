@@ -207,7 +207,7 @@ export default function ExperimentDetailPage({
       </Card>
 
       <Tabs aria-label="Experiment configuration" size="lg" color="primary">
-        <Tab key="parameters" title="Parameters">
+        <Tab key="parameters" title="Structure & Parameters">
           <ParameterEditor config={config} onChange={setConfig} />
         </Tab>
         <Tab key="templates" title="Templates">
