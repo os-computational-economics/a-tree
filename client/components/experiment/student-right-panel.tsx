@@ -134,12 +134,18 @@ export function StudentRightPanel({
   const displayableIds = useMemo(() => getDisplayableParamIds(config), [config]);
 
   const lastResolvedRef = useRef<Record<string, ResolvedParam> | null>(null);
+  const lastStudentInputsRef = useRef<Record<string, string | number>>({});
+
   if (resolvedParams && Object.keys(resolvedParams).length > 0) {
     lastResolvedRef.current = resolvedParams;
+    lastStudentInputsRef.current = studentInputs;
   }
   const displayParams = (resolvedParams && Object.keys(resolvedParams).length > 0)
     ? resolvedParams
     : lastResolvedRef.current;
+  const displayStudentInputs = (resolvedParams && Object.keys(resolvedParams).length > 0)
+    ? studentInputs
+    : lastStudentInputsRef.current;
 
   return (
     <div className="flex flex-col gap-4 h-full overflow-y-auto p-4">
@@ -190,7 +196,7 @@ export function StudentRightPanel({
           <h3 className="text-sm font-semibold text-default-500 mb-2">Parameters</h3>
           <ParamVisualization
             resolvedParams={displayParams}
-            studentInputs={studentInputs}
+            studentInputs={displayStudentInputs}
           />
         </div>
       )}
