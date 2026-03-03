@@ -164,8 +164,10 @@ export class GameEngine {
     for (const [k, v] of Object.entries(lastRow.values)) {
       const paramEntry = roundStep.params[k];
       rebuilt[k] = {
+        paramId: k,
         value: v,
         definition: paramEntry ? paramEntry.def : { type: "constant", dataType: typeof v === "number" ? "number" : "string", value: v as number },
+        source: paramEntry ? paramEntry.source : "experiment",
       };
     }
     this.lastRoundResolvedParams = rebuilt;
