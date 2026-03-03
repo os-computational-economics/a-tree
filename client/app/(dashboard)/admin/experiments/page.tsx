@@ -26,7 +26,7 @@ import {
 import { useDisclosure } from "@heroui/modal";
 import { Textarea } from "@heroui/input";
 import { addToast } from "@heroui/toast";
-import { Plus, Search } from "lucide-react";
+import { Plus, Search, Pencil, FlaskConical } from "lucide-react";
 import type { ExperimentConfig } from "@/lib/experiment/types";
 
 interface ExperimentListItem {
@@ -149,8 +149,6 @@ export default function ExperimentsPage() {
 
       <Table
         aria-label="Experiments table"
-        selectionMode="single"
-        onRowAction={(key) => router.push(`/admin/experiments/${key}`)}
       >
         <TableHeader>
           <TableColumn>NAME</TableColumn>
@@ -158,10 +156,11 @@ export default function ExperimentsPage() {
           <TableColumn>BLOCKS</TableColumn>
           <TableColumn>PARAMS</TableColumn>
           <TableColumn>CREATED</TableColumn>
+          <TableColumn align="end">ACTIONS</TableColumn>
         </TableHeader>
         <TableBody emptyContent="No experiments yet. Create your first one!">
           {filtered.map((exp) => (
-            <TableRow key={exp.id} className="cursor-pointer">
+            <TableRow key={exp.id}>
               <TableCell>
                 <div>
                   <p className="font-medium">{exp.name}</p>
@@ -178,6 +177,27 @@ export default function ExperimentsPage() {
               <TableCell>{exp.blockCount}</TableCell>
               <TableCell>{exp.paramCount}</TableCell>
               <TableCell>{new Date(exp.createdAt).toLocaleDateString()}</TableCell>
+              <TableCell>
+                <div className="flex items-center justify-end gap-2">
+                  <Button
+                    size="sm"
+                    variant="flat"
+                    startContent={<Pencil className="w-3.5 h-3.5" />}
+                    onPress={() => router.push(`/admin/experiments/${exp.id}`)}
+                  >
+                    Edit
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="flat"
+                    color="primary"
+                    startContent={<FlaskConical className="w-3.5 h-3.5" />}
+                    onPress={() => router.push(`/admin/experiments/${exp.id}/trials`)}
+                  >
+                    View Trials
+                  </Button>
+                </div>
+              </TableCell>
             </TableRow>
           ))}
         </TableBody>

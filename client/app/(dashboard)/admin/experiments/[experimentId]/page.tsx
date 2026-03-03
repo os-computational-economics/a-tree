@@ -27,7 +27,6 @@ import type { Experiment } from "@/lib/db/schema";
 import { ParameterEditor } from "../../../../../components/experiment/parameter-editor";
 import { TemplateEditor } from "../../../../../components/experiment/template-editor";
 import { SimulateRun } from "../../../../../components/experiment/simulate-run";
-import { TrialsTab } from "../../../../../components/experiment/trials-tab";
 
 export default function ExperimentDetailPage({
   params: routeParams,
@@ -245,9 +244,6 @@ export default function ExperimentDetailPage({
         </Tab>
         <Tab key="simulate" title="Simulate">
           <SimulateRun config={config} />
-        </Tab>
-        <Tab key="trials" title="Trials">
-          <TrialsTab experimentId={experimentId} />
         </Tab>
       </Tabs>
 
