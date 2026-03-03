@@ -339,7 +339,7 @@ export function TrialsTab({ experimentId }: TrialsTabProps) {
   const [trials, setTrials] = useState<TrialListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<Set<string>>(new Set());
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [lookupCode, setLookupCode] = useState("");
@@ -375,7 +375,7 @@ export function TrialsTab({ experimentId }: TrialsTabProps) {
       if (search && !t.trialCode.includes(search) && !t.id.includes(search)) {
         return false;
       }
-      if (statusFilter !== "all" && t.status !== statusFilter) {
+      if (statusFilter.size > 0 && !statusFilter.has(t.status)) {
         return false;
       }
       if (dateFrom) {
@@ -497,20 +497,18 @@ export function TrialsTab({ experimentId }: TrialsTabProps) {
               />
               <Select
                 label="Status"
-                selectedKeys={[statusFilter]}
+                selectionMode="multiple"
+                selectedKeys={statusFilter}
                 onSelectionChange={(keys) => {
-                  const val = Array.from(keys)[0] as string;
-                  setStatusFilter(val || "all");
+                  setStatusFilter(new Set(Array.from(keys) as string[]));
                 }}
-                className="max-w-[160px]"
+                className="max-w-[200px]"
                 size="sm"
+                placeholder="All Statuses"
               >
-                {[
-                  <SelectItem key="all">All Statuses</SelectItem>,
-                  ...uniqueStatuses.map((s) => (
-                    <SelectItem key={s}>{s}</SelectItem>
-                  )),
-                ]}
+                {uniqueStatuses.map((s) => (
+                  <SelectItem key={s}>{s}</SelectItem>
+                ))}
               </Select>
               <div className="flex flex-col gap-1">
                 <label className="text-xs text-default-500">From</label>
