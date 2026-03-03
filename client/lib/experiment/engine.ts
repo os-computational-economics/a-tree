@@ -137,6 +137,7 @@ export class GameEngine {
     const row: HistoryRow = {
       roundIndex: this.currentStepIndex,
       values: {},
+      updatedAt: new Date().toISOString(),
     };
     for (const [k, v] of Object.entries(this.resolvedParams)) {
       row.values[k] = v.value;
