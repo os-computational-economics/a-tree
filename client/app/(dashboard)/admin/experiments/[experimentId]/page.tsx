@@ -21,7 +21,7 @@ import {
   ModalFooter,
 } from "@heroui/modal";
 import { useDisclosure } from "@heroui/modal";
-import { ArrowLeft, Save, Trash2, Circle } from "lucide-react";
+import { ArrowLeft, Save, Trash2, Circle, FlaskConical } from "lucide-react";
 import type { ExperimentConfig } from "@/lib/experiment/types";
 import type { Experiment } from "@/lib/db/schema";
 import { ParameterEditor } from "../../../../../components/experiment/parameter-editor";
@@ -156,6 +156,13 @@ export default function ExperimentDetailPage({
               )}
             </div>
           </div>
+          <Button
+            variant="flat"
+            startContent={<FlaskConical className="w-4 h-4" />}
+            onPress={() => router.push(`/admin/experiments/${experimentId}/trials`)}
+          >
+            View Trials
+          </Button>
           <Button
             color="danger"
             variant="flat"
