@@ -26,6 +26,7 @@ import {
   Check,
   Trash2,
   User as UserIcon,
+  FlaskConical,
 } from "lucide-react";
 import { Avatar } from "@heroui/avatar";
 import { Popover, PopoverTrigger, PopoverContent } from "@heroui/popover";
@@ -354,6 +355,15 @@ export const Navbar = () => {
                     <span>{t("nav.adminDashboard")}</span>
                   </NextLink>
                 )}
+
+                <NextLink
+                  href="/experiments"
+                  onClick={() => setIsMenuOpen(false)}
+                  className="flex items-center gap-2 px-3 py-2 rounded-xl transition-colors text-default-500 hover:bg-default-100"
+                >
+                  <FlaskConical size={20} />
+                  <span>Experiments</span>
+                </NextLink>
 
                 <div className="flex items-center justify-between gap-2 bg-default-100/50 p-2 rounded-xl">
                   <div className="flex items-center gap-2 overflow-hidden min-w-0">

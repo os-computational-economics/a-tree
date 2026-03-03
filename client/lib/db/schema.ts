@@ -7,8 +7,9 @@ import {
   text,
   jsonb,
   bigint,
+  integer,
 } from "drizzle-orm/pg-core";
-import type { ExperimentConfig } from "../experiment/types";
+import type { ExperimentConfig, HistoryRow } from "../experiment/types";
 
 /**
  * Users table
@@ -174,3 +175,23 @@ export const experiments = pgTable("experiments", {
 
 export type Experiment = typeof experiments.$inferSelect;
 export type NewExperiment = typeof experiments.$inferInsert;
+
+export const experimentTrials = pgTable("experiment_trials", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  trialCode: varchar("trial_code", { length: 6 }).notNull().unique(),
+  experimentId: uuid("experiment_id")
+    .notNull()
+    .references(() => experiments.id),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => users.id),
+  status: varchar("status", { length: 20 }).notNull().default("in_progress"),
+  historyTable: jsonb("history_table").$type<HistoryRow[]>().notNull().default([]),
+  currentStepIndex: integer("current_step_index").notNull().default(0),
+  currentTemplateIndex: integer("current_template_index").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export type ExperimentTrial = typeof experimentTrials.$inferSelect;
+export type NewExperimentTrial = typeof experimentTrials.$inferInsert;

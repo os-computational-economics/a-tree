@@ -8,6 +8,13 @@
       "when": 1771447703582,
       "tag": "0000_mushy_silhouette",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1772507329654,
+      "tag": "0001_daily_sunfire",
+      "breakpoints": true
     }
   ]
 }

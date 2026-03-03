@@ -10,6 +10,7 @@ import {
   Shield,
   LogOut,
   User as UserIcon,
+  FlaskConical,
 } from "lucide-react";
 import { Avatar } from "@heroui/avatar";
 import { Tooltip } from "@heroui/tooltip";
@@ -35,6 +36,12 @@ export const PrimarySidebar = () => {
       href: "/chat",
       icon: <BotMessageSquare size={20} />,
       isActive: (path: string) => path.startsWith("/chat") || path === "/",
+    },
+    {
+      label: "Experiments",
+      href: "/experiments",
+      icon: <FlaskConical size={20} />,
+      isActive: (path: string) => path.startsWith("/experiments"),
     },
   ];
 
