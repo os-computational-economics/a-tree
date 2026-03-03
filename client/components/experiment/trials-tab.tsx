@@ -5,6 +5,7 @@ import { Chip } from "@heroui/chip";
 import { Input } from "@heroui/input";
 import { Card, CardBody, CardHeader } from "@heroui/card";
 import { Spinner } from "@heroui/spinner";
+import { Button } from "@heroui/button";
 import {
   Table,
   TableHeader,
@@ -13,7 +14,15 @@ import {
   TableRow,
   TableCell,
 } from "@heroui/table";
-import { Search, ChevronDown, Eye, MessageCircle } from "lucide-react";
+import {
+  Modal,
+  ModalContent,
+  ModalHeader,
+  ModalBody,
+  ModalFooter,
+  useDisclosure,
+} from "@heroui/modal";
+import { Search, ChevronDown, Eye, MessageCircle, ExternalLink } from "lucide-react";
 import { addToast } from "@heroui/toast";
 import { api } from "@/lib/api/client";
 import type { HistoryRow, ChatLogEntry } from "@/lib/experiment/types";
@@ -145,6 +154,161 @@ function TrialHistoryExpander({ trial }: { trial: TrialListItem }) {
   );
 }
 
+function TrialDetailModal({
+  trial,
+  isOpen,
+  onOpenChange,
+  statusColorMap,
+}: {
+  trial: TrialListItem | null;
+  isOpen: boolean;
+  onOpenChange: (open: boolean) => void;
+  statusColorMap: Record<string, "warning" | "success" | "default">;
+}) {
+  if (!trial) return null;
+
+  const allKeys = Array.from(
+    trial.historyTable.reduce((keys, row) => {
+      for (const k of Object.keys(row.values)) keys.add(k);
+      return keys;
+    }, new Set<string>()),
+  );
+
+  const historyColumns = [
+    { key: "round", label: "ROUND" },
+    ...allKeys.map((k) => ({ key: k, label: k })),
+  ];
+
+  const chatBlockIds = trial.chatLogs
+    ? Object.keys(trial.chatLogs).filter((k) => trial.chatLogs![k].length > 0)
+    : [];
+  const totalMessages = chatBlockIds.reduce(
+    (sum, k) => sum + trial.chatLogs![k].length,
+    0,
+  );
+
+  return (
+    <Modal isOpen={isOpen} onOpenChange={onOpenChange} size="5xl" scrollBehavior="inside">
+      <ModalContent>
+        {(onClose) => (
+          <>
+            <ModalHeader className="flex flex-col gap-1">
+              <div className="flex items-center gap-3">
+                <span className="font-mono text-lg">{trial.trialCode}</span>
+                <Chip
+                  size="sm"
+                  variant="flat"
+                  color={statusColorMap[trial.status] || "default"}
+                >
+                  {trial.status}
+                </Chip>
+              </div>
+            </ModalHeader>
+            <ModalBody className="gap-6">
+              {/* Metadata */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="rounded-lg bg-default-100 p-3">
+                  <p className="text-xs text-default-500 mb-1">Started</p>
+                  <p className="text-sm font-medium">{new Date(trial.createdAt).toLocaleString()}</p>
+                </div>
+                <div className="rounded-lg bg-default-100 p-3">
+                  <p className="text-xs text-default-500 mb-1">Last Updated</p>
+                  <p className="text-sm font-medium">{new Date(trial.updatedAt).toLocaleString()}</p>
+                </div>
+              </div>
+
+              {/* History Table */}
+              <div>
+                <h4 className="text-sm font-semibold mb-2 flex items-center gap-2">
+                  <Eye className="w-4 h-4" />
+                  History ({trial.historyTable.length} rounds)
+                </h4>
+                {trial.historyTable.length > 0 ? (
+                  <div className="overflow-x-auto">
+                    <Table aria-label="Trial history detail" isStriped>
+                      <TableHeader columns={historyColumns}>
+                        {(col) => <TableColumn key={col.key}>{col.label}</TableColumn>}
+                      </TableHeader>
+                      <TableBody>
+                        {trial.historyTable.map((row, idx) => (
+                          <TableRow key={idx}>
+                            {historyColumns.map((col) => {
+                              if (col.key === "round") {
+                                return <TableCell key="round">Round {idx + 1}</TableCell>;
+                              }
+                              return (
+                                <TableCell key={col.key}>
+                                  <span className="text-sm font-mono">
+                                    {formatValue(row.values[col.key] ?? null)}
+                                  </span>
+                                </TableCell>
+                              );
+                            })}
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                ) : (
+                  <p className="text-sm text-default-400">No history recorded.</p>
+                )}
+              </div>
+
+              {/* Chat Logs */}
+              {chatBlockIds.length > 0 && (
+                <div>
+                  <h4 className="text-sm font-semibold mb-2 flex items-center gap-2">
+                    <MessageCircle className="w-4 h-4" />
+                    Chat Logs ({totalMessages} messages)
+                  </h4>
+                  <div className="space-y-4">
+                    {chatBlockIds.map((blockId) => (
+                      <div key={blockId} className="border border-divider rounded-lg p-3">
+                        <p className="text-xs font-semibold text-default-500 mb-2">
+                          Block: {blockId}
+                        </p>
+                        <div className="space-y-2 max-h-80 overflow-y-auto">
+                          {trial.chatLogs![blockId].map((entry, i) => (
+                            <div
+                              key={i}
+                              className={`text-sm p-2 rounded-lg ${
+                                entry.role === "user"
+                                  ? "bg-primary/10 text-primary ml-8"
+                                  : "bg-default-100 mr-8"
+                              }`}
+                            >
+                              <span className="text-xs font-semibold block mb-1">
+                                {entry.role === "user" ? "Student" : "AI"}
+                                {" · "}
+                                {new Date(entry.timestamp).toLocaleTimeString()}
+                              </span>
+                              <p className="whitespace-pre-wrap">{entry.content}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </ModalBody>
+            <ModalFooter>
+              <Button variant="light" onPress={onClose}>
+                Close
+              </Button>
+            </ModalFooter>
+          </>
+        )}
+      </ModalContent>
+    </Modal>
+  );
+}
+
+const statusRowBg: Record<string, string> = {
+  completed: "bg-success-50/50 dark:bg-success-100/10",
+  in_progress: "bg-warning-50/50 dark:bg-warning-100/10",
+};
+
 interface TrialsTabProps {
   experimentId: string;
 }
@@ -156,6 +320,8 @@ export function TrialsTab({ experimentId }: TrialsTabProps) {
   const [lookupCode, setLookupCode] = useState("");
   const [lookupResult, setLookupResult] = useState<{ trial: TrialListItem; experiment: { name: string } } | null>(null);
   const [lookupLoading, setLookupLoading] = useState(false);
+  const [selectedTrial, setSelectedTrial] = useState<TrialListItem | null>(null);
+  const { isOpen, onOpen, onOpenChange } = useDisclosure();
 
   const fetchTrials = useCallback(async () => {
     try {
@@ -193,6 +359,11 @@ export function TrialsTab({ experimentId }: TrialsTabProps) {
     } finally {
       setLookupLoading(false);
     }
+  };
+
+  const handleViewDetail = (trial: TrialListItem) => {
+    setSelectedTrial(trial);
+    onOpen();
   };
 
   const statusColorMap: Record<string, "warning" | "success" | "default"> = {
@@ -262,17 +433,27 @@ export function TrialsTab({ experimentId }: TrialsTabProps) {
           />
         </div>
 
-        <Table aria-label="Trials table">
+        <Table
+          aria-label="Trials table"
+          classNames={{
+            tr: "border-b border-divider last:border-b-0",
+          }}
+        >
           <TableHeader>
             <TableColumn>TRIAL CODE</TableColumn>
             <TableColumn>STATUS</TableColumn>
             <TableColumn>STARTED</TableColumn>
             <TableColumn>LAST UPDATED</TableColumn>
-            <TableColumn>HISTORY</TableColumn>
+            <TableColumn>ACTIONS</TableColumn>
           </TableHeader>
           <TableBody emptyContent="No trials yet.">
-            {filtered.map((trial) => (
-              <TableRow key={trial.id}>
+            {filtered.map((trial, idx) => (
+              <TableRow
+                key={trial.id}
+                className={`${
+                  statusRowBg[trial.status] || (idx % 2 === 0 ? "bg-default-50" : "")
+                } transition-colors hover:bg-default-100`}
+              >
                 <TableCell>
                   <span className="font-mono font-bold">{trial.trialCode}</span>
                 </TableCell>
@@ -292,13 +473,28 @@ export function TrialsTab({ experimentId }: TrialsTabProps) {
                   {new Date(trial.updatedAt).toLocaleString()}
                 </TableCell>
                 <TableCell>
-                  <TrialHistoryExpander trial={trial} />
+                  <Button
+                    size="sm"
+                    variant="light"
+                    color="primary"
+                    startContent={<ExternalLink className="w-3.5 h-3.5" />}
+                    onPress={() => handleViewDetail(trial)}
+                  >
+                    View Details
+                  </Button>
                 </TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
       </div>
+
+      <TrialDetailModal
+        trial={selectedTrial}
+        isOpen={isOpen}
+        onOpenChange={onOpenChange}
+        statusColorMap={statusColorMap}
+      />
     </div>
   );
 }
