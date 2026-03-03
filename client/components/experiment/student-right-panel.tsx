@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 import { Chip } from "@heroui/chip";
 import { Progress } from "@heroui/progress";
 import {
@@ -133,6 +133,14 @@ export function StudentRightPanel({
 }: StudentRightPanelProps) {
   const displayableIds = useMemo(() => getDisplayableParamIds(config), [config]);
 
+  const lastResolvedRef = useRef<Record<string, ResolvedParam> | null>(null);
+  if (resolvedParams && Object.keys(resolvedParams).length > 0) {
+    lastResolvedRef.current = resolvedParams;
+  }
+  const displayParams = (resolvedParams && Object.keys(resolvedParams).length > 0)
+    ? resolvedParams
+    : lastResolvedRef.current;
+
   return (
     <div className="flex flex-col gap-4 h-full overflow-y-auto p-4">
       {/* History Table */}
@@ -177,11 +185,11 @@ export function StudentRightPanel({
       </div>
 
       {/* Parameter Visualization */}
-      {!isStaticStep && resolvedParams && (
+      {displayParams && (
         <div>
           <h3 className="text-sm font-semibold text-default-500 mb-2">Parameters</h3>
           <ParamVisualization
-            resolvedParams={resolvedParams}
+            resolvedParams={displayParams}
             studentInputs={studentInputs}
           />
         </div>
