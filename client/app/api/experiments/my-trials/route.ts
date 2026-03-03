@@ -2,8 +2,29 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAccessToken } from "@/lib/auth/cookies";
 import { verifyAccessToken } from "@/lib/auth/jwt";
 import { db } from "@/lib/db";
-import { experimentTrials } from "@/lib/db/schema";
+import { experimentTrials, experiments } from "@/lib/db/schema";
 import { eq, desc } from "drizzle-orm";
+import type { ExperimentConfig } from "@/lib/experiment/types";
+
+function getDisplayableParamIds(config: ExperimentConfig): string[] {
+  const ids = new Set<string>();
+  for (const [id, def] of Object.entries(config.params)) {
+    if (def.displayOnStudentSide) ids.add(id);
+  }
+  for (const block of config.blocks) {
+    if (block.type === "static" || !block.params) continue;
+    for (const [id, def] of Object.entries(block.params)) {
+      if (def.displayOnStudentSide) ids.add(id);
+    }
+    for (const round of block.rounds) {
+      if (!round.params) continue;
+      for (const [id, def] of Object.entries(round.params)) {
+        if (def.displayOnStudentSide) ids.add(id);
+      }
+    }
+  }
+  return Array.from(ids);
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -16,7 +37,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
-    const trials = await db
+    const rows = await db
       .select({
         id: experimentTrials.id,
         trialCode: experimentTrials.trialCode,
@@ -27,10 +48,25 @@ export async function GET(request: NextRequest) {
         currentTemplateIndex: experimentTrials.currentTemplateIndex,
         createdAt: experimentTrials.createdAt,
         updatedAt: experimentTrials.updatedAt,
+        experimentConfig: experiments.config,
       })
       .from(experimentTrials)
+      .innerJoin(experiments, eq(experimentTrials.experimentId, experiments.id))
       .where(eq(experimentTrials.userId, payload.userId))
       .orderBy(desc(experimentTrials.createdAt));
+
+    const trials = rows.map((row) => ({
+      id: row.id,
+      trialCode: row.trialCode,
+      experimentId: row.experimentId,
+      status: row.status,
+      historyTable: row.historyTable,
+      currentStepIndex: row.currentStepIndex,
+      currentTemplateIndex: row.currentTemplateIndex,
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
+      displayableParamIds: getDisplayableParamIds(row.experimentConfig),
+    }));
 
     return NextResponse.json({ trials });
   } catch (error) {

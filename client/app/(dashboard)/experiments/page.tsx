@@ -43,6 +43,7 @@ interface TrialItem {
   experimentId: string;
   status: string;
   historyTable: HistoryRow[];
+  displayableParamIds: string[];
   createdAt: string;
   updatedAt: string;
 }
@@ -58,17 +59,23 @@ function CompletedTrialHistory({ trial }: { trial: TrialItem }) {
 
   if (!trial.historyTable || trial.historyTable.length === 0) return null;
 
-  const allKeys = useMemo(() => {
+  const displayable = new Set(trial.displayableParamIds);
+
+  const filteredKeys = useMemo(() => {
     const keys = new Set<string>();
     for (const row of trial.historyTable) {
-      for (const k of Object.keys(row.values)) keys.add(k);
+      for (const k of Object.keys(row.values)) {
+        if (displayable.has(k)) keys.add(k);
+      }
     }
     return Array.from(keys);
-  }, [trial.historyTable]);
+  }, [trial.historyTable, trial.displayableParamIds]);
+
+  if (filteredKeys.length === 0) return null;
 
   const columns = [
     { key: "round", label: "ROUND" },
-    ...allKeys.map((k) => ({ key: k, label: k })),
+    ...filteredKeys.map((k) => ({ key: k, label: k })),
   ];
 
   return (

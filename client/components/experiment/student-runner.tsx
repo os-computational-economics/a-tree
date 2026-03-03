@@ -54,6 +54,7 @@ export function StudentRunner({
   const [confirmedInputs, setConfirmedInputs] = useState<Set<string>>(new Set());
   const [isCompleted, setIsCompleted] = useState(initialStatus === "completed");
   const [saving, setSaving] = useState(false);
+  const [finalHistoryTable, setFinalHistoryTable] = useState<HistoryRow[] | null>(null);
   const [leftPanelPct, setLeftPanelPct] = useState(60);
   const splitContainerRef = useRef<HTMLDivElement>(null);
   const isDragging = useRef(false);
@@ -117,7 +118,7 @@ export function StudentRunner({
     return (
       <StudentCompletion
         trialCode={trialCode}
-        historyTable={initialHistoryTable.length > 0 ? initialHistoryTable : historyTable}
+        historyTable={finalHistoryTable ?? initialHistoryTable}
         config={config}
         onExit={() => router.push("/experiments")}
       />
@@ -223,6 +224,13 @@ export function StudentRunner({
   };
 
   const goNext = async () => {
+    if (engine.isFinished()) {
+      await saveProgress(true);
+      setFinalHistoryTable(engine.getHistoryTable());
+      setIsCompleted(true);
+      return;
+    }
+
     engine.advance(studentInputs);
     setStudentInputs(engine.getStudentInputs());
     setValidationErrors(new Set());
@@ -230,12 +238,7 @@ export function StudentRunner({
     setConfirmedInputs(new Set());
     rerender();
 
-    const finished = engine.isFinished();
-    await saveProgress(finished);
-
-    if (finished) {
-      setIsCompleted(true);
-    }
+    await saveProgress(false);
   };
 
   return (
@@ -283,10 +286,10 @@ export function StudentRunner({
               color="primary"
               size="lg"
               endContent={<ChevronRight className="w-4 h-4" />}
-              isDisabled={engine.isFinished() || !allInputsValid}
+              isDisabled={!allInputsValid}
               onPress={goNext}
             >
-              Continue
+              {engine.isFinished() ? "Finish" : "Continue"}
             </Button>
           </div>
         </div>
@@ -368,7 +371,7 @@ export function StudentRunner({
             <>
               <ModalHeader>Exit Experiment?</ModalHeader>
               <ModalBody>
-                <p>Your progress has been saved. You can resume this experiment later from your experiments page.</p>
+                <p>Your progress has been saved up to the previous round. When you come back, you will need to redo the current round.</p>
               </ModalBody>
               <ModalFooter>
                 <Button variant="flat" onPress={onClose}>

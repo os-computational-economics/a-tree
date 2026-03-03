@@ -267,17 +267,16 @@ export class GameEngine {
 
   /**
    * Restore engine state from previously saved data (for resuming a trial).
-   * Injects the saved history table and positions the engine at the given step/template,
-   * rebuilding the random cache for the current step from saved history values.
+   * Always snaps back to the intro (templateIndex=0) of the current round,
+   * preserving random values but requiring the student to redo the round.
    */
   restore(
     savedHistory: HistoryRow[],
     stepIndex: number,
-    templateIndex: number,
+    _templateIndex: number,
   ): void {
     this.historyTable = savedHistory.map((r) => ({ ...r, values: { ...r.values } }));
     this.currentStepIndex = stepIndex;
-    this.currentTemplateIndex = templateIndex;
     this.studentInputs = {};
     this.randomCache = {};
 
@@ -285,12 +284,18 @@ export class GameEngine {
     if (!step) return;
 
     if (!isFlatRoundStep(step)) {
+      // Static step: just set position, no params to resolve
+      this.currentTemplateIndex = 0;
       this.resolvedParams = {};
       return;
     }
 
-    // Rebuild randomCache from the saved history row for the current step
+    // Always restart at intro for round steps
+    this.currentTemplateIndex = 0;
+
     const histIdx = this.getHistoryIndex();
+
+    // Extract random values from the saved history row before trimming
     const savedRow = histIdx >= 0 && histIdx < this.historyTable.length
       ? this.historyTable[histIdx]
       : null;
@@ -308,6 +313,12 @@ export class GameEngine {
       }
     }
 
+    // Trim: remove the incomplete round's history row so it's rebuilt fresh
+    if (histIdx >= 0 && histIdx < this.historyTable.length) {
+      this.historyTable = this.historyTable.slice(0, histIdx);
+    }
+
+    // Recalculate will re-add the history row for this round with preserved randoms
     this.recalculate({});
   }
 }
