@@ -26,7 +26,7 @@ function formatParamValue(val: ParamValue): string {
  * Builds a CSV string from filtered trials' history tables.
  *
  * Each CSV row represents one round (history row) from one trial.
- * Columns: trial_id, round, <all param keys across all trials>, timestamp
+ * Columns: trial_id, trial_code, round, <all param keys across all trials>, timestamp
  */
 export function buildTrialsCsv(trials: TrialForExport[]): string {
   // Collect all unique param keys across all trials' history rows
@@ -40,7 +40,7 @@ export function buildTrialsCsv(trials: TrialForExport[]): string {
   }
 
   const sortedKeys = Array.from(paramKeys).sort();
-  const headers = ["trial_id", "round", ...sortedKeys, "timestamp"];
+  const headers = ["trial_id", "trial_code", "round", ...sortedKeys, "timestamp"];
   const lines: string[] = [headers.map(escapeCsvCell).join(",")];
 
   for (const trial of trials) {
@@ -48,6 +48,7 @@ export function buildTrialsCsv(trials: TrialForExport[]): string {
       const row = trial.historyTable[i];
       const cells = [
         trial.id,
+        trial.trialCode,
         String(i + 1),
         ...sortedKeys.map((key) => formatParamValue(row.values[key] ?? null)),
         row.updatedAt ?? "",
