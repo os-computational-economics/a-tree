@@ -1,51 +1,71 @@
 import type {
   ExperimentConfig,
   FlatRoundConfig,
+  FlatStepConfig,
   HistoryRow,
   ParamDefinition,
   ParamValue,
   ResolvedParam,
   TemplateKind,
 } from "./types";
-import { TEMPLATE_KINDS } from "./types";
+import { TEMPLATE_KINDS, isFlatRoundStep } from "./types";
 import { flattenConfig } from "./flatten";
 import { resolveFromMerged } from "./params";
 
 export class GameEngine {
-  private flatConfig: FlatRoundConfig[];
+  private flatConfig: FlatStepConfig[];
   private historyTable: HistoryRow[];
-  private currentRoundIndex: number;
-  private currentTemplateIndex: number; // 0=intro, 1=decision, 2=result
+  private currentStepIndex: number;
+  private currentTemplateIndex: number; // 0=intro, 1=decision, 2=result (only for round steps)
   private resolvedParams: Record<string, ResolvedParam>;
   private studentInputs: Record<string, string | number>;
   /** Cached random samples for the current round so they don't re-roll on recalculate */
   private randomCache: Record<string, ParamValue>;
+  /** Maps step index -> history row index (only for round steps) */
+  private stepToHistoryIndex: Map<number, number>;
 
   constructor(config: ExperimentConfig) {
     this.flatConfig = flattenConfig(config);
     this.historyTable = [];
-    this.currentRoundIndex = 0;
+    this.currentStepIndex = 0;
     this.currentTemplateIndex = 0;
     this.resolvedParams = {};
     this.studentInputs = {};
     this.randomCache = {};
-    this.initializeRound(0);
+    this.stepToHistoryIndex = new Map();
+
+    let histIdx = 0;
+    for (let i = 0; i < this.flatConfig.length; i++) {
+      if (isFlatRoundStep(this.flatConfig[i])) {
+        this.stepToHistoryIndex.set(i, histIdx++);
+      }
+    }
+
+    this.initializeStep(0);
   }
 
-  private initializeRound(roundIndex: number): void {
-    this.currentRoundIndex = roundIndex;
+  private getHistoryIndex(): number {
+    return this.stepToHistoryIndex.get(this.currentStepIndex) ?? -1;
+  }
+
+  private initializeStep(stepIndex: number): void {
+    this.currentStepIndex = stepIndex;
     this.currentTemplateIndex = 0;
     this.studentInputs = {};
     this.randomCache = {};
 
-    const round = this.flatConfig[roundIndex];
-    if (!round) return;
+    const step = this.flatConfig[stepIndex];
+    if (!step) return;
 
-    // First pass: sample random params and cache them
-    for (const [paramId, { def }] of Object.entries(round.params)) {
+    if (!isFlatRoundStep(step)) {
+      this.resolvedParams = {};
+      return;
+    }
+
+    for (const [paramId, { def }] of Object.entries(step.params)) {
       if (def.type === "norm" || def.type === "unif") {
         const params = resolveFromMerged(
-          { [paramId]: { def, source: round.params[paramId].source } },
+          { [paramId]: { def, source: step.params[paramId].source } },
         );
         this.randomCache[paramId] = params[paramId]?.value ?? null;
       }
@@ -57,14 +77,17 @@ export class GameEngine {
   /**
    * Recalculate the current round's values.
    * Random params use cached values; everything else is re-evaluated.
+   * No-op for static steps.
    */
   recalculate(studentInputs: Record<string, string | number>): void {
     this.studentInputs = studentInputs;
-    const round = this.flatConfig[this.currentRoundIndex];
-    if (!round) return;
+    const step = this.flatConfig[this.currentStepIndex];
+    if (!step || !isFlatRoundStep(step)) return;
 
-    const effectiveParams: Record<string, { def: ParamDefinition; source: typeof round.params[string]["source"] }> = {};
-    for (const [paramId, entry] of Object.entries(round.params)) {
+    const histIdx = this.getHistoryIndex();
+
+    const effectiveParams: Record<string, { def: ParamDefinition; source: typeof step.params[string]["source"] }> = {};
+    for (const [paramId, entry] of Object.entries(step.params)) {
       if ((entry.def.type === "norm" || entry.def.type === "unif") && this.randomCache[paramId] !== undefined) {
         effectiveParams[paramId] = {
           def: { type: "constant", dataType: "number", value: this.randomCache[paramId] as number },
@@ -79,77 +102,105 @@ export class GameEngine {
       (e) => e.def.type === "history",
     );
 
-    // First pass: resolve all params (history params may see stale current-row data)
     this.resolvedParams = resolveFromMerged(
       effectiveParams,
       studentInputs,
       this.historyTable,
-      this.currentRoundIndex,
+      histIdx,
     );
 
     this.writeHistoryRow();
 
-    // Second pass: if there are history params, re-resolve so they see the
-    // up-to-date current-row values that were just written above.
     if (hasHistoryParams) {
       this.resolvedParams = resolveFromMerged(
         effectiveParams,
         studentInputs,
         this.historyTable,
-        this.currentRoundIndex,
+        histIdx,
       );
       this.writeHistoryRow();
     }
   }
 
   private writeHistoryRow(): void {
+    const histIdx = this.getHistoryIndex();
+    if (histIdx < 0) return;
+
     const row: HistoryRow = {
-      roundIndex: this.currentRoundIndex,
+      roundIndex: this.currentStepIndex,
       values: {},
     };
     for (const [k, v] of Object.entries(this.resolvedParams)) {
       row.values[k] = v.value;
     }
 
-    if (this.historyTable.length > this.currentRoundIndex) {
-      this.historyTable[this.currentRoundIndex] = row;
+    if (histIdx < this.historyTable.length) {
+      this.historyTable[histIdx] = row;
     } else {
       this.historyTable.push(row);
     }
   }
 
   advance(studentInputs: Record<string, string | number>): void {
+    const step = this.flatConfig[this.currentStepIndex];
+
+    if (!step || !isFlatRoundStep(step)) {
+      if (this.currentStepIndex < this.flatConfig.length - 1) {
+        this.initializeStep(this.currentStepIndex + 1);
+      }
+      return;
+    }
+
     this.recalculate(studentInputs);
 
     if (this.currentTemplateIndex < 2) {
       this.currentTemplateIndex++;
       this.recalculate(studentInputs);
-    } else if (this.currentRoundIndex < this.flatConfig.length - 1) {
-      this.initializeRound(this.currentRoundIndex + 1);
+    } else if (this.currentStepIndex < this.flatConfig.length - 1) {
+      this.initializeStep(this.currentStepIndex + 1);
     }
   }
 
   goBack(): void {
-    if (this.currentTemplateIndex > 0) {
+    const step = this.flatConfig[this.currentStepIndex];
+
+    if (step && isFlatRoundStep(step) && this.currentTemplateIndex > 0) {
       this.currentTemplateIndex--;
-    } else if (this.currentRoundIndex > 0) {
-      this.currentRoundIndex--;
-      this.currentTemplateIndex = 2;
-      // Restore the previous round's state from the history table
-      // (random values are baked into the history row already)
+      return;
+    }
+
+    if (this.currentStepIndex > 0) {
+      this.currentStepIndex--;
+      const prevStep = this.flatConfig[this.currentStepIndex];
+      if (prevStep && isFlatRoundStep(prevStep)) {
+        this.currentTemplateIndex = 2;
+      } else {
+        this.currentTemplateIndex = 0;
+      }
     }
   }
 
-  getCurrentRound(): FlatRoundConfig {
-    return this.flatConfig[this.currentRoundIndex];
+  getCurrentStep(): FlatStepConfig {
+    return this.flatConfig[this.currentStepIndex];
   }
 
+  /** @deprecated Use getCurrentStep() instead for the new union type */
+  getCurrentRound(): FlatRoundConfig | undefined {
+    const step = this.flatConfig[this.currentStepIndex];
+    return step && isFlatRoundStep(step) ? step : undefined;
+  }
+
+  getCurrentStepIndex(): number {
+    return this.currentStepIndex;
+  }
+
+  /** @deprecated Renamed to getCurrentStepIndex */
   getCurrentRoundIndex(): number {
-    return this.currentRoundIndex;
+    return this.currentStepIndex;
   }
 
   getHistoryTable(): HistoryRow[] {
-    return this.historyTable;
+    return [...this.historyTable];
   }
 
   getCurrentTemplateIndex(): number {
@@ -168,7 +219,7 @@ export class GameEngine {
     return this.studentInputs;
   }
 
-  getFlatConfig(): FlatRoundConfig[] {
+  getFlatConfig(): FlatStepConfig[] {
     return this.flatConfig;
   }
 
@@ -177,27 +228,40 @@ export class GameEngine {
   }
 
   /**
-   * Total steps = rounds * 3 templates per round.
+   * Total logical steps: round steps contribute 3 (intro/decision/result),
+   * static steps contribute 1.
    */
   getTotalSteps(): number {
-    return this.flatConfig.length * TEMPLATE_KINDS.length;
+    let total = 0;
+    for (const step of this.flatConfig) {
+      total += isFlatRoundStep(step) ? TEMPLATE_KINDS.length : 1;
+    }
+    return total;
   }
 
   /**
-   * Current step across all rounds and templates (1-indexed).
+   * Current step number across all steps (1-indexed).
    */
-  getCurrentStep(): number {
-    return this.currentRoundIndex * TEMPLATE_KINDS.length + this.currentTemplateIndex + 1;
+  getCurrentStepNumber(): number {
+    let count = 0;
+    for (let i = 0; i < this.currentStepIndex; i++) {
+      count += isFlatRoundStep(this.flatConfig[i]) ? TEMPLATE_KINDS.length : 1;
+    }
+    const current = this.flatConfig[this.currentStepIndex];
+    count += current && isFlatRoundStep(current) ? this.currentTemplateIndex + 1 : 1;
+    return count;
   }
 
   isFirst(): boolean {
-    return this.currentRoundIndex === 0 && this.currentTemplateIndex === 0;
+    return this.currentStepIndex === 0 && this.currentTemplateIndex === 0;
   }
 
   isFinished(): boolean {
-    return (
-      this.currentRoundIndex === this.flatConfig.length - 1 &&
-      this.currentTemplateIndex === 2
-    );
+    if (this.currentStepIndex !== this.flatConfig.length - 1) return false;
+    const step = this.flatConfig[this.currentStepIndex];
+    if (step && isFlatRoundStep(step)) {
+      return this.currentTemplateIndex === 2;
+    }
+    return true;
   }
 }

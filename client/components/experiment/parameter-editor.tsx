@@ -9,6 +9,7 @@ import { Card, CardBody, CardHeader } from "@heroui/card";
 import { Tabs, Tab } from "@heroui/tabs";
 import { Accordion, AccordionItem } from "@heroui/accordion";
 import { Textarea } from "@heroui/input";
+import { Checkbox } from "@heroui/checkbox";
 import {
   Modal,
   ModalContent,
@@ -17,12 +18,15 @@ import {
   ModalFooter,
   useDisclosure,
 } from "@heroui/modal";
-import { Plus, Trash2, Copy, BookOpen } from "lucide-react";
+import { Plus, Trash2, Copy, BookOpen, ArrowUp, ArrowDown } from "lucide-react";
 import type {
   ExperimentConfig,
   ParamDefinition,
   BlockConfig,
+  RoundBlockConfig,
+  StaticBlockConfig,
 } from "@/lib/experiment/types";
+import { isStaticBlock, isNumericParam } from "@/lib/experiment/types";
 
 interface ParameterEditorProps {
   config: ExperimentConfig;
@@ -447,6 +451,33 @@ function ParamRow({
         allParams={allParams}
       />
 
+      {isNumericParam(definition) && (
+        <div className="flex flex-col gap-1 mt-2">
+          <Checkbox
+            size="sm"
+            isSelected={!!definition.visualize}
+            onValueChange={(checked) =>
+              onChangeDef(paramId, { ...definition, visualize: checked || undefined, visualizeMax: checked ? definition.visualizeMax : undefined })
+            }
+          >
+            <span className="text-xs">Visualize</span>
+          </Checkbox>
+          {definition.visualize && (
+            <Input
+              label="Bar Max"
+              size="sm"
+              type="number"
+              className="w-24"
+              value={definition.visualizeMax != null ? String(definition.visualizeMax) : ""}
+              onValueChange={(v) =>
+                onChangeDef(paramId, { ...definition, visualizeMax: v ? Number(v) || undefined : undefined })
+              }
+              placeholder="Auto"
+            />
+          )}
+        </div>
+      )}
+
       <Button
         isIconOnly
         variant="light"
@@ -719,7 +750,9 @@ export function ParameterEditor({ config, onChange }: ParameterEditorProps) {
     params: Record<string, ParamDefinition>,
   ) => {
     const blocks = [...config.blocks];
-    blocks[blockIdx] = { ...blocks[blockIdx], params };
+    const block = blocks[blockIdx];
+    if (isStaticBlock(block)) return;
+    blocks[blockIdx] = { ...block, params };
     onChange({ ...config, blocks });
   };
 
@@ -729,16 +762,28 @@ export function ParameterEditor({ config, onChange }: ParameterEditorProps) {
     params: Record<string, ParamDefinition>,
   ) => {
     const blocks = [...config.blocks];
-    const rounds = [...blocks[blockIdx].rounds];
+    const block = blocks[blockIdx];
+    if (isStaticBlock(block)) return;
+    const rounds = [...block.rounds];
     rounds[roundIdx] = { ...rounds[roundIdx], params };
-    blocks[blockIdx] = { ...blocks[blockIdx], rounds };
+    blocks[blockIdx] = { ...block, rounds };
     onChange({ ...config, blocks });
   };
 
   const addBlock = () => {
-    const newBlock: BlockConfig = {
+    const newBlock: RoundBlockConfig = {
       id: `b_${crypto.randomUUID().slice(0, 8)}`,
       rounds: [{ id: `r_${crypto.randomUUID().slice(0, 8)}` }],
+    };
+    onChange({ ...config, blocks: [...config.blocks, newBlock] });
+  };
+
+  const addStaticBlock = () => {
+    const newBlock: StaticBlockConfig = {
+      type: "static",
+      id: `b_${crypto.randomUUID().slice(0, 8)}`,
+      title: "",
+      body: "",
     };
     onChange({ ...config, blocks: [...config.blocks, newBlock] });
   };
@@ -750,10 +795,12 @@ export function ParameterEditor({ config, onChange }: ParameterEditorProps) {
 
   const addRound = (blockIdx: number) => {
     const blocks = [...config.blocks];
+    const block = blocks[blockIdx];
+    if (isStaticBlock(block)) return;
     blocks[blockIdx] = {
-      ...blocks[blockIdx],
+      ...block,
       rounds: [
-        ...blocks[blockIdx].rounds,
+        ...block.rounds,
         { id: `r_${crypto.randomUUID().slice(0, 8)}` },
       ],
     };
@@ -762,10 +809,20 @@ export function ParameterEditor({ config, onChange }: ParameterEditorProps) {
 
   const removeRound = (blockIdx: number, roundIdx: number) => {
     const blocks = [...config.blocks];
+    const block = blocks[blockIdx];
+    if (isStaticBlock(block)) return;
     blocks[blockIdx] = {
-      ...blocks[blockIdx],
-      rounds: blocks[blockIdx].rounds.filter((_, i) => i !== roundIdx),
+      ...block,
+      rounds: block.rounds.filter((_: unknown, i: number) => i !== roundIdx),
     };
+    onChange({ ...config, blocks });
+  };
+
+  const moveBlock = (idx: number, direction: -1 | 1) => {
+    const targetIdx = idx + direction;
+    if (targetIdx < 0 || targetIdx >= config.blocks.length) return;
+    const blocks = [...config.blocks];
+    [blocks[idx], blocks[targetIdx]] = [blocks[targetIdx], blocks[idx]];
     onChange({ ...config, blocks });
   };
 
@@ -799,7 +856,34 @@ export function ParameterEditor({ config, onChange }: ParameterEditorProps) {
                   key={block.id}
                   title={
                     <div className="flex items-center gap-2">
+                      <div className="flex flex-col gap-0.5">
+                        <Button
+                          isIconOnly
+                          variant="light"
+                          size="sm"
+                          className="w-5 h-5 min-w-0"
+                          isDisabled={bi === 0}
+                          onPress={() => moveBlock(bi, -1)}
+                          aria-label="Move block up"
+                        >
+                          <ArrowUp className="w-3 h-3" />
+                        </Button>
+                        <Button
+                          isIconOnly
+                          variant="light"
+                          size="sm"
+                          className="w-5 h-5 min-w-0"
+                          isDisabled={bi === config.blocks.length - 1}
+                          onPress={() => moveBlock(bi, 1)}
+                          aria-label="Move block down"
+                        >
+                          <ArrowDown className="w-3 h-3" />
+                        </Button>
+                      </div>
                       <span>Block {bi + 1}</span>
+                      {isStaticBlock(block) && (
+                        <Chip size="sm" variant="flat" color="secondary">Static</Chip>
+                      )}
                       {block.label && (
                         <Chip size="sm" variant="flat">
                           {block.label}
@@ -811,126 +895,206 @@ export function ParameterEditor({ config, onChange }: ParameterEditorProps) {
                     </div>
                   }
                 >
-                  <div className="space-y-3">
-                    <Input
-                      label="Block Label"
-                      size="sm"
-                      value={block.label || ""}
-                      onValueChange={(v) => {
-                        const blocks = [...config.blocks];
-                        blocks[bi] = { ...blocks[bi], label: v || undefined };
-                        onChange({ ...config, blocks });
-                      }}
-                      placeholder="e.g. Practice Block"
-                    />
-                    <ParamList
-                      params={block.params || {}}
-                      onChange={(p) => handleBlockParamsChange(bi, p)}
-                      allParamIds={allParamIds}
-                      inheritedParams={Object.fromEntries(
-                        Object.entries(config.params).map(([k, v]) => [
-                          k,
-                          { def: v, source: "experiment" },
-                        ]),
-                      )}
-                    />
-                    <div className="flex gap-2">
-                      <Button
+                  {isStaticBlock(block) ? (
+                    <div className="space-y-3">
+                      <Input
+                        label="Block Label (optional)"
                         size="sm"
-                        variant="flat"
-                        color="danger"
-                        onPress={() => removeBlock(bi)}
-                        isDisabled={config.blocks.length <= 1}
-                      >
-                        Remove Block
-                      </Button>
+                        value={block.label || ""}
+                        onValueChange={(v) => {
+                          const blocks = [...config.blocks];
+                          blocks[bi] = { ...blocks[bi], label: v || undefined };
+                          onChange({ ...config, blocks });
+                        }}
+                        placeholder="e.g. Instructions"
+                      />
+                      <Input
+                        label="Title"
+                        size="sm"
+                        value={block.title}
+                        onValueChange={(v) => {
+                          const blocks = [...config.blocks];
+                          blocks[bi] = { ...blocks[bi], title: v } as StaticBlockConfig;
+                          onChange({ ...config, blocks });
+                        }}
+                        placeholder="e.g. Welcome to the Experiment"
+                      />
+                      <Textarea
+                        label="Body"
+                        value={block.body}
+                        onValueChange={(v) => {
+                          const blocks = [...config.blocks];
+                          blocks[bi] = { ...blocks[bi], body: v } as StaticBlockConfig;
+                          onChange({ ...config, blocks });
+                        }}
+                        placeholder="Static content displayed to the participant..."
+                        minRows={3}
+                        maxRows={20}
+                      />
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="flat"
+                          color="danger"
+                          onPress={() => removeBlock(bi)}
+                          isDisabled={config.blocks.length <= 1}
+                        >
+                          Remove Block
+                        </Button>
+                      </div>
                     </div>
-                  </div>
+                  ) : (
+                    <div className="space-y-3">
+                      <Input
+                        label="Block Label"
+                        size="sm"
+                        value={block.label || ""}
+                        onValueChange={(v) => {
+                          const blocks = [...config.blocks];
+                          blocks[bi] = { ...blocks[bi], label: v || undefined };
+                          onChange({ ...config, blocks });
+                        }}
+                        placeholder="e.g. Practice Block"
+                      />
+                      <ParamList
+                        params={block.params || {}}
+                        onChange={(p) => handleBlockParamsChange(bi, p)}
+                        allParamIds={allParamIds}
+                        inheritedParams={Object.fromEntries(
+                          Object.entries(config.params).map(([k, v]) => [
+                            k,
+                            { def: v, source: "experiment" },
+                          ]),
+                        )}
+                      />
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="flat"
+                          color="danger"
+                          onPress={() => removeBlock(bi)}
+                          isDisabled={config.blocks.length <= 1}
+                        >
+                          Remove Block
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </AccordionItem>
               ))}
             </Accordion>
-            <Button
-              size="sm"
-              variant="flat"
-              color="primary"
-              startContent={<Plus className="w-4 h-4" />}
-              onPress={addBlock}
-            >
-              Add Block
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                variant="flat"
+                color="primary"
+                startContent={<Plus className="w-4 h-4" />}
+                onPress={addBlock}
+              >
+                Add Round Block
+              </Button>
+              <Button
+                size="sm"
+                variant="flat"
+                color="secondary"
+                startContent={<Plus className="w-4 h-4" />}
+                onPress={addStaticBlock}
+              >
+                Add Static Block
+              </Button>
+            </div>
           </div>
         </Tab>
 
         <Tab key="rounds" title="Round Overrides">
           <div className="space-y-4">
             <Accordion variant="bordered">
-              {config.blocks.map((block, bi) => (
-                <AccordionItem
-                  key={block.id}
-                  title={
-                    <span>
-                      Block {bi + 1} {block.label ? `(${block.label})` : ""}
-                    </span>
-                  }
-                >
-                  <Accordion variant="splitted">
-                    {block.rounds.map((round, ri) => (
-                      <AccordionItem
-                        key={round.id}
-                        title={
-                          <div className="flex items-center gap-2">
-                            <span>Round {ri + 1}</span>
-                            <Chip size="sm" variant="flat" color="secondary">
-                              {round.id}
-                            </Chip>
-                          </div>
-                        }
-                      >
-                        <div className="space-y-3">
-                          <ParamList
-                            params={round.params || {}}
-                            onChange={(p) => handleRoundParamsChange(bi, ri, p)}
-                            allParamIds={allParamIds}
-                            inheritedParams={{
-                              ...Object.fromEntries(
-                                Object.entries(config.params).map(([k, v]) => [
-                                  k,
-                                  { def: v, source: "experiment" },
-                                ]),
-                              ),
-                              ...Object.fromEntries(
-                                Object.entries(block.params || {}).map(([k, v]) => [
-                                  k,
-                                  { def: v, source: `block ${bi + 1}` },
-                                ]),
-                              ),
-                            }}
-                          />
-                          <Button
-                            size="sm"
-                            variant="flat"
-                            color="danger"
-                            onPress={() => removeRound(bi, ri)}
-                            isDisabled={block.rounds.length <= 1}
-                          >
-                            Remove Round
-                          </Button>
+              {config.blocks.map((block, bi) => {
+                if (isStaticBlock(block)) {
+                  return (
+                    <AccordionItem
+                      key={block.id}
+                      title={
+                        <div className="flex items-center gap-2">
+                          <span>Block {bi + 1} {block.label ? `(${block.label})` : ""}</span>
+                          <Chip size="sm" variant="flat" color="secondary">Static</Chip>
                         </div>
-                      </AccordionItem>
-                    ))}
-                  </Accordion>
-                  <Button
-                    size="sm"
-                    variant="flat"
-                    color="primary"
-                    className="mt-3"
-                    startContent={<Plus className="w-4 h-4" />}
-                    onPress={() => addRound(bi)}
+                      }
+                    >
+                      <p className="text-sm text-default-400">
+                        Static blocks do not have rounds or parameters.
+                      </p>
+                    </AccordionItem>
+                  );
+                }
+                return (
+                  <AccordionItem
+                    key={block.id}
+                    title={
+                      <span>
+                        Block {bi + 1} {block.label ? `(${block.label})` : ""}
+                      </span>
+                    }
                   >
-                    Add Round
-                  </Button>
-                </AccordionItem>
-              ))}
+                    <Accordion variant="splitted">
+                      {block.rounds.map((round, ri) => (
+                        <AccordionItem
+                          key={round.id}
+                          title={
+                            <div className="flex items-center gap-2">
+                              <span>Round {ri + 1}</span>
+                              <Chip size="sm" variant="flat" color="secondary">
+                                {round.id}
+                              </Chip>
+                            </div>
+                          }
+                        >
+                          <div className="space-y-3">
+                            <ParamList
+                              params={round.params || {}}
+                              onChange={(p) => handleRoundParamsChange(bi, ri, p)}
+                              allParamIds={allParamIds}
+                              inheritedParams={{
+                                ...Object.fromEntries(
+                                  Object.entries(config.params).map(([k, v]) => [
+                                    k,
+                                    { def: v, source: "experiment" },
+                                  ]),
+                                ),
+                                ...Object.fromEntries(
+                                  Object.entries(block.params || {}).map(([k, v]) => [
+                                    k,
+                                    { def: v, source: `block ${bi + 1}` },
+                                  ]),
+                                ),
+                              }}
+                            />
+                            <Button
+                              size="sm"
+                              variant="flat"
+                              color="danger"
+                              onPress={() => removeRound(bi, ri)}
+                              isDisabled={block.rounds.length <= 1}
+                            >
+                              Remove Round
+                            </Button>
+                          </div>
+                        </AccordionItem>
+                      ))}
+                    </Accordion>
+                    <Button
+                      size="sm"
+                      variant="flat"
+                      color="primary"
+                      className="mt-3"
+                      startContent={<Plus className="w-4 h-4" />}
+                      onPress={() => addRound(bi)}
+                    >
+                      Add Round
+                    </Button>
+                  </AccordionItem>
+                );
+              })}
             </Accordion>
           </div>
         </Tab>

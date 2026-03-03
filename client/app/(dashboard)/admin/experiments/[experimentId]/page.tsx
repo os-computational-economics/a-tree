@@ -212,6 +212,36 @@ export default function ExperimentDetailPage({
         <Tab key="templates" title="Templates">
           <TemplateEditor config={config} onChange={setConfig} />
         </Tab>
+        <Tab key="guide" title="Game Guide">
+          <Card>
+            <CardHeader>
+              <h3 className="text-lg font-semibold">Game Guide</h3>
+            </CardHeader>
+            <CardBody className="gap-4">
+              <p className="text-sm text-default-500">
+                A single HTML document shown to participants as a reference guide throughout the experiment.
+                Supports full HTML.
+              </p>
+              <Textarea
+                label="Game Guide (HTML)"
+                value={config.gameGuide || ""}
+                onValueChange={(v) => setConfig({ ...config, gameGuide: v || undefined })}
+                placeholder="<h2>How to Play</h2>\n<p>Instructions go here...</p>"
+                minRows={8}
+                maxRows={30}
+              />
+              {config.gameGuide && (
+                <div className="space-y-2">
+                  <p className="text-sm font-medium text-default-500">Preview:</p>
+                  <div
+                    className="p-4 rounded-lg bg-content2/50 border border-divider prose prose-sm dark:prose-invert max-w-none"
+                    dangerouslySetInnerHTML={{ __html: config.gameGuide }}
+                  />
+                </div>
+              )}
+            </CardBody>
+          </Card>
+        </Tab>
         <Tab key="simulate" title="Simulate">
           <SimulateRun config={config} />
         </Tab>

@@ -1,12 +1,12 @@
 export type HistoryAggregation = "min" | "max" | "mean" | "mode" | "sum" | "latest";
 
 export type ParamDefinition =
-  | { type: "constant"; dataType: "number" | "string" | "boolean"; value: number | string | boolean }
-  | { type: "norm"; mean: number; std: number }
-  | { type: "unif"; min: number; max: number }
-  | { type: "equation"; expression: string }
-  | { type: "student_input"; inputLabel?: string; inputType?: "number" | "text"; validation?: string }
-  | { type: "history"; expression: string };
+  | { type: "constant"; dataType: "number" | "string" | "boolean"; value: number | string | boolean; visualize?: boolean; visualizeMax?: number }
+  | { type: "norm"; mean: number; std: number; visualize?: boolean; visualizeMax?: number }
+  | { type: "unif"; min: number; max: number; visualize?: boolean; visualizeMax?: number }
+  | { type: "equation"; expression: string; visualize?: boolean; visualizeMax?: number }
+  | { type: "student_input"; inputLabel?: string; inputType?: "number" | "text"; validation?: string; visualize?: boolean; visualizeMax?: number }
+  | { type: "history"; expression: string; visualize?: boolean; visualizeMax?: number };
 
 export type TemplateKind = "intro" | "decision" | "result";
 
@@ -26,7 +26,8 @@ export interface RoundConfig {
   resultTemplate?: string;
 }
 
-export interface BlockConfig {
+export interface RoundBlockConfig {
+  type?: "round";
   id: string;
   label?: string;
   params?: Record<string, ParamDefinition>;
@@ -36,11 +37,22 @@ export interface BlockConfig {
   rounds: RoundConfig[];
 }
 
+export interface StaticBlockConfig {
+  type: "static";
+  id: string;
+  label?: string;
+  title: string;
+  body: string;
+}
+
+export type BlockConfig = RoundBlockConfig | StaticBlockConfig;
+
 export interface ExperimentConfig {
   params: Record<string, ParamDefinition>;
   introTemplate: string;
   decisionTemplate: string;
   resultTemplate: string;
+  gameGuide?: string;
   blocks: BlockConfig[];
 }
 
@@ -66,6 +78,7 @@ export interface HistoryRow {
 }
 
 export interface FlatRoundConfig {
+  type?: "round";
   blockIndex: number;
   roundIndex: number;
   blockId: string;
@@ -75,4 +88,37 @@ export interface FlatRoundConfig {
   introTemplate: string;
   decisionTemplate: string;
   resultTemplate: string;
+}
+
+export interface FlatStaticBlockConfig {
+  type: "static";
+  blockIndex: number;
+  blockId: string;
+  blockLabel?: string;
+  title: string;
+  body: string;
+}
+
+export type FlatStepConfig = FlatRoundConfig | FlatStaticBlockConfig;
+
+export function isStaticBlock(block: BlockConfig): block is StaticBlockConfig {
+  return block.type === "static";
+}
+
+export function isRoundBlock(block: BlockConfig): block is RoundBlockConfig {
+  return block.type !== "static";
+}
+
+export function isFlatStaticStep(step: FlatStepConfig): step is FlatStaticBlockConfig {
+  return step.type === "static";
+}
+
+export function isFlatRoundStep(step: FlatStepConfig): step is FlatRoundConfig {
+  return step.type !== "static";
+}
+
+export function isNumericParam(def: ParamDefinition): boolean {
+  if (def.type === "constant") return def.dataType === "number";
+  if (def.type === "student_input") return def.inputType === "number";
+  return def.type === "norm" || def.type === "unif" || def.type === "equation" || def.type === "history";
 }

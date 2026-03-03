@@ -8,7 +8,7 @@ import { Chip } from "@heroui/chip";
 import { Textarea } from "@heroui/input";
 import { Divider } from "@heroui/divider";
 import type { ExperimentConfig, TemplateKind } from "@/lib/experiment/types";
-import { TEMPLATE_KINDS } from "@/lib/experiment/types";
+import { TEMPLATE_KINDS, isStaticBlock } from "@/lib/experiment/types";
 import { resolveParameters } from "@/lib/experiment/params";
 import { renderTemplate } from "@/lib/experiment/template";
 
@@ -232,14 +232,17 @@ function TripleTemplateEditor({
 
 function resolveBlockTemplate(config: ExperimentConfig, blockIndex: number, kind: TemplateKind): string {
   const field = TEMPLATE_FIELD_MAP[kind];
-  return config.blocks[blockIndex]?.[field] || config[field];
+  const block = config.blocks[blockIndex];
+  if (!block || isStaticBlock(block)) return config[field];
+  return block[field] || config[field];
 }
 
 function resolveRoundTemplate(config: ExperimentConfig, blockIndex: number, roundIndex: number, kind: TemplateKind): string {
   const field = TEMPLATE_FIELD_MAP[kind];
   const block = config.blocks[blockIndex];
-  const round = block?.rounds?.[roundIndex];
-  return round?.[field] || block?.[field] || config[field];
+  if (!block || isStaticBlock(block)) return config[field];
+  const round = block.rounds?.[roundIndex];
+  return round?.[field] || block[field] || config[field];
 }
 
 export function TemplateEditor({ config, onChange }: TemplateEditorProps) {
@@ -263,7 +266,9 @@ export function TemplateEditor({ config, onChange }: TemplateEditorProps) {
   const handleBlockTemplateChange = (blockIdx: number, kind: TemplateKind, value: string) => {
     const field = TEMPLATE_FIELD_MAP[kind];
     const blocks = [...config.blocks];
-    blocks[blockIdx] = { ...blocks[blockIdx], [field]: value || undefined };
+    const block = blocks[blockIdx];
+    if (isStaticBlock(block)) return;
+    blocks[blockIdx] = { ...block, [field]: value || undefined };
     onChange({ ...config, blocks });
   };
 
@@ -275,16 +280,18 @@ export function TemplateEditor({ config, onChange }: TemplateEditorProps) {
   ) => {
     const field = TEMPLATE_FIELD_MAP[kind];
     const blocks = [...config.blocks];
-    const rounds = [...blocks[blockIdx].rounds];
+    const block = blocks[blockIdx];
+    if (isStaticBlock(block)) return;
+    const rounds = [...block.rounds];
     rounds[roundIdx] = { ...rounds[roundIdx], [field]: value || undefined };
-    blocks[blockIdx] = { ...blocks[blockIdx], rounds };
+    blocks[blockIdx] = { ...block, rounds };
     onChange({ ...config, blocks });
   };
 
   const hasBlockOverride = (block: ExperimentConfig["blocks"][number]) =>
-    TEMPLATE_KINDS.some((k) => block[TEMPLATE_FIELD_MAP[k]]);
+    !isStaticBlock(block) && TEMPLATE_KINDS.some((k) => block[TEMPLATE_FIELD_MAP[k]]);
 
-  const hasRoundOverride = (round: ExperimentConfig["blocks"][number]["rounds"][number]) =>
+  const hasRoundOverride = (round: { introTemplate?: string; decisionTemplate?: string; resultTemplate?: string }) =>
     TEMPLATE_KINDS.some((k) => round[TEMPLATE_FIELD_MAP[k]]);
 
   return (
@@ -317,95 +324,136 @@ export function TemplateEditor({ config, onChange }: TemplateEditorProps) {
 
         <Tab key="blocks" title="Block Overrides">
           <Accordion variant="bordered">
-            {config.blocks.map((block, bi) => (
-              <AccordionItem
-                key={block.id}
-                title={
-                  <div className="flex items-center gap-2">
-                    <span>Block {bi + 1}</span>
-                    {block.label && (
-                      <Chip size="sm" variant="flat">{block.label}</Chip>
-                    )}
-                    {hasBlockOverride(block) ? (
-                      <Chip size="sm" variant="flat" color="primary">Custom templates</Chip>
-                    ) : (
-                      <Chip size="sm" variant="dot" color="warning">Using defaults</Chip>
+            {config.blocks.map((block, bi) => {
+              if (isStaticBlock(block)) {
+                return (
+                  <AccordionItem
+                    key={block.id}
+                    title={
+                      <div className="flex items-center gap-2">
+                        <span>Block {bi + 1}</span>
+                        {block.label && (
+                          <Chip size="sm" variant="flat">{block.label}</Chip>
+                        )}
+                        <Chip size="sm" variant="flat" color="secondary">Static</Chip>
+                      </div>
+                    }
+                  >
+                    <p className="text-sm text-default-400">
+                      Static blocks use a fixed title and body instead of templates.
+                    </p>
+                  </AccordionItem>
+                );
+              }
+              return (
+                <AccordionItem
+                  key={block.id}
+                  title={
+                    <div className="flex items-center gap-2">
+                      <span>Block {bi + 1}</span>
+                      {block.label && (
+                        <Chip size="sm" variant="flat">{block.label}</Chip>
+                      )}
+                      {hasBlockOverride(block) ? (
+                        <Chip size="sm" variant="flat" color="primary">Custom templates</Chip>
+                      ) : (
+                        <Chip size="sm" variant="dot" color="warning">Using defaults</Chip>
+                      )}
+                    </div>
+                  }
+                >
+                  <div className="space-y-4">
+                    <TripleTemplateEditor
+                      introValue={block.introTemplate || ""}
+                      decisionValue={block.decisionTemplate || ""}
+                      resultValue={block.resultTemplate || ""}
+                      onIntroChange={(v) => handleBlockTemplateChange(bi, "intro", v)}
+                      onDecisionChange={(v) => handleBlockTemplateChange(bi, "decision", v)}
+                      onResultChange={(v) => handleBlockTemplateChange(bi, "result", v)}
+                      paramIds={paramIds}
+                      studentInputIds={studentInputIds}
+                      config={config}
+                      blockIndex={bi}
+                      roundIndex={0}
+                    />
+                    {!hasBlockOverride(block) && (
+                      <p className="text-tiny text-default-400">
+                        Leave empty to use the experiment-level templates.
+                      </p>
                     )}
                   </div>
-                }
-              >
-                <div className="space-y-4">
-                  <TripleTemplateEditor
-                    introValue={block.introTemplate || ""}
-                    decisionValue={block.decisionTemplate || ""}
-                    resultValue={block.resultTemplate || ""}
-                    onIntroChange={(v) => handleBlockTemplateChange(bi, "intro", v)}
-                    onDecisionChange={(v) => handleBlockTemplateChange(bi, "decision", v)}
-                    onResultChange={(v) => handleBlockTemplateChange(bi, "result", v)}
-                    paramIds={paramIds}
-                    studentInputIds={studentInputIds}
-                    config={config}
-                    blockIndex={bi}
-                    roundIndex={0}
-                  />
-                  {!hasBlockOverride(block) && (
-                    <p className="text-tiny text-default-400">
-                      Leave empty to use the experiment-level templates.
-                    </p>
-                  )}
-                </div>
-              </AccordionItem>
-            ))}
+                </AccordionItem>
+              );
+            })}
           </Accordion>
         </Tab>
 
         <Tab key="rounds" title="Round Overrides">
           <Accordion variant="bordered">
-            {config.blocks.map((block, bi) => (
-              <AccordionItem
-                key={block.id}
-                title={`Block ${bi + 1} ${block.label ? `(${block.label})` : ""}`}
-              >
-                <Accordion variant="splitted">
-                  {block.rounds.map((round, ri) => (
-                    <AccordionItem
-                      key={round.id}
-                      title={
-                        <div className="flex items-center gap-2">
-                          <span>Round {ri + 1}</span>
-                          {hasRoundOverride(round) ? (
-                            <Chip size="sm" variant="flat" color="primary">Custom</Chip>
-                          ) : (
-                            <Chip size="sm" variant="dot" color="warning">Inherited</Chip>
+            {config.blocks.map((block, bi) => {
+              if (isStaticBlock(block)) {
+                return (
+                  <AccordionItem
+                    key={block.id}
+                    title={
+                      <div className="flex items-center gap-2">
+                        <span>Block {bi + 1} {block.label ? `(${block.label})` : ""}</span>
+                        <Chip size="sm" variant="flat" color="secondary">Static</Chip>
+                      </div>
+                    }
+                  >
+                    <p className="text-sm text-default-400">
+                      Static blocks do not have rounds.
+                    </p>
+                  </AccordionItem>
+                );
+              }
+              return (
+                <AccordionItem
+                  key={block.id}
+                  title={`Block ${bi + 1} ${block.label ? `(${block.label})` : ""}`}
+                >
+                  <Accordion variant="splitted">
+                    {block.rounds.map((round, ri) => (
+                      <AccordionItem
+                        key={round.id}
+                        title={
+                          <div className="flex items-center gap-2">
+                            <span>Round {ri + 1}</span>
+                            {hasRoundOverride(round) ? (
+                              <Chip size="sm" variant="flat" color="primary">Custom</Chip>
+                            ) : (
+                              <Chip size="sm" variant="dot" color="warning">Inherited</Chip>
+                            )}
+                          </div>
+                        }
+                      >
+                        <div className="space-y-4">
+                          <TripleTemplateEditor
+                            introValue={round.introTemplate || ""}
+                            decisionValue={round.decisionTemplate || ""}
+                            resultValue={round.resultTemplate || ""}
+                            onIntroChange={(v) => handleRoundTemplateChange(bi, ri, "intro", v)}
+                            onDecisionChange={(v) => handleRoundTemplateChange(bi, ri, "decision", v)}
+                            onResultChange={(v) => handleRoundTemplateChange(bi, ri, "result", v)}
+                            paramIds={paramIds}
+                            studentInputIds={studentInputIds}
+                            config={config}
+                            blockIndex={bi}
+                            roundIndex={ri}
+                          />
+                          {!hasRoundOverride(round) && (
+                            <p className="text-tiny text-default-400">
+                              Leave empty to inherit from block or experiment level.
+                            </p>
                           )}
                         </div>
-                      }
-                    >
-                      <div className="space-y-4">
-                        <TripleTemplateEditor
-                          introValue={round.introTemplate || ""}
-                          decisionValue={round.decisionTemplate || ""}
-                          resultValue={round.resultTemplate || ""}
-                          onIntroChange={(v) => handleRoundTemplateChange(bi, ri, "intro", v)}
-                          onDecisionChange={(v) => handleRoundTemplateChange(bi, ri, "decision", v)}
-                          onResultChange={(v) => handleRoundTemplateChange(bi, ri, "result", v)}
-                          paramIds={paramIds}
-                          studentInputIds={studentInputIds}
-                          config={config}
-                          blockIndex={bi}
-                          roundIndex={ri}
-                        />
-                        {!hasRoundOverride(round) && (
-                          <p className="text-tiny text-default-400">
-                            Leave empty to inherit from block or experiment level.
-                          </p>
-                        )}
-                      </div>
-                    </AccordionItem>
-                  ))}
-                </Accordion>
-              </AccordionItem>
-            ))}
+                      </AccordionItem>
+                    ))}
+                  </Accordion>
+                </AccordionItem>
+              );
+            })}
           </Accordion>
         </Tab>
       </Tabs>
