@@ -284,7 +284,6 @@ export class GameEngine {
     if (!step) return;
 
     if (!isFlatRoundStep(step)) {
-      // Static step: just set position, no params to resolve
       this.currentTemplateIndex = 0;
       this.resolvedParams = {};
       return;

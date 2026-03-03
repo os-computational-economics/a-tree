@@ -27,6 +27,7 @@ export async function GET(
         trialCode: experimentTrials.trialCode,
         status: experimentTrials.status,
         historyTable: experimentTrials.historyTable,
+        chatLogs: experimentTrials.chatLogs,
         createdAt: experimentTrials.createdAt,
         updatedAt: experimentTrials.updatedAt,
       })

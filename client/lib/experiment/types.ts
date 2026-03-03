@@ -45,7 +45,14 @@ export interface StaticBlockConfig {
   body: string;
 }
 
-export type BlockConfig = RoundBlockConfig | StaticBlockConfig;
+export interface AiChatBlockConfig {
+  type: "ai_chat";
+  id: string;
+  label?: string;
+  systemPromptTemplate: string;
+}
+
+export type BlockConfig = RoundBlockConfig | StaticBlockConfig | AiChatBlockConfig;
 
 export interface ExperimentConfig {
   params: Record<string, ParamDefinition>;
@@ -99,22 +106,44 @@ export interface FlatStaticBlockConfig {
   body: string;
 }
 
-export type FlatStepConfig = FlatRoundConfig | FlatStaticBlockConfig;
+export interface FlatAiChatBlockConfig {
+  type: "ai_chat";
+  blockIndex: number;
+  blockId: string;
+  blockLabel?: string;
+  systemPromptTemplate: string;
+}
+
+export type FlatStepConfig = FlatRoundConfig | FlatStaticBlockConfig | FlatAiChatBlockConfig;
+
+export interface ChatLogEntry {
+  role: "user" | "assistant";
+  content: string;
+  timestamp: number;
+}
 
 export function isStaticBlock(block: BlockConfig): block is StaticBlockConfig {
   return block.type === "static";
 }
 
+export function isAiChatBlock(block: BlockConfig): block is AiChatBlockConfig {
+  return block.type === "ai_chat";
+}
+
 export function isRoundBlock(block: BlockConfig): block is RoundBlockConfig {
-  return block.type !== "static";
+  return block.type !== "static" && block.type !== "ai_chat";
 }
 
 export function isFlatStaticStep(step: FlatStepConfig): step is FlatStaticBlockConfig {
   return step.type === "static";
 }
 
+export function isFlatAiChatStep(step: FlatStepConfig): step is FlatAiChatBlockConfig {
+  return step.type === "ai_chat";
+}
+
 export function isFlatRoundStep(step: FlatStepConfig): step is FlatRoundConfig {
-  return step.type !== "static";
+  return step.type !== "static" && step.type !== "ai_chat";
 }
 
 export function isNumericParam(def: ParamDefinition): boolean {

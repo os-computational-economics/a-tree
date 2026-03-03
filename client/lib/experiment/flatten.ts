@@ -5,7 +5,7 @@ import type {
   ParamDefinition,
   ParamSource,
 } from "./types";
-import { isStaticBlock } from "./types";
+import { isStaticBlock, isAiChatBlock } from "./types";
 import { resolveTemplate } from "./template";
 
 function mergeParams(
@@ -20,13 +20,13 @@ function mergeParams(
   }
 
   const block = config.blocks[blockIndex];
-  if (block && !isStaticBlock(block) && block.params) {
+  if (block && !isStaticBlock(block) && !isAiChatBlock(block) && block.params) {
     for (const [k, v] of Object.entries(block.params)) {
       result[k] = { def: v, source: "block" };
     }
   }
 
-  const round = block && !isStaticBlock(block) ? block.rounds?.[roundIndex] : undefined;
+  const round = block && !isStaticBlock(block) && !isAiChatBlock(block) ? block.rounds?.[roundIndex] : undefined;
   if (round?.params) {
     for (const [k, v] of Object.entries(round.params)) {
       result[k] = { def: v, source: "round" };
@@ -54,6 +54,17 @@ export function flattenConfig(config: ExperimentConfig): FlatStepConfig[] {
         blockLabel: block.label,
         title: block.title,
         body: block.body,
+      });
+      continue;
+    }
+
+    if (isAiChatBlock(block)) {
+      result.push({
+        type: "ai_chat",
+        blockIndex: bi,
+        blockId: block.id,
+        blockLabel: block.label,
+        systemPromptTemplate: block.systemPromptTemplate,
       });
       continue;
     }

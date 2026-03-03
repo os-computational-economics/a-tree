@@ -28,6 +28,7 @@ export async function GET(request: NextRequest) {
         experimentId: experimentTrials.experimentId,
         status: experimentTrials.status,
         historyTable: experimentTrials.historyTable,
+        chatLogs: experimentTrials.chatLogs,
         createdAt: experimentTrials.createdAt,
         updatedAt: experimentTrials.updatedAt,
       })

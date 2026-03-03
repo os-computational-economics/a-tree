@@ -462,7 +462,6 @@ export class Agent1 implements Agent {
 
                 const messageWithVariant: Message = {
                   ...result,
-                  variantId,
                 };
 
                 variantControllers[variantIndex].done = true;
@@ -502,7 +501,6 @@ export class Agent1 implements Agent {
               role: "assistant",
               content: [{ type: "text", text: "Failed to generate response" }],
               agentId: self.id,
-              variantId,
             };
 
             return errorMessage;

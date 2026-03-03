@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useTranslations } from "next-intl";
 import { useAuth } from "@/hooks/use-auth";
 import { Spinner } from "@heroui/spinner";
@@ -16,21 +16,12 @@ import {
 import {
   Message,
   MessageContentPart,
-  PARALLEL_VARIANT_COUNT,
 } from "@/lib/llm/types";
 import ChatMessage from "./chat-message";
 import ChatInput from "./chat-input";
-import ParallelMessage from "./parallel-message";
 import { siteConfig } from "@/config/site";
 import { useVoiceRecorder } from "./use-voice-recorder";
 const SYSTEM_PROMPT_STORAGE_KEY = "system_prompt_override";
-
-// Helper to group consecutive assistant messages with the same timestamp as variants
-interface MessageGroup {
-  type: "user" | "assistant";
-  messages: Message[];
-  originalIndex: number; // Index of the first message in this group
-}
 
 interface ChatInterfaceProps {
   chatId?: string;
@@ -99,56 +90,6 @@ export default function ChatInterface({
       }
     }
   }, [input, chatId, isDraftLoaded]);
-
-  // Group messages for rendering (group assistant variants together)
-  const groupedMessages = useMemo((): MessageGroup[] => {
-    const groups: MessageGroup[] = [];
-    let i = 0;
-
-    while (i < messages.length) {
-      const msg = messages[i];
-
-      if (msg.role === "user") {
-        groups.push({
-          type: "user",
-          messages: [msg],
-          originalIndex: i,
-        });
-        i++;
-      } else if (msg.role === "assistant") {
-        // Collect all consecutive assistant messages with the same createdAt timestamp
-        // These are parallel variants
-        const variants: Message[] = [msg];
-        const timestamp = msg.createdAt;
-        let j = i + 1;
-
-        while (j < messages.length) {
-          const nextMsg = messages[j];
-          if (
-            nextMsg.role === "assistant" &&
-            nextMsg.createdAt === timestamp &&
-            nextMsg.variantId // Must have variantId to be considered a variant
-          ) {
-            variants.push(nextMsg);
-            j++;
-          } else {
-            break;
-          }
-        }
-
-        groups.push({
-          type: "assistant",
-          messages: variants,
-          originalIndex: i,
-        });
-        i = j;
-      } else {
-        i++;
-      }
-    }
-
-    return groups;
-  }, [messages]);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const notificationModalRef = useRef<NotificationPermissionModalRef>(null);
@@ -282,11 +223,10 @@ export default function ChatInterface({
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let buffer = "";
-      let isFirstChunkByVariant: Record<string, boolean> = {};
+      let isFirstChunk = true;
 
-      // Temporary storage for the message content parts per variant
-      const variantContents: Record<string, MessageContentPart[]> = {};
-      const variantTimestamp = Date.now();
+      const contentParts: MessageContentPart[] = [];
+      const assistantTimestamp = Date.now();
 
       while (true) {
         const { done, value } = await reader.read();
@@ -300,49 +240,31 @@ export default function ChatInterface({
           if (!line.trim()) continue;
           try {
             const event = JSON.parse(line);
-            const variantId = event.variantId || "default";
-
-            // Initialize variant tracking if needed
-            if (!variantContents[variantId]) {
-              variantContents[variantId] = [];
-              isFirstChunkByVariant[variantId] = true;
-            }
 
             if (event.type === "invalidate") {
-              // LLM is being retried for this variant - clear its content
-              console.log(
-                `[Chat] Received invalidate signal for variant ${variantId} - clearing for retry`
-              );
+              contentParts.length = 0;
+              isFirstChunk = true;
 
-              // Show a cute toast notification (only once per retry cycle)
-              if (Object.keys(variantContents).length <= 1) {
-                const cuteMessages = [
-                  t("chat.retryMessages.rethink"),
-                  t("chat.retryMessages.rephrase"),
-                  t("chat.retryMessages.organizing"),
-                  t("chat.retryMessages.better"),
-                  t("chat.retryMessages.sparkle"),
-                ];
-                const randomMessage =
-                  cuteMessages[Math.floor(Math.random() * cuteMessages.length)];
+              const cuteMessages = [
+                t("chat.retryMessages.rethink"),
+                t("chat.retryMessages.rephrase"),
+                t("chat.retryMessages.organizing"),
+                t("chat.retryMessages.better"),
+                t("chat.retryMessages.sparkle"),
+              ];
+              const randomMessage =
+                cuteMessages[Math.floor(Math.random() * cuteMessages.length)];
 
-                addToast({
-                  title: randomMessage,
-                  color: "primary",
-                });
-              }
+              addToast({
+                title: randomMessage,
+                color: "primary",
+              });
 
-              variantContents[variantId] = [];
-              isFirstChunkByVariant[variantId] = true;
-
-              // Update the messages state to clear this variant
               setMessages((prev) => {
                 const newMessages = [...prev];
-                // Find and update the variant message
                 for (let i = newMessages.length - 1; i >= 0; i--) {
-                  const msg = newMessages[i];
-                  if (msg.role === "assistant" && msg.variantId === variantId) {
-                    newMessages[i] = { ...msg, content: [] };
+                  if (newMessages[i].role === "assistant" && newMessages[i].createdAt === assistantTimestamp) {
+                    newMessages[i] = { ...newMessages[i], content: [] };
                     break;
                   }
                 }
@@ -351,123 +273,89 @@ export default function ChatInterface({
               continue;
             }
 
-            if (
-              event.type === "retry_exhausted" ||
-              event.type === "variant_failed"
-            ) {
-              // This variant failed - log but continue with other variants
-              console.log(
-                `[Chat] Variant ${variantId} failed: ${event.reason}`
-              );
+            if (event.type === "retry_exhausted") {
+              console.log(`[Chat] All retries failed: ${event.reason}`);
 
-              // If all variants failed, handle the error
-              const allFailed = Object.keys(variantContents).every(
-                (v) => variantContents[v].length === 0
-              );
-
-              if (
-                allFailed &&
-                Object.keys(variantContents).length >= PARALLEL_VARIANT_COUNT
-              ) {
-                // Cancel chat monitoring since all requests failed
-                if (currentChatId) {
-                  cancelMonitorChat(currentChatId);
-                }
-
-                // Show error toast
-                const cuteErrorMessages = [
-                  t("chat.errorMessages.overwhelmed"),
-                  t("chat.errorMessages.coffeeBreak"),
-                  t("chat.errorMessages.tripped"),
-                ];
-                const randomErrorMessage =
-                  cuteErrorMessages[
-                  Math.floor(Math.random() * cuteErrorMessages.length)
-                  ];
-
-                addToast({
-                  title: randomErrorMessage,
-                  color: "danger",
-                });
-
-                // Restore the user's original input
-                setInput(lastUserInputRef.current);
-
-                // Remove all variant messages and user message
-                setMessages((prev) => {
-                  return prev.filter(
-                    (msg) =>
-                      !(
-                        msg.role === "assistant" &&
-                        msg.createdAt === variantTimestamp
-                      ) && !(msg.role === "user" && msg === userMessage)
-                  );
-                });
+              if (currentChatId) {
+                cancelMonitorChat(currentChatId);
               }
+
+              const cuteErrorMessages = [
+                t("chat.errorMessages.overwhelmed"),
+                t("chat.errorMessages.coffeeBreak"),
+                t("chat.errorMessages.tripped"),
+              ];
+              const randomErrorMessage =
+                cuteErrorMessages[
+                  Math.floor(Math.random() * cuteErrorMessages.length)
+                ];
+
+              addToast({
+                title: randomErrorMessage,
+                color: "danger",
+              });
+
+              setInput(lastUserInputRef.current);
+
+              setMessages((prev) =>
+                prev.filter(
+                  (msg) =>
+                    !(msg.role === "assistant" && msg.createdAt === assistantTimestamp) &&
+                    !(msg.role === "user" && msg === userMessage)
+                )
+              );
               continue;
             }
 
-            // Initialize variant message if this is the first chunk for this variant
-            if (isFirstChunkByVariant[variantId]) {
+            // Initialize assistant message on first content chunk
+            if (isFirstChunk) {
               setMessages((prev) => [
                 ...prev,
                 {
                   role: "assistant",
                   content: [],
-                  createdAt: variantTimestamp,
-                  variantId: variantId,
+                  createdAt: assistantTimestamp,
                 },
               ]);
-              isFirstChunkByVariant[variantId] = false;
+              isFirstChunk = false;
             }
 
-            const currentContent = variantContents[variantId];
-
             if (event.type === "internal_think") {
-              // Add internal_think part
-              currentContent.push({
+              contentParts.push({
                 type: "internal_think",
                 text: event.content,
               });
             } else if (event.type === "text") {
-              // Append text to the first part if it's text, or create new
               if (
-                currentContent.length === 0 ||
-                currentContent[0].type !== "text"
+                contentParts.length === 0 ||
+                contentParts[0].type !== "text"
               ) {
-                variantContents[variantId] = [
-                  { type: "text", text: event.content },
-                  ...currentContent,
-                ];
+                contentParts.unshift({ type: "text", text: event.content });
               } else {
-                currentContent[0] = { type: "text", text: event.content };
+                contentParts[0] = { type: "text", text: event.content };
               }
             } else if (event.type === "part") {
-              // Add new part
-              currentContent.push(event.part);
+              contentParts.push(event.part);
             } else if (event.type === "part_update") {
-              // Update existing part by index
               if (event.index !== undefined) {
-                const hasThink = currentContent.some(
+                const hasThink = contentParts.some(
                   (p) => p.type === "internal_think"
                 );
                 const offset = hasThink ? 2 : 1;
-                if (currentContent[event.index + offset]) {
-                  currentContent[event.index + offset] = event.part;
+                if (contentParts[event.index + offset]) {
+                  contentParts[event.index + offset] = event.part;
                 }
               }
             }
 
-            // Update the specific variant message
+            // Update the assistant message
             setMessages((prev) => {
               const newMessages = [...prev];
-              // Find the variant message to update
               for (let i = newMessages.length - 1; i >= 0; i--) {
-                const msg = newMessages[i];
-                if (msg.role === "assistant" && msg.variantId === variantId) {
+                if (newMessages[i].role === "assistant" && newMessages[i].createdAt === assistantTimestamp) {
                   newMessages[i] = {
-                    ...msg,
-                    content: [...variantContents[variantId]],
+                    ...newMessages[i],
+                    content: [...contentParts],
                   };
                   break;
                 }
@@ -518,7 +406,6 @@ export default function ChatInterface({
       if (typeof originalMessage.content === "string") {
         content = originalMessage.content;
       } else if (Array.isArray(originalMessage.content)) {
-        // Extract text parts
         content = originalMessage.content
           .filter((p: any) => p.type === "text")
           .map((p: any) => p.text)
@@ -558,36 +445,20 @@ export default function ChatInterface({
           </div>
         )}
 
-        {groupedMessages.map((group, groupIdx) => {
-          if (group.type === "user") {
-            return (
-              <ChatMessage
-                key={`user-${group.originalIndex}`}
-                message={group.messages[0]}
-                messageIndex={group.originalIndex}
-                chatId={chatId}
-                user={user}
-                onForkChat={handleForkChat}
-              />
-            );
-          } else {
-            // Assistant message(s) - use ParallelMessage for variants
-            return (
-              <ParallelMessage
-                key={`assistant-${group.originalIndex}`}
-                variants={group.messages}
-                messageIndex={group.originalIndex}
-                chatId={chatId}
-                user={user}
-                onForkChat={handleForkChat}
-              />
-            );
-          }
-        })}
+        {messages.map((message, idx) => (
+          <ChatMessage
+            key={`msg-${idx}`}
+            message={message}
+            messageIndex={idx}
+            chatId={chatId}
+            user={user}
+            onForkChat={handleForkChat}
+          />
+        ))}
 
         {isSending &&
-          groupedMessages.length > 0 &&
-          groupedMessages[groupedMessages.length - 1]?.type === "user" && (
+          messages.length > 0 &&
+          messages[messages.length - 1]?.role === "user" && (
             <div className="flex gap-3 max-w-3xl mx-auto justify-start items-center">
               <div className="hidden md:flex w-8 h-8 rounded-full bg-primary/10 items-center justify-center shrink-0">
                 <Bot size={16} className="text-primary" />

@@ -3,17 +3,26 @@
 import { useMemo } from "react";
 import { Card, CardBody, CardHeader } from "@heroui/card";
 import { Chip } from "@heroui/chip";
-import type { FlatRoundConfig, FlatStaticBlockConfig, ResolvedParam, TemplateKind } from "@/lib/experiment/types";
-import { TEMPLATE_KINDS, isFlatStaticStep } from "@/lib/experiment/types";
+import type {
+  FlatRoundConfig,
+  FlatStaticBlockConfig,
+  FlatAiChatBlockConfig,
+  FlatStepConfig,
+  ResolvedParam,
+  TemplateKind,
+  ChatLogEntry,
+} from "@/lib/experiment/types";
+import { TEMPLATE_KINDS, isFlatStaticStep, isFlatAiChatStep } from "@/lib/experiment/types";
 import { renderTemplate } from "@/lib/experiment/template";
 import {
   TEMPLATE_KIND_LABELS,
   TEMPLATE_KIND_COLORS,
   TemplateSegmentsRenderer,
 } from "./shared";
+import { ExperimentChatPanel } from "./experiment-chat-panel";
 
 interface StudentStepContentProps {
-  currentStep: FlatRoundConfig | FlatStaticBlockConfig;
+  currentStep: FlatStepConfig;
   currentRound: FlatRoundConfig | undefined;
   resolvedParams: Record<string, ResolvedParam> | null;
   currentTemplateIndex: number;
@@ -23,6 +32,9 @@ interface StudentStepContentProps {
   validationErrors: Set<string>;
   onStudentInput: (id: string, v: string | number) => void;
   onResetInput: (id: string) => void;
+  trialId?: string;
+  chatMessages?: ChatLogEntry[];
+  onChatMessagesChange?: (blockId: string, messages: ChatLogEntry[]) => void;
 }
 
 export function StudentStepContent({
@@ -36,11 +48,15 @@ export function StudentStepContent({
   validationErrors,
   onStudentInput,
   onResetInput,
+  trialId,
+  chatMessages,
+  onChatMessagesChange,
 }: StudentStepContentProps) {
   const isStaticStep = isFlatStaticStep(currentStep);
+  const isAiChatStep = isFlatAiChatStep(currentStep);
 
   const segmentsByKind = useMemo((): Partial<Record<TemplateKind, ReturnType<typeof renderTemplate>>> => {
-    if (!resolvedParams || !currentRound || isStaticStep) return {};
+    if (!resolvedParams || !currentRound || isStaticStep || isAiChatStep) return {};
     const forRendering = { ...resolvedParams };
     for (const [k, r] of Object.entries(forRendering)) {
       if (r.definition.type === "student_input") {
@@ -57,10 +73,10 @@ export function StudentStepContent({
       result[kind] = renderTemplate(templateFields[kind], forRendering);
     }
     return result;
-  }, [resolvedParams, currentRound, isStaticStep]);
+  }, [resolvedParams, currentRound, isStaticStep, isAiChatStep]);
 
   return (
-    <div className="space-y-4">
+    <div className={isAiChatStep ? "h-full flex flex-col" : "space-y-4"}>
       {/* Static Block Content */}
       {isStaticStep && (
         <Card>
@@ -78,8 +94,19 @@ export function StudentStepContent({
         </Card>
       )}
 
+      {/* AI Chat Block Content */}
+      {isAiChatStep && trialId && onChatMessagesChange && (
+        <ExperimentChatPanel
+          trialId={trialId}
+          blockId={(currentStep as FlatAiChatBlockConfig).blockId}
+          blockLabel={(currentStep as FlatAiChatBlockConfig).blockLabel}
+          initialMessages={chatMessages || []}
+          onMessagesChange={onChatMessagesChange}
+        />
+      )}
+
       {/* Template Cards (round steps only) */}
-      {!isStaticStep && TEMPLATE_KINDS.map((kind, kindIdx) => {
+      {!isStaticStep && !isAiChatStep && TEMPLATE_KINDS.map((kind, kindIdx) => {
         const kindSegments = segmentsByKind[kind];
         if (!kindSegments || kindSegments.length === 0) return null;
         const hasContent = kindSegments.some(

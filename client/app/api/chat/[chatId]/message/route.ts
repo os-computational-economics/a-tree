@@ -6,10 +6,7 @@ import { chats } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
 import { getChatHistory, saveChatHistory } from "@/lib/storage/s3";
 import { createLLMClient } from "@/lib/llm/client";
-import {
-  Message,
-  PARALLEL_VARIANT_COUNT,
-} from "@/lib/llm/types";
+import { Message } from "@/lib/llm/types";
 import { agent1 } from "@/lib/agents/agent-1";
 import { waitUntil } from "@vercel/functions";
 import { recordEvent } from "@/lib/telemetry";
@@ -99,14 +96,12 @@ export async function POST(
 
     console.log("[Perf] Calling agent", `[${Date.now() - requestStartTime}ms]`);
 
-    // Use Agent 1 with parallel variants
-    const { stream: agentStream, completions } =
-      await agent1.processRequestParallel(
+    const { stream: agentStream, completion } =
+      await agent1.processRequest(
         history,
         userMessage,
         payload.userId,
         isAdmin ?? false,
-        PARALLEL_VARIANT_COUNT,
         requestStartTime,
         false, // precisionEditing
         [], // imageIds
@@ -115,28 +110,24 @@ export async function POST(
 
     // Handle background completion (saving history)
     waitUntil(
-      completions
-        .then(async (finalMessages) => {
+      completion
+        .then(async (assistantMessage) => {
           const timestamp = Date.now();
-          const messagesToSave: Message[] = finalMessages.map((msg, idx) => ({
-            ...msg,
-            createdAt: msg.createdAt || timestamp,
-          }));
+          const messageToSave: Message = {
+            ...assistantMessage,
+            createdAt: assistantMessage.createdAt || timestamp,
+          };
 
           const updatedHistory = [
             ...history,
             userMessage,
-            ...messagesToSave,
+            messageToSave,
           ];
           await saveChatHistory(chatId, updatedHistory);
 
-          // Use the first variant for name generation
-          const primaryMessage = messagesToSave[0];
-
-          // Generate chat name if needed (check for 1 user message + N variants)
+          // Generate chat name if needed (1 user message + 1 assistant)
           const isFirstInteraction =
-            history.length === 0 &&
-            updatedHistory.length === 1 + PARALLEL_VARIANT_COUNT;
+            history.length === 0 && updatedHistory.length === 2;
           if (isFirstInteraction) {
             const llmClient = createLLMClient({
               apiKey: process.env.LLM_API_KEY,
@@ -145,7 +136,7 @@ export async function POST(
             });
 
             try {
-              const messagesForNaming = [userMessage, primaryMessage];
+              const messagesForNaming = [userMessage, messageToSave];
               const namePrompt: Message[] = [
                 {
                   role: "system",

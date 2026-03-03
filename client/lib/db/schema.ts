@@ -9,7 +9,7 @@ import {
   bigint,
   integer,
 } from "drizzle-orm/pg-core";
-import type { ExperimentConfig, HistoryRow } from "../experiment/types";
+import type { ExperimentConfig, HistoryRow, ChatLogEntry } from "../experiment/types";
 
 /**
  * Users table
@@ -187,6 +187,7 @@ export const experimentTrials = pgTable("experiment_trials", {
     .references(() => users.id),
   status: varchar("status", { length: 20 }).notNull().default("in_progress"),
   historyTable: jsonb("history_table").$type<HistoryRow[]>().notNull().default([]),
+  chatLogs: jsonb("chat_logs").$type<Record<string, ChatLogEntry[]>>().notNull().default({}),
   currentStepIndex: integer("current_step_index").notNull().default(0),
   currentTemplateIndex: integer("current_template_index").notNull().default(0),
   createdAt: timestamp("created_at").defaultNow().notNull(),

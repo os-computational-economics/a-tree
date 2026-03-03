@@ -36,7 +36,7 @@ function getDisplayableParamIds(config: ExperimentConfig): Set<string> {
     if (def.displayOnStudentSide) ids.add(id);
   }
   for (const block of config.blocks) {
-    if (block.type === "static" || !block.params) continue;
+    if (block.type === "static" || block.type === "ai_chat" || !block.params) continue;
     for (const [id, def] of Object.entries(block.params)) {
       if (def.displayOnStudentSide) ids.add(id);
     }

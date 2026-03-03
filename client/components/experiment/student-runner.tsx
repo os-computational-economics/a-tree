@@ -13,8 +13,8 @@ import {
 } from "@heroui/modal";
 import { useDisclosure } from "@heroui/modal";
 import { ChevronRight, LogOut, BookOpen } from "lucide-react";
-import type { ExperimentConfig, HistoryRow, ResolvedParam, TemplateKind } from "@/lib/experiment/types";
-import { TEMPLATE_KINDS, isFlatStaticStep } from "@/lib/experiment/types";
+import type { ExperimentConfig, HistoryRow, ResolvedParam, TemplateKind, ChatLogEntry } from "@/lib/experiment/types";
+import { TEMPLATE_KINDS, isFlatStaticStep, isFlatAiChatStep } from "@/lib/experiment/types";
 import { GameEngine } from "@/lib/experiment/engine";
 import { runValidation } from "./shared";
 import { StudentStepContent } from "./student-step-content";
@@ -30,6 +30,7 @@ interface StudentRunnerProps {
   initialStepIndex: number;
   initialTemplateIndex: number;
   initialStatus: string;
+  initialChatLogs?: Record<string, ChatLogEntry[]>;
 }
 
 export function StudentRunner({
@@ -40,6 +41,7 @@ export function StudentRunner({
   initialStepIndex,
   initialTemplateIndex,
   initialStatus,
+  initialChatLogs,
 }: StudentRunnerProps) {
   const router = useRouter();
   const engineRef = useRef<GameEngine | null>(null);
@@ -54,6 +56,7 @@ export function StudentRunner({
   const [confirmedInputs, setConfirmedInputs] = useState<Set<string>>(new Set());
   const [isCompleted, setIsCompleted] = useState(initialStatus === "completed");
   const [saving, setSaving] = useState(false);
+  const [chatLogs, setChatLogs] = useState<Record<string, ChatLogEntry[]>>(initialChatLogs || {});
   const [finalHistoryTable, setFinalHistoryTable] = useState<HistoryRow[] | null>(null);
   const [leftPanelPct, setLeftPanelPct] = useState(60);
   const splitContainerRef = useRef<HTMLDivElement>(null);
@@ -84,6 +87,10 @@ export function StudentRunner({
     document.addEventListener("mouseup", onMouseUp);
   }, []);
 
+  const handleChatMessagesChange = useCallback((blockId: string, messages: ChatLogEntry[]) => {
+    setChatLogs((prev) => ({ ...prev, [blockId]: messages }));
+  }, []);
+
   // Initialize engine, restore saved state if resuming
   useEffect(() => {
     const engine = new GameEngine(config);
@@ -102,6 +109,7 @@ export function StudentRunner({
   const currentStep = engine.getCurrentStep();
   const currentRound = engine.getCurrentRound();
   const isStaticStep = currentStep && isFlatStaticStep(currentStep);
+  const isAiChatStep = currentStep && isFlatAiChatStep(currentStep);
   const resolvedParams = engine.getResolvedParams();
   const currentTemplateIndex = engine.getCurrentTemplateIndex();
   const currentTemplateKind = engine.getCurrentTemplateKind();
@@ -111,7 +119,9 @@ export function StudentRunner({
 
   const blockLabel = isStaticStep
     ? (currentStep.blockLabel || currentStep.title || `Block ${currentStep.blockIndex + 1}`)
-    : (currentRound?.blockLabel || `Block ${(currentRound?.blockIndex ?? 0) + 1}`);
+    : isAiChatStep
+      ? (currentStep.blockLabel || `AI Chat Block ${currentStep.blockIndex + 1}`)
+      : (currentRound?.blockLabel || `Block ${(currentRound?.blockIndex ?? 0) + 1}`);
 
   // If already completed on load, show completion screen
   if (isCompleted) {
@@ -126,7 +136,7 @@ export function StudentRunner({
   }
 
   const studentInputParamIds = (() => {
-    if (!resolvedParams || !currentRound || isStaticStep) return [];
+    if (!resolvedParams || !currentRound || isStaticStep || isAiChatStep) return [];
     const activeKind = TEMPLATE_KINDS[currentTemplateIndex];
     const templateFields: Record<TemplateKind, string> = {
       intro: currentRound.introTemplate,
@@ -147,7 +157,7 @@ export function StudentRunner({
   })();
 
   const allInputsValid = (() => {
-    if (isStaticStep) return true;
+    if (isStaticStep || isAiChatStep) return true;
     if (studentInputParamIds.length === 0) return true;
     if (validationErrors.size > 0) return false;
     return studentInputParamIds.every((id) => confirmedInputs.has(id));
@@ -213,6 +223,7 @@ export function StudentRunner({
         historyTable: engine.getHistoryTable(),
         currentStepIndex: engine.getCurrentStepIndex(),
         currentTemplateIndex: engine.getCurrentTemplateIndex(),
+        chatLogs,
       };
       if (finished) body.status = "completed";
       await api.patch(`/api/experiments/trials/${trialId}`, body);
@@ -240,6 +251,8 @@ export function StudentRunner({
 
     await saveProgress(false);
   };
+
+  const currentBlockId = currentStep?.blockId;
 
   return (
     <div className="flex flex-col h-screen bg-background">
@@ -278,6 +291,9 @@ export function StudentRunner({
               validationErrors={validationErrors}
               onStudentInput={handleStudentInput}
               onResetInput={handleResetInput}
+              trialId={trialId}
+              chatMessages={currentBlockId ? chatLogs[currentBlockId] : undefined}
+              onChatMessagesChange={handleChatMessagesChange}
             />
           </div>
           {/* Continue Button - pinned to bottom-right */}

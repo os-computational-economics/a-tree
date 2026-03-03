@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Spinner } from "@heroui/spinner";
 import { api } from "@/lib/api/client";
 import { StudentRunner } from "@/components/experiment/student-runner";
-import type { ExperimentConfig, HistoryRow } from "@/lib/experiment/types";
+import type { ExperimentConfig, HistoryRow, ChatLogEntry } from "@/lib/experiment/types";
 
 interface TrialData {
   id: string;
@@ -13,6 +13,7 @@ interface TrialData {
   experimentId: string;
   status: string;
   historyTable: HistoryRow[];
+  chatLogs: Record<string, ChatLogEntry[]>;
   currentStepIndex: number;
   currentTemplateIndex: number;
 }
@@ -81,6 +82,7 @@ export default function ExperimentRunPage({
       initialStepIndex={trial.currentStepIndex}
       initialTemplateIndex={trial.currentTemplateIndex}
       initialStatus={trial.status}
+      initialChatLogs={trial.chatLogs}
     />
   );
 }

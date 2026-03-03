@@ -13,16 +13,17 @@ import {
   TableRow,
   TableCell,
 } from "@heroui/table";
-import { Search, ChevronDown, Eye } from "lucide-react";
+import { Search, ChevronDown, Eye, MessageCircle } from "lucide-react";
 import { addToast } from "@heroui/toast";
 import { api } from "@/lib/api/client";
-import type { HistoryRow } from "@/lib/experiment/types";
+import type { HistoryRow, ChatLogEntry } from "@/lib/experiment/types";
 
 interface TrialListItem {
   id: string;
   trialCode: string;
   status: string;
   historyTable: HistoryRow[];
+  chatLogs?: Record<string, ChatLogEntry[]>;
   createdAt: string;
   updatedAt: string;
 }
@@ -31,6 +32,57 @@ function formatValue(val: number | string | boolean | null): string {
   if (val === null) return "\u2014";
   if (typeof val === "number") return Number.isInteger(val) ? String(val) : val.toFixed(4);
   return String(val);
+}
+
+function ChatLogsExpander({ chatLogs }: { chatLogs: Record<string, ChatLogEntry[]> }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const blockIds = Object.keys(chatLogs).filter((k) => chatLogs[k].length > 0);
+
+  if (blockIds.length === 0) return null;
+
+  const totalMessages = blockIds.reduce((sum, k) => sum + chatLogs[k].length, 0);
+
+  return (
+    <div className="mt-2">
+      <button
+        type="button"
+        className="flex items-center gap-1 text-xs text-primary hover:underline"
+        onClick={() => setIsOpen(!isOpen)}
+      >
+        <MessageCircle className="w-3 h-3" />
+        <span>{isOpen ? "Hide" : "View"} Chat Logs ({totalMessages} messages)</span>
+        <ChevronDown className={`w-3 h-3 transition-transform ${isOpen ? "rotate-180" : ""}`} />
+      </button>
+      {isOpen && (
+        <div className="mt-2 space-y-4">
+          {blockIds.map((blockId) => (
+            <div key={blockId} className="border border-divider rounded-lg p-3">
+              <p className="text-xs font-semibold text-default-500 mb-2">Block: {blockId}</p>
+              <div className="space-y-2 max-h-80 overflow-y-auto">
+                {chatLogs[blockId].map((entry, i) => (
+                  <div
+                    key={i}
+                    className={`text-sm p-2 rounded-lg ${
+                      entry.role === "user"
+                        ? "bg-primary/10 text-primary ml-8"
+                        : "bg-default-100 mr-8"
+                    }`}
+                  >
+                    <span className="text-xs font-semibold block mb-1">
+                      {entry.role === "user" ? "Student" : "AI"}
+                      {" · "}
+                      {new Date(entry.timestamp).toLocaleTimeString()}
+                    </span>
+                    <p className="whitespace-pre-wrap">{entry.content}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function TrialHistoryExpander({ trial }: { trial: TrialListItem }) {
@@ -88,6 +140,7 @@ function TrialHistoryExpander({ trial }: { trial: TrialListItem }) {
           </Table>
         </div>
       )}
+      {trial.chatLogs && <ChatLogsExpander chatLogs={trial.chatLogs} />}
     </div>
   );
 }

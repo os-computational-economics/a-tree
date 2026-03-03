@@ -25,8 +25,9 @@ import type {
   BlockConfig,
   RoundBlockConfig,
   StaticBlockConfig,
+  AiChatBlockConfig,
 } from "@/lib/experiment/types";
-import { isStaticBlock, isNumericParam } from "@/lib/experiment/types";
+import { isStaticBlock, isAiChatBlock, isNumericParam } from "@/lib/experiment/types";
 
 interface ParameterEditorProps {
   config: ExperimentConfig;
@@ -773,7 +774,7 @@ export function ParameterEditor({ config, onChange }: ParameterEditorProps) {
   ) => {
     const blocks = [...config.blocks];
     const block = blocks[blockIdx];
-    if (isStaticBlock(block)) return;
+    if (isStaticBlock(block) || isAiChatBlock(block)) return;
     blocks[blockIdx] = { ...block, params };
     onChange({ ...config, blocks });
   };
@@ -785,7 +786,7 @@ export function ParameterEditor({ config, onChange }: ParameterEditorProps) {
   ) => {
     const blocks = [...config.blocks];
     const block = blocks[blockIdx];
-    if (isStaticBlock(block)) return;
+    if (isStaticBlock(block) || isAiChatBlock(block)) return;
     const rounds = [...block.rounds];
     rounds[roundIdx] = { ...rounds[roundIdx], params };
     blocks[blockIdx] = { ...block, rounds };
@@ -810,6 +811,15 @@ export function ParameterEditor({ config, onChange }: ParameterEditorProps) {
     onChange({ ...config, blocks: [...config.blocks, newBlock] });
   };
 
+  const addAiChatBlock = () => {
+    const newBlock: AiChatBlockConfig = {
+      type: "ai_chat",
+      id: `b_${crypto.randomUUID().slice(0, 8)}`,
+      systemPromptTemplate: "",
+    };
+    onChange({ ...config, blocks: [...config.blocks, newBlock] });
+  };
+
   const removeBlock = (idx: number) => {
     const blocks = config.blocks.filter((_, i) => i !== idx);
     onChange({ ...config, blocks });
@@ -818,7 +828,7 @@ export function ParameterEditor({ config, onChange }: ParameterEditorProps) {
   const addRound = (blockIdx: number) => {
     const blocks = [...config.blocks];
     const block = blocks[blockIdx];
-    if (isStaticBlock(block)) return;
+    if (isStaticBlock(block) || isAiChatBlock(block)) return;
     blocks[blockIdx] = {
       ...block,
       rounds: [
@@ -832,7 +842,7 @@ export function ParameterEditor({ config, onChange }: ParameterEditorProps) {
   const removeRound = (blockIdx: number, roundIdx: number) => {
     const blocks = [...config.blocks];
     const block = blocks[blockIdx];
-    if (isStaticBlock(block)) return;
+    if (isStaticBlock(block) || isAiChatBlock(block)) return;
     blocks[blockIdx] = {
       ...block,
       rounds: block.rounds.filter((_: unknown, i: number) => i !== roundIdx),
@@ -906,6 +916,9 @@ export function ParameterEditor({ config, onChange }: ParameterEditorProps) {
                       {isStaticBlock(block) && (
                         <Chip size="sm" variant="flat" color="secondary">Static</Chip>
                       )}
+                      {isAiChatBlock(block) && (
+                        <Chip size="sm" variant="flat" color="primary">AI Chat</Chip>
+                      )}
                       {block.label && (
                         <Chip size="sm" variant="flat">
                           {block.label}
@@ -953,6 +966,63 @@ export function ParameterEditor({ config, onChange }: ParameterEditorProps) {
                         minRows={3}
                         maxRows={20}
                       />
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="flat"
+                          color="danger"
+                          onPress={() => removeBlock(bi)}
+                          isDisabled={config.blocks.length <= 1}
+                        >
+                          Remove Block
+                        </Button>
+                      </div>
+                    </div>
+                  ) : isAiChatBlock(block) ? (
+                    <div className="space-y-3">
+                      <Input
+                        label="Block Label (optional)"
+                        size="sm"
+                        value={block.label || ""}
+                        onValueChange={(v) => {
+                          const blocks = [...config.blocks];
+                          blocks[bi] = { ...blocks[bi], label: v || undefined };
+                          onChange({ ...config, blocks });
+                        }}
+                        placeholder="e.g. AI Discussion"
+                      />
+                      <Textarea
+                        label="System Prompt Template"
+                        value={block.systemPromptTemplate}
+                        onValueChange={(v) => {
+                          const blocks = [...config.blocks];
+                          blocks[bi] = { ...blocks[bi], systemPromptTemplate: v } as AiChatBlockConfig;
+                          onChange({ ...config, blocks });
+                        }}
+                        placeholder="You are an assistant helping with this experiment. The current price is {{price}}..."
+                        minRows={4}
+                        maxRows={20}
+                      />
+                      <div className="flex gap-1 flex-wrap items-center">
+                        <span className="text-tiny text-default-400">Insert param:</span>
+                        {allParamIds.map((id) => (
+                          <Chip
+                            key={id}
+                            size="sm"
+                            variant="flat"
+                            color="primary"
+                            className="cursor-pointer"
+                            onClick={() => {
+                              const blocks = [...config.blocks];
+                              const b = blocks[bi] as AiChatBlockConfig;
+                              blocks[bi] = { ...b, systemPromptTemplate: b.systemPromptTemplate + `{{${id}}}` };
+                              onChange({ ...config, blocks });
+                            }}
+                          >
+                            {`{{${id}}}`}
+                          </Chip>
+                        ))}
+                      </div>
                       <div className="flex gap-2">
                         <Button
                           size="sm"
@@ -1024,6 +1094,15 @@ export function ParameterEditor({ config, onChange }: ParameterEditorProps) {
               >
                 Add Static Block
               </Button>
+              <Button
+                size="sm"
+                variant="flat"
+                color="primary"
+                startContent={<Plus className="w-4 h-4" />}
+                onPress={addAiChatBlock}
+              >
+                Add AI Chat Block
+              </Button>
             </div>
           </div>
         </Tab>
@@ -1045,6 +1124,23 @@ export function ParameterEditor({ config, onChange }: ParameterEditorProps) {
                     >
                       <p className="text-sm text-default-400">
                         Static blocks do not have rounds or parameters.
+                      </p>
+                    </AccordionItem>
+                  );
+                }
+                if (isAiChatBlock(block)) {
+                  return (
+                    <AccordionItem
+                      key={block.id}
+                      title={
+                        <div className="flex items-center gap-2">
+                          <span>Block {bi + 1} {block.label ? `(${block.label})` : ""}</span>
+                          <Chip size="sm" variant="flat" color="primary">AI Chat</Chip>
+                        </div>
+                      }
+                    >
+                      <p className="text-sm text-default-400">
+                        AI Chat blocks do not have rounds or parameters.
                       </p>
                     </AccordionItem>
                   );

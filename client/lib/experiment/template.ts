@@ -5,7 +5,7 @@ import type {
   TemplateKind,
   TemplateSet,
 } from "./types";
-import { isStaticBlock } from "./types";
+import { isStaticBlock, isAiChatBlock } from "./types";
 
 const TEMPLATE_FIELD_MAP: Record<TemplateKind, "introTemplate" | "decisionTemplate" | "resultTemplate"> = {
   intro: "introTemplate",
@@ -27,11 +27,12 @@ export function resolveTemplate(
   const block = config.blocks[blockIndex];
 
   if (block && isStaticBlock(block)) return config[field];
+  if (block && isAiChatBlock(block)) return config[field];
 
-  const round = block && !isStaticBlock(block) ? block.rounds?.[roundIndex] : undefined;
+  const round = block && !isStaticBlock(block) && !isAiChatBlock(block) ? block.rounds?.[roundIndex] : undefined;
 
   if (round?.[field]) return round[field];
-  if (block && !isStaticBlock(block) && block[field]) return block[field];
+  if (block && !isStaticBlock(block) && !isAiChatBlock(block) && block[field]) return block[field];
   return config[field];
 }
 
