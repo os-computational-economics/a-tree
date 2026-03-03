@@ -264,4 +264,50 @@ export class GameEngine {
     }
     return true;
   }
+
+  /**
+   * Restore engine state from previously saved data (for resuming a trial).
+   * Injects the saved history table and positions the engine at the given step/template,
+   * rebuilding the random cache for the current step from saved history values.
+   */
+  restore(
+    savedHistory: HistoryRow[],
+    stepIndex: number,
+    templateIndex: number,
+  ): void {
+    this.historyTable = savedHistory.map((r) => ({ ...r, values: { ...r.values } }));
+    this.currentStepIndex = stepIndex;
+    this.currentTemplateIndex = templateIndex;
+    this.studentInputs = {};
+    this.randomCache = {};
+
+    const step = this.flatConfig[this.currentStepIndex];
+    if (!step) return;
+
+    if (!isFlatRoundStep(step)) {
+      this.resolvedParams = {};
+      return;
+    }
+
+    // Rebuild randomCache from the saved history row for the current step
+    const histIdx = this.getHistoryIndex();
+    const savedRow = histIdx >= 0 && histIdx < this.historyTable.length
+      ? this.historyTable[histIdx]
+      : null;
+
+    for (const [paramId, { def }] of Object.entries(step.params)) {
+      if (def.type === "norm" || def.type === "unif") {
+        if (savedRow && savedRow.values[paramId] != null) {
+          this.randomCache[paramId] = savedRow.values[paramId];
+        } else {
+          const params = resolveFromMerged(
+            { [paramId]: { def, source: step.params[paramId].source } },
+          );
+          this.randomCache[paramId] = params[paramId]?.value ?? null;
+        }
+      }
+    }
+
+    this.recalculate({});
+  }
 }

@@ -14,7 +14,7 @@ import {
 import { useDisclosure } from "@heroui/modal";
 import { ChevronRight, LogOut, BookOpen } from "lucide-react";
 import type { ExperimentConfig, HistoryRow, ResolvedParam, TemplateKind } from "@/lib/experiment/types";
-import { TEMPLATE_KINDS, isFlatRoundStep, isFlatStaticStep } from "@/lib/experiment/types";
+import { TEMPLATE_KINDS, isFlatStaticStep } from "@/lib/experiment/types";
 import { GameEngine } from "@/lib/experiment/engine";
 import { runValidation } from "./shared";
 import { StudentStepContent } from "./student-step-content";
@@ -83,29 +83,12 @@ export function StudentRunner({
     document.addEventListener("mouseup", onMouseUp);
   }, []);
 
-  // Initialize engine, fast-forward if resuming
+  // Initialize engine, restore saved state if resuming
   useEffect(() => {
     const engine = new GameEngine(config);
 
-    if (initialHistoryTable.length > 0 && initialStepIndex > 0) {
-      // Fast-forward: replay to saved position
-      for (let i = 0; i < initialStepIndex; i++) {
-        const step = engine.getCurrentStep();
-        if (step && isFlatRoundStep(step)) {
-          engine.advance({});
-          engine.advance({});
-          engine.advance({});
-        } else {
-          engine.advance({});
-        }
-      }
-      // Advance within the current step's template index
-      const step = engine.getCurrentStep();
-      if (step && isFlatRoundStep(step)) {
-        for (let t = 0; t < initialTemplateIndex; t++) {
-          engine.advance({});
-        }
-      }
+    if (initialHistoryTable.length > 0 || initialStepIndex > 0) {
+      engine.restore(initialHistoryTable, initialStepIndex, initialTemplateIndex);
     }
 
     engineRef.current = engine;
