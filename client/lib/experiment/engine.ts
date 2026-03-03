@@ -23,6 +23,9 @@ export class GameEngine {
   private randomCache: Record<string, ParamValue>;
   /** Maps step index -> history row index (only for round steps) */
   private stepToHistoryIndex: Map<number, number>;
+  /** Snapshot of resolved params from the most recent round step, persists across non-round steps */
+  private lastRoundResolvedParams: Record<string, ResolvedParam>;
+  private lastRoundStudentInputs: Record<string, string | number>;
 
   constructor(config: ExperimentConfig) {
     this.flatConfig = flattenConfig(config);
@@ -33,6 +36,8 @@ export class GameEngine {
     this.studentInputs = {};
     this.randomCache = {};
     this.stepToHistoryIndex = new Map();
+    this.lastRoundResolvedParams = {};
+    this.lastRoundStudentInputs = {};
 
     let histIdx = 0;
     for (let i = 0; i < this.flatConfig.length; i++) {
@@ -120,6 +125,9 @@ export class GameEngine {
       );
       this.writeHistoryRow();
     }
+
+    this.lastRoundResolvedParams = { ...this.resolvedParams };
+    this.lastRoundStudentInputs = { ...this.studentInputs };
   }
 
   private writeHistoryRow(): void {
@@ -139,6 +147,28 @@ export class GameEngine {
     } else {
       this.historyTable.push(row);
     }
+  }
+
+  /**
+   * Reconstruct lastRoundResolvedParams from the most recent history row
+   * combined with param definitions from the corresponding round step.
+   * Used when restoring into a non-round step so visualizations have data.
+   */
+  private rebuildLastRoundParams(): void {
+    if (this.historyTable.length === 0) return;
+    const lastRow = this.historyTable[this.historyTable.length - 1];
+    const roundStep = this.flatConfig[lastRow.roundIndex];
+    if (!roundStep || !isFlatRoundStep(roundStep)) return;
+
+    const rebuilt: Record<string, ResolvedParam> = {};
+    for (const [k, v] of Object.entries(lastRow.values)) {
+      const paramEntry = roundStep.params[k];
+      rebuilt[k] = {
+        value: v,
+        definition: paramEntry ? paramEntry.def : { type: "constant", dataType: typeof v === "number" ? "number" : "string", value: v as number },
+      };
+    }
+    this.lastRoundResolvedParams = rebuilt;
   }
 
   advance(studentInputs: Record<string, string | number>): void {
@@ -215,6 +245,14 @@ export class GameEngine {
     return this.resolvedParams;
   }
 
+  getLastRoundResolvedParams(): Record<string, ResolvedParam> {
+    return this.lastRoundResolvedParams;
+  }
+
+  getLastRoundStudentInputs(): Record<string, string | number> {
+    return this.lastRoundStudentInputs;
+  }
+
   getStudentInputs(): Record<string, string | number> {
     return this.studentInputs;
   }
@@ -286,6 +324,7 @@ export class GameEngine {
     if (!isFlatRoundStep(step)) {
       this.currentTemplateIndex = 0;
       this.resolvedParams = {};
+      this.rebuildLastRoundParams();
       return;
     }
 

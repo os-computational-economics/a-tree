@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef } from "react";
+import { useMemo } from "react";
 import { Chip } from "@heroui/chip";
 import { Progress } from "@heroui/progress";
 import {
@@ -21,7 +21,9 @@ interface StudentRightPanelProps {
   historyTable: HistoryRow[];
   flatConfig: FlatStepConfig[];
   resolvedParams: Record<string, ResolvedParam> | null;
+  lastRoundResolvedParams: Record<string, ResolvedParam>;
   studentInputs: Record<string, string | number>;
+  lastRoundStudentInputs: Record<string, string | number>;
   currentStepNumber: number;
   totalSteps: number;
   blockLabel: string;
@@ -123,7 +125,9 @@ export function StudentRightPanel({
   historyTable,
   flatConfig,
   resolvedParams,
+  lastRoundResolvedParams,
   studentInputs,
+  lastRoundStudentInputs,
   currentStepNumber,
   totalSteps,
   blockLabel,
@@ -133,19 +137,9 @@ export function StudentRightPanel({
 }: StudentRightPanelProps) {
   const displayableIds = useMemo(() => getDisplayableParamIds(config), [config]);
 
-  const lastResolvedRef = useRef<Record<string, ResolvedParam> | null>(null);
-  const lastStudentInputsRef = useRef<Record<string, string | number>>({});
-
-  if (resolvedParams && Object.keys(resolvedParams).length > 0) {
-    lastResolvedRef.current = resolvedParams;
-    lastStudentInputsRef.current = studentInputs;
-  }
-  const displayParams = (resolvedParams && Object.keys(resolvedParams).length > 0)
-    ? resolvedParams
-    : lastResolvedRef.current;
-  const displayStudentInputs = (resolvedParams && Object.keys(resolvedParams).length > 0)
-    ? studentInputs
-    : lastStudentInputsRef.current;
+  const hasCurrentParams = resolvedParams && Object.keys(resolvedParams).length > 0;
+  const displayParams = hasCurrentParams ? resolvedParams : lastRoundResolvedParams;
+  const displayStudentInputs = hasCurrentParams ? studentInputs : lastRoundStudentInputs;
 
   return (
     <div className="flex flex-col gap-4 h-full overflow-y-auto p-4">

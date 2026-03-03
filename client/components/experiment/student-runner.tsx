@@ -326,7 +326,9 @@ export function StudentRunner({
             historyTable={historyTable}
             flatConfig={engine.getFlatConfig()}
             resolvedParams={resolvedParams}
+            lastRoundResolvedParams={engine.getLastRoundResolvedParams()}
             studentInputs={studentInputs}
+            lastRoundStudentInputs={engine.getLastRoundStudentInputs()}
             currentStepNumber={currentStepNumber}
             totalSteps={totalSteps}
             blockLabel={blockLabel}
