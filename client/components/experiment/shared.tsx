@@ -165,6 +165,7 @@ export function TemplateSegmentsRenderer({
   onStudentInput,
   onResetInput,
   validationErrors,
+  disabled,
 }: {
   segments: ReturnType<typeof renderTemplate>;
   resolvedParams: Record<string, ResolvedParam> | null;
@@ -174,6 +175,7 @@ export function TemplateSegmentsRenderer({
   onStudentInput: (id: string, v: string | number) => void;
   onResetInput: (id: string) => void;
   validationErrors?: Set<string>;
+  disabled?: boolean;
 }) {
   return (
     <div className="prose prose-sm dark:prose-invert max-w-none whitespace-pre-wrap leading-relaxed">
@@ -208,8 +210,8 @@ export function TemplateSegmentsRenderer({
                 value={studentInputs[seg.paramId] ?? ""}
                 onCommit={onStudentInput}
                 onReset={onResetInput}
-                isLocked={!editingInputs.has(seg.paramId)}
-                isConfirmed={confirmedInputs.has(seg.paramId)}
+                isLocked={disabled || !editingInputs.has(seg.paramId)}
+                isConfirmed={disabled || confirmedInputs.has(seg.paramId)}
                 isInvalid={validationErrors?.has(seg.paramId)}
                 validationHint={validation ? `Required: ${validation}` : undefined}
               />

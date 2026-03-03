@@ -120,7 +120,7 @@ export function StudentStepContent({
 
         let cardClasses = "transition-all duration-200";
         if (isFuture) cardClasses += " opacity-30 pointer-events-none";
-        else if (isPast) cardClasses += " opacity-60";
+        else if (isPast) cardClasses += " opacity-60 pointer-events-none";
 
         return (
           <Card key={kind} className={cardClasses}>
@@ -144,6 +144,7 @@ export function StudentStepContent({
                 onStudentInput={onStudentInput}
                 onResetInput={onResetInput}
                 validationErrors={!isFuture ? validationErrors : undefined}
+                disabled={!isActive}
               />
             </CardBody>
           </Card>
