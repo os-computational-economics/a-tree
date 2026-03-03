@@ -306,6 +306,7 @@ export function resolveFullRun(
       const row: HistoryRow = {
         roundIndex: globalRoundIdx,
         values: {},
+        updatedAt: new Date().toISOString(),
       };
       for (const [k, v] of Object.entries(params)) {
         row.values[k] = v.value;

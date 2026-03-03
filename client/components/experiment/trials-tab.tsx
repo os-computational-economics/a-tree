@@ -22,10 +22,12 @@ import {
   ModalFooter,
   useDisclosure,
 } from "@heroui/modal";
-import { Search, ChevronDown, Eye, MessageCircle, ExternalLink } from "lucide-react";
+import { Select, SelectItem } from "@heroui/select";
+import { Search, ChevronDown, Eye, MessageCircle, ExternalLink, Download } from "lucide-react";
 import { addToast } from "@heroui/toast";
 import { api } from "@/lib/api/client";
 import type { HistoryRow, ChatLogEntry } from "@/lib/experiment/types";
+import { buildTrialsCsv, downloadCsv } from "@/lib/experiment/export-csv";
 
 interface TrialListItem {
   id: string;
@@ -111,6 +113,7 @@ function TrialHistoryExpander({ trial }: { trial: TrialListItem }) {
   const columns = [
     { key: "round", label: "ROUND" },
     ...allKeys.map((k) => ({ key: k, label: k })),
+    { key: "updatedAt", label: "TIMESTAMP" },
   ];
 
   return (
@@ -136,6 +139,15 @@ function TrialHistoryExpander({ trial }: { trial: TrialListItem }) {
                   {columns.map((col) => {
                     if (col.key === "round") {
                       return <TableCell key="round">Round {idx + 1}</TableCell>;
+                    }
+                    if (col.key === "updatedAt") {
+                      return (
+                        <TableCell key="updatedAt">
+                          <span className="text-sm text-default-500">
+                            {row.updatedAt ? new Date(row.updatedAt).toLocaleString() : "\u2014"}
+                          </span>
+                        </TableCell>
+                      );
                     }
                     return (
                       <TableCell key={col.key}>
@@ -177,6 +189,7 @@ function TrialDetailModal({
   const historyColumns = [
     { key: "round", label: "ROUND" },
     ...allKeys.map((k) => ({ key: k, label: k })),
+    { key: "updatedAt", label: "TIMESTAMP" },
   ];
 
   const chatBlockIds = trial.chatLogs
@@ -235,6 +248,15 @@ function TrialDetailModal({
                             {historyColumns.map((col) => {
                               if (col.key === "round") {
                                 return <TableCell key="round">Round {idx + 1}</TableCell>;
+                              }
+                              if (col.key === "updatedAt") {
+                                return (
+                                  <TableCell key="updatedAt">
+                                    <span className="text-sm text-default-500">
+                                      {row.updatedAt ? new Date(row.updatedAt).toLocaleString() : "\u2014"}
+                                    </span>
+                                  </TableCell>
+                                );
                               }
                               return (
                                 <TableCell key={col.key}>
@@ -317,6 +339,9 @@ export function TrialsTab({ experimentId }: TrialsTabProps) {
   const [trials, setTrials] = useState<TrialListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const [lookupCode, setLookupCode] = useState("");
   const [lookupResult, setLookupResult] = useState<{ trial: TrialListItem; experiment: { name: string } } | null>(null);
   const [lookupLoading, setLookupLoading] = useState(false);
@@ -340,10 +365,42 @@ export function TrialsTab({ experimentId }: TrialsTabProps) {
     fetchTrials();
   }, [fetchTrials]);
 
-  const filtered = useMemo(
-    () => trials.filter((t) => t.trialCode.includes(search)),
-    [trials, search],
-  );
+  const uniqueStatuses = useMemo(() => {
+    const statuses = new Set(trials.map((t) => t.status));
+    return Array.from(statuses).sort();
+  }, [trials]);
+
+  const filtered = useMemo(() => {
+    return trials.filter((t) => {
+      if (search && !t.trialCode.includes(search) && !t.id.includes(search)) {
+        return false;
+      }
+      if (statusFilter !== "all" && t.status !== statusFilter) {
+        return false;
+      }
+      if (dateFrom) {
+        const from = new Date(dateFrom);
+        if (new Date(t.createdAt) < from) return false;
+      }
+      if (dateTo) {
+        const to = new Date(dateTo);
+        to.setHours(23, 59, 59, 999);
+        if (new Date(t.createdAt) > to) return false;
+      }
+      return true;
+    });
+  }, [trials, search, statusFilter, dateFrom, dateTo]);
+
+  const handleExportCsv = useCallback(() => {
+    if (filtered.length === 0) {
+      addToast({ title: "No trials to export", color: "warning" });
+      return;
+    }
+    const csv = buildTrialsCsv(filtered);
+    const timestamp = new Date().toISOString().slice(0, 10);
+    downloadCsv(csv, `trials-export-${timestamp}.csv`);
+    addToast({ title: `Exported ${filtered.length} trial(s)`, color: "success" });
+  }, [filtered]);
 
   const handleLookup = async () => {
     if (lookupCode.length !== 6) return;
@@ -424,14 +481,73 @@ export function TrialsTab({ experimentId }: TrialsTabProps) {
           <h3 className="text-lg font-semibold">
             All Trials <Chip size="sm" variant="flat">{trials.length}</Chip>
           </h3>
-          <Input
-            placeholder="Filter by code..."
-            startContent={<Search className="w-4 h-4 text-default-400" />}
-            value={search}
-            onValueChange={setSearch}
-            className="max-w-xs"
-          />
         </div>
+
+        {/* Filters & Export */}
+        <Card>
+          <CardBody>
+            <div className="flex flex-wrap items-end gap-3">
+              <Input
+                placeholder="Filter by code or ID..."
+                startContent={<Search className="w-4 h-4 text-default-400" />}
+                value={search}
+                onValueChange={setSearch}
+                className="max-w-[200px]"
+                size="sm"
+              />
+              <Select
+                label="Status"
+                selectedKeys={[statusFilter]}
+                onSelectionChange={(keys) => {
+                  const val = Array.from(keys)[0] as string;
+                  setStatusFilter(val || "all");
+                }}
+                className="max-w-[160px]"
+                size="sm"
+              >
+                {[
+                  <SelectItem key="all">All Statuses</SelectItem>,
+                  ...uniqueStatuses.map((s) => (
+                    <SelectItem key={s}>{s}</SelectItem>
+                  )),
+                ]}
+              </Select>
+              <div className="flex flex-col gap-1">
+                <label className="text-xs text-default-500">From</label>
+                <input
+                  type="date"
+                  value={dateFrom}
+                  onChange={(e) => setDateFrom(e.target.value)}
+                  className="h-8 px-2 text-sm rounded-lg border border-default-200 bg-default-100 focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-xs text-default-500">To</label>
+                <input
+                  type="date"
+                  value={dateTo}
+                  onChange={(e) => setDateTo(e.target.value)}
+                  className="h-8 px-2 text-sm rounded-lg border border-default-200 bg-default-100 focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+              <div className="flex items-end gap-2 ml-auto">
+                <Chip size="sm" variant="flat" color="primary">
+                  {filtered.length} result{filtered.length !== 1 ? "s" : ""}
+                </Chip>
+                <Button
+                  size="sm"
+                  color="primary"
+                  variant="flat"
+                  startContent={<Download className="w-3.5 h-3.5" />}
+                  onPress={handleExportCsv}
+                  isDisabled={filtered.length === 0}
+                >
+                  Export CSV
+                </Button>
+              </div>
+            </div>
+          </CardBody>
+        </Card>
 
         <Table
           aria-label="Trials table"
@@ -446,7 +562,7 @@ export function TrialsTab({ experimentId }: TrialsTabProps) {
             <TableColumn>LAST UPDATED</TableColumn>
             <TableColumn>ACTIONS</TableColumn>
           </TableHeader>
-          <TableBody emptyContent="No trials yet.">
+          <TableBody emptyContent="No trials match the current filters.">
             {filtered.map((trial, idx) => (
               <TableRow
                 key={trial.id}

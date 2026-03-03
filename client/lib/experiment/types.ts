@@ -82,6 +82,7 @@ export type ParamValue = number | string | boolean | null;
 export interface HistoryRow {
   roundIndex: number;
   values: Record<string, ParamValue>;
+  updatedAt: string;
 }
 
 export interface FlatRoundConfig {
