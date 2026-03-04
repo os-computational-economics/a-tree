@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { useTranslations } from "next-intl";
 import { Button } from "@heroui/button";
 import {
   Table,
@@ -42,6 +43,7 @@ function getDisplayableParamIds(config: ExperimentConfig): Set<string> {
 }
 
 export function StudentCompletion({ trialCode, historyTable, config, onExit }: StudentCompletionProps) {
+  const t = useTranslations("experimentRunner");
   const displayableIds = useMemo(() => getDisplayableParamIds(config), [config]);
 
   const filteredKeys = useMemo(() => {
@@ -55,7 +57,7 @@ export function StudentCompletion({ trialCode, historyTable, config, onExit }: S
   }, [historyTable, displayableIds]);
 
   const columns = [
-    { key: "round", label: "ROUND" },
+    { key: "round", label: t("roundColumn") },
     ...filteredKeys.map((k) => ({ key: k, label: k })),
   ];
 
@@ -63,9 +65,9 @@ export function StudentCompletion({ trialCode, historyTable, config, onExit }: S
     <div className="flex flex-col items-center justify-center min-h-screen bg-background p-8">
       <div className="max-w-3xl w-full space-y-8">
         <div className="text-center space-y-4">
-          <h1 className="text-2xl font-bold text-default-600">Experiment Complete</h1>
+          <h1 className="text-2xl font-bold text-default-600">{t("experimentComplete")}</h1>
           <div className="space-y-2">
-            <p className="text-lg text-default-500">Your Experiment ID is</p>
+            <p className="text-lg text-default-500">{t("yourExperimentId")}</p>
             <p className="text-5xl font-mono font-bold text-primary tracking-widest">{trialCode}</p>
           </div>
         </div>
@@ -81,7 +83,7 @@ export function StudentCompletion({ trialCode, historyTable, config, onExit }: S
                   <TableRow key={idx}>
                     {columns.map((col) => {
                       if (col.key === "round") {
-                        return <TableCell key="round">Round {idx + 1}</TableCell>;
+                        return <TableCell key="round">{t("round", { number: idx + 1 })}</TableCell>;
                       }
                       return (
                         <TableCell key={col.key}>
@@ -103,7 +105,7 @@ export function StudentCompletion({ trialCode, historyTable, config, onExit }: S
             startContent={<LogOut className="w-4 h-4" />}
             onPress={onExit}
           >
-            Exit
+            {t("exit")}
           </Button>
         </div>
       </div>

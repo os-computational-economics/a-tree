@@ -19,6 +19,7 @@ import {
   useDisclosure,
 } from "@heroui/modal";
 import { Plus, Trash2, Copy, BookOpen, ArrowUp, ArrowDown } from "lucide-react";
+import { useTranslations } from "next-intl";
 import type {
   ExperimentConfig,
   ParamDefinition,
@@ -98,12 +99,14 @@ function ParamValueEditor({
   allParamIds: string[];
   allParams?: Record<string, ParamDefinition>;
 }) {
+  const t = useTranslations("admin.experiments");
+
   switch (definition.type) {
     case "constant":
       return (
         <div className="flex gap-2 flex-1">
           <Select
-            label="Data Type"
+            label={t("dataType")}
             size="sm"
             className="w-32"
             selectedKeys={[definition.dataType]}
@@ -114,13 +117,13 @@ function ParamValueEditor({
               onChange({ ...definition, dataType: dt, value: defaultVal });
             }}
           >
-            {DATA_TYPES.map((t) => (
-              <SelectItem key={t.key}>{t.label}</SelectItem>
+            {DATA_TYPES.map((dt) => (
+              <SelectItem key={dt.key}>{t(dt.key === "number" ? "inputNumber" : dt.key === "string" ? "dataString" : "dataBoolean")}</SelectItem>
             ))}
           </Select>
           {definition.dataType === "boolean" ? (
             <Select
-              label="Value"
+              label={t("valueLabel")}
               size="sm"
               className="flex-1"
               selectedKeys={[String(definition.value)]}
@@ -134,7 +137,7 @@ function ParamValueEditor({
             </Select>
           ) : (
             <Input
-              label="Value"
+              label={t("valueLabel")}
               size="sm"
               className="flex-1"
               type={definition.dataType === "number" ? "number" : "text"}
@@ -154,14 +157,14 @@ function ParamValueEditor({
       return (
         <div className="flex gap-2 flex-1">
           <Input
-            label="Mean"
+            label={t("mean")}
             size="sm"
             type="number"
             value={String(definition.mean)}
             onValueChange={(v) => onChange({ ...definition, mean: Number(v) || 0 })}
           />
           <Input
-            label="Std Dev"
+            label={t("std")}
             size="sm"
             type="number"
             value={String(definition.std)}
@@ -174,14 +177,14 @@ function ParamValueEditor({
       return (
         <div className="flex gap-2 flex-1">
           <Input
-            label="Min"
+            label={t("min")}
             size="sm"
             type="number"
             value={String(definition.min)}
             onValueChange={(v) => onChange({ ...definition, min: Number(v) || 0 })}
           />
           <Input
-            label="Max"
+            label={t("max")}
             size="sm"
             type="number"
             value={String(definition.max)}
@@ -194,7 +197,7 @@ function ParamValueEditor({
       return (
         <div className="flex-1 space-y-2">
           <Textarea
-            label="Expression"
+            label={t("expression")}
             size="sm"
             placeholder="e.g. Math.max({{price}} - {{cost}}, 0)"
             value={definition.expression}
@@ -203,7 +206,7 @@ function ParamValueEditor({
           />
           {allParamIds.length > 0 && (
             <div className="flex gap-1 flex-wrap">
-              <span className="text-tiny text-default-400 self-center">Insert:</span>
+              <span className="text-tiny text-default-400 self-center">{t("insert")}</span>
               {allParamIds.map((id) => (
                 <Chip
                   key={id}
@@ -230,14 +233,14 @@ function ParamValueEditor({
         <div className="flex-1 space-y-2">
           <div className="flex gap-2">
             <Input
-              label="Input Label"
+              label={t("inputLabel")}
               size="sm"
               className="flex-1"
               value={definition.inputLabel || ""}
               onValueChange={(v) => onChange({ ...definition, inputLabel: v })}
             />
             <Select
-              label="Input Type"
+              label={t("inputType")}
               size="sm"
               className="w-32"
               selectedKeys={[definition.inputType || "text"]}
@@ -246,22 +249,22 @@ function ParamValueEditor({
                 if (v) onChange({ ...definition, inputType: v });
               }}
             >
-              <SelectItem key="number">Number</SelectItem>
-              <SelectItem key="text">Text</SelectItem>
+              <SelectItem key="number">{t("inputNumber")}</SelectItem>
+              <SelectItem key="text">{t("inputText")}</SelectItem>
             </Select>
           </div>
           <Textarea
-            label="Validation (optional)"
+            label={t("validation")}
             size="sm"
             placeholder="e.g. {{this}} > 0 && {{this}} <= 100"
-            description="Boolean expression. Use {{this}} for the input value and {{param_id}} for other params. Student can only continue if this evaluates to true."
+            description={t("validationDesc")}
             value={definition.validation || ""}
             onValueChange={(v) => onChange({ ...definition, validation: v || undefined })}
             minRows={1}
           />
           {allParamIds.length > 0 && (
             <div className="flex gap-1 flex-wrap">
-              <span className="text-tiny text-default-400 self-center">Insert:</span>
+              <span className="text-tiny text-default-400 self-center">{t("insert")}</span>
               <Chip
                 size="sm"
                 variant="flat"
@@ -304,7 +307,7 @@ function ParamValueEditor({
       return (
         <div className="flex-1 space-y-2">
           <Textarea
-            label="History Expression"
+            label={t("historyExpression")}
             size="sm"
             placeholder="e.g. sum({{price}}) * 2 + latest({{cost}})"
             value={definition.expression}
@@ -314,7 +317,7 @@ function ParamValueEditor({
           <div className="space-y-1">
             {nonHistoryParamIds.length > 0 && (
               <div className="flex gap-1 flex-wrap">
-                <span className="text-tiny text-default-400 self-center">Insert aggregation:</span>
+                <span className="text-tiny text-default-400 self-center">{t("insertAggregation")}</span>
                 {HISTORY_AGGREGATIONS.map((agg) => (
                   <div key={agg.key} className="flex gap-0.5">
                     {nonHistoryParamIds.map((id) => (
@@ -368,6 +371,7 @@ function ParamRow({
   allParams?: Record<string, ParamDefinition>;
   inheritedFrom?: string;
 }) {
+  const t = useTranslations("admin.experiments");
   const [nameInput, setNameInput] = useState(
     paramId.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
   );
@@ -378,7 +382,7 @@ function ParamRow({
     <div className="flex items-start gap-2 p-3 rounded-lg bg-content2/50">
       <div className="flex flex-col gap-1 min-w-[180px]">
         <Input
-          label="Name"
+          label={t("nameLabel")}
           size="sm"
           value={nameInput}
           onValueChange={(v) => {
@@ -412,9 +416,9 @@ function ParamRow({
           isInvalid={duplicateError || reservedError}
           errorMessage={
             reservedError
-              ? `"${slugify(nameInput)}" is a reserved name and cannot be used`
+              ? t("reservedNameError", { name: slugify(nameInput) })
               : duplicateError
-                ? "A parameter with this name already exists"
+                ? t("duplicateParamError")
                 : undefined
           }
         />
@@ -423,13 +427,13 @@ function ParamRow({
         </Chip>
         {inheritedFrom && (
           <Chip size="sm" variant="dot" color="warning">
-            Inherited: {inheritedFrom}
+            {t("inheritedFrom", { source: inheritedFrom })}
           </Chip>
         )}
       </div>
 
       <Select
-        label="Type"
+        label={t("typeLabel")}
         size="sm"
         className="w-40"
         selectedKeys={[definition.type]}
@@ -440,8 +444,8 @@ function ParamRow({
           }
         }}
       >
-        {VALUE_TYPES.map((t) => (
-          <SelectItem key={t.key}>{t.label}</SelectItem>
+        {VALUE_TYPES.map((vt) => (
+          <SelectItem key={vt.key}>{t(vt.key === "norm" ? "normal" : vt.key === "unif" ? "uniform" : vt.key === "student_input" ? "studentInput" : vt.key as "constant" | "equation" | "history")}</SelectItem>
         ))}
       </Select>
 
@@ -461,11 +465,11 @@ function ParamRow({
               onChangeDef(paramId, { ...definition, visualize: checked || undefined, visualizeMax: checked ? definition.visualizeMax : undefined })
             }
           >
-            <span className="text-xs">Visualize</span>
+            <span className="text-xs">{t("visualize")}</span>
           </Checkbox>
           {definition.visualize && (
             <Input
-              label="Bar Max"
+              label={t("barMax")}
               size="sm"
               type="number"
               className="w-24"
@@ -483,7 +487,7 @@ function ParamRow({
               onChangeDef(paramId, { ...definition, displayOnStudentSide: checked || undefined })
             }
           >
-            <span className="text-xs">Display on student side</span>
+            <span className="text-xs">{t("displayOnStudentSide")}</span>
           </Checkbox>
         </div>
       )}
@@ -497,7 +501,7 @@ function ParamRow({
             onChangeDef(paramId, { ...definition, displayOnStudentSide: checked || undefined })
           }
         >
-          <span className="text-xs">Display on student side</span>
+          <span className="text-xs">{t("displayOnStudentSide")}</span>
         </Checkbox>
       )}
 
@@ -526,6 +530,7 @@ function ParamList({
   allParamIds: string[];
   inheritedParams?: Record<string, { def: ParamDefinition; source: string }>;
 }) {
+  const t = useTranslations("admin.experiments");
   const handleAdd = () => {
     let id = "new_param";
     let i = 1;
@@ -583,7 +588,7 @@ function ParamList({
                 {id}
               </Chip>
               <Chip size="sm" variant="dot" color="warning">
-                Inherited from {source}
+                {t("inherited", { level: source })}
               </Chip>
               <span className="text-sm text-default-400">{def.type}</span>
               <div className="flex-1" />
@@ -593,7 +598,7 @@ function ParamList({
                 startContent={<Copy className="w-3 h-3" />}
                 onPress={() => onChange({ ...params, [id]: { ...def } })}
               >
-                Override
+                {t("override")}
               </Button>
             </div>
           ))}
@@ -605,7 +610,7 @@ function ParamList({
         startContent={<Plus className="w-4 h-4" />}
         onPress={handleAdd}
       >
-        Add Parameter
+        {t("addParam")}
       </Button>
     </div>
   );
@@ -618,13 +623,15 @@ function ParamHelpModal({
   isOpen: boolean;
   onClose: () => void;
 }) {
+  const t = useTranslations("admin.experiments");
+  const tCommon = useTranslations("common");
   return (
     <Modal isOpen={isOpen} onClose={onClose} size="2xl" scrollBehavior="inside">
       <ModalContent>
         <ModalHeader>
           <div className="flex items-center gap-2">
             <BookOpen className="w-5 h-5" />
-            <span>Parameter Reference Guide</span>
+            <span>{t("paramRefGuide")}</span>
           </div>
         </ModalHeader>
         <ModalBody className="space-y-1 pb-6">
@@ -753,7 +760,7 @@ function ParamHelpModal({
           </div>
         </ModalBody>
         <ModalFooter>
-          <Button onPress={onClose}>Close</Button>
+          <Button onPress={onClose}>{tCommon("close")}</Button>
         </ModalFooter>
       </ModalContent>
     </Modal>
@@ -761,6 +768,7 @@ function ParamHelpModal({
 }
 
 export function ParameterEditor({ config, onChange }: ParameterEditorProps) {
+  const t = useTranslations("admin.experiments");
   const allParamIds = Object.keys(config.params);
   const { isOpen: isHelpOpen, onOpen: onHelpOpen, onClose: onHelpClose } = useDisclosure();
 
@@ -863,11 +871,11 @@ export function ParameterEditor({ config, onChange }: ParameterEditorProps) {
       <div className="flex items-center gap-2">
         <div className="flex-1">
           <Tabs aria-label="Parameter scope" variant="underlined">
-        <Tab key="experiment" title="Experiment Level">
+        <Tab key="experiment" title={t("experimentLevel")}>
           <Card>
             <CardHeader>
               <h4 className="text-medium font-semibold">
-                Experiment-Level Parameters (defaults for all blocks)
+                {t("expLevelParams")}
               </h4>
             </CardHeader>
             <CardBody>
@@ -880,7 +888,7 @@ export function ParameterEditor({ config, onChange }: ParameterEditorProps) {
           </Card>
         </Tab>
 
-        <Tab key="blocks" title="Block Overrides">
+        <Tab key="blocks" title={t("blockOverrides")}>
           <div className="space-y-4">
             <Accordion variant="bordered">
               {config.blocks.map((block, bi) => (
@@ -912,12 +920,12 @@ export function ParameterEditor({ config, onChange }: ParameterEditorProps) {
                           <ArrowDown className="w-3 h-3" />
                         </Button>
                       </div>
-                      <span>Block {bi + 1}</span>
+                      <span>{t("blockN", { n: bi + 1 })}</span>
                       {isStaticBlock(block) && (
-                        <Chip size="sm" variant="flat" color="secondary">Static</Chip>
+                        <Chip size="sm" variant="flat" color="secondary">{t("staticLabel")}</Chip>
                       )}
                       {isAiChatBlock(block) && (
-                        <Chip size="sm" variant="flat" color="primary">AI Chat</Chip>
+                        <Chip size="sm" variant="flat" color="primary">{t("aiChatLabel")}</Chip>
                       )}
                       {block.label && (
                         <Chip size="sm" variant="flat">
@@ -933,7 +941,7 @@ export function ParameterEditor({ config, onChange }: ParameterEditorProps) {
                   {isStaticBlock(block) ? (
                     <div className="space-y-3">
                       <Input
-                        label="Block Label (optional)"
+                        label={t("blockLabelOptional")}
                         size="sm"
                         value={block.label || ""}
                         onValueChange={(v) => {
@@ -944,7 +952,7 @@ export function ParameterEditor({ config, onChange }: ParameterEditorProps) {
                         placeholder="e.g. Instructions"
                       />
                       <Input
-                        label="Title"
+                        label={t("staticTitle")}
                         size="sm"
                         value={block.title}
                         onValueChange={(v) => {
@@ -955,7 +963,7 @@ export function ParameterEditor({ config, onChange }: ParameterEditorProps) {
                         placeholder="e.g. Welcome to the Experiment"
                       />
                       <Textarea
-                        label="Body"
+                        label={t("staticBody")}
                         value={block.body}
                         onValueChange={(v) => {
                           const blocks = [...config.blocks];
@@ -974,14 +982,14 @@ export function ParameterEditor({ config, onChange }: ParameterEditorProps) {
                           onPress={() => removeBlock(bi)}
                           isDisabled={config.blocks.length <= 1}
                         >
-                          Remove Block
+                          {t("removeBlock")}
                         </Button>
                       </div>
                     </div>
                   ) : isAiChatBlock(block) ? (
                     <div className="space-y-3">
                       <Input
-                        label="Block Label (optional)"
+                        label={t("blockLabelOptional")}
                         size="sm"
                         value={block.label || ""}
                         onValueChange={(v) => {
@@ -992,7 +1000,7 @@ export function ParameterEditor({ config, onChange }: ParameterEditorProps) {
                         placeholder="e.g. AI Discussion"
                       />
                       <Textarea
-                        label="System Prompt Template"
+                        label={t("systemPromptTemplate")}
                         value={block.systemPromptTemplate}
                         onValueChange={(v) => {
                           const blocks = [...config.blocks];
@@ -1004,7 +1012,7 @@ export function ParameterEditor({ config, onChange }: ParameterEditorProps) {
                         maxRows={20}
                       />
                       <div className="flex gap-1 flex-wrap items-center">
-                        <span className="text-tiny text-default-400">Insert param:</span>
+                        <span className="text-tiny text-default-400">{t("insertParamColon")}</span>
                         {allParamIds.map((id) => (
                           <Chip
                             key={id}
@@ -1031,14 +1039,14 @@ export function ParameterEditor({ config, onChange }: ParameterEditorProps) {
                           onPress={() => removeBlock(bi)}
                           isDisabled={config.blocks.length <= 1}
                         >
-                          Remove Block
+                          {t("removeBlock")}
                         </Button>
                       </div>
                     </div>
                   ) : (
                     <div className="space-y-3">
                       <Input
-                        label="Block Label"
+                        label={t("blockLabelField")}
                         size="sm"
                         value={block.label || ""}
                         onValueChange={(v) => {
@@ -1067,7 +1075,7 @@ export function ParameterEditor({ config, onChange }: ParameterEditorProps) {
                           onPress={() => removeBlock(bi)}
                           isDisabled={config.blocks.length <= 1}
                         >
-                          Remove Block
+                          {t("removeBlock")}
                         </Button>
                       </div>
                     </div>
@@ -1083,7 +1091,7 @@ export function ParameterEditor({ config, onChange }: ParameterEditorProps) {
                 startContent={<Plus className="w-4 h-4" />}
                 onPress={addBlock}
               >
-                Add Round Block
+                {t("addRoundBlock")}
               </Button>
               <Button
                 size="sm"
@@ -1092,7 +1100,7 @@ export function ParameterEditor({ config, onChange }: ParameterEditorProps) {
                 startContent={<Plus className="w-4 h-4" />}
                 onPress={addStaticBlock}
               >
-                Add Static Block
+                {t("addStaticBlock")}
               </Button>
               <Button
                 size="sm"
@@ -1101,13 +1109,13 @@ export function ParameterEditor({ config, onChange }: ParameterEditorProps) {
                 startContent={<Plus className="w-4 h-4" />}
                 onPress={addAiChatBlock}
               >
-                Add AI Chat Block
+                {t("addAiChatBlock")}
               </Button>
             </div>
           </div>
         </Tab>
 
-        <Tab key="rounds" title="Round Overrides">
+        <Tab key="rounds" title={t("roundOverrides")}>
           <div className="space-y-4">
             <Accordion variant="bordered">
               {config.blocks.map((block, bi) => {
@@ -1117,13 +1125,13 @@ export function ParameterEditor({ config, onChange }: ParameterEditorProps) {
                       key={block.id}
                       title={
                         <div className="flex items-center gap-2">
-                          <span>Block {bi + 1} {block.label ? `(${block.label})` : ""}</span>
-                          <Chip size="sm" variant="flat" color="secondary">Static</Chip>
+                          <span>{t("blockN", { n: bi + 1 })} {block.label ? `(${block.label})` : ""}</span>
+                          <Chip size="sm" variant="flat" color="secondary">{t("staticLabel")}</Chip>
                         </div>
                       }
                     >
                       <p className="text-sm text-default-400">
-                        Static blocks do not have rounds or parameters.
+                        {t("staticNoRoundsOrParams")}
                       </p>
                     </AccordionItem>
                   );
@@ -1134,13 +1142,13 @@ export function ParameterEditor({ config, onChange }: ParameterEditorProps) {
                       key={block.id}
                       title={
                         <div className="flex items-center gap-2">
-                          <span>Block {bi + 1} {block.label ? `(${block.label})` : ""}</span>
-                          <Chip size="sm" variant="flat" color="primary">AI Chat</Chip>
+                          <span>{t("blockN", { n: bi + 1 })} {block.label ? `(${block.label})` : ""}</span>
+                          <Chip size="sm" variant="flat" color="primary">{t("aiChatLabel")}</Chip>
                         </div>
                       }
                     >
                       <p className="text-sm text-default-400">
-                        AI Chat blocks do not have rounds or parameters.
+                        {t("aiChatNoRoundsOrParams")}
                       </p>
                     </AccordionItem>
                   );
@@ -1150,7 +1158,7 @@ export function ParameterEditor({ config, onChange }: ParameterEditorProps) {
                     key={block.id}
                     title={
                       <span>
-                        Block {bi + 1} {block.label ? `(${block.label})` : ""}
+                        {t("blockN", { n: bi + 1 })} {block.label ? `(${block.label})` : ""}
                       </span>
                     }
                   >
@@ -1160,7 +1168,7 @@ export function ParameterEditor({ config, onChange }: ParameterEditorProps) {
                           key={round.id}
                           title={
                             <div className="flex items-center gap-2">
-                              <span>Round {ri + 1}</span>
+                              <span>{t("roundN", { n: ri + 1 })}</span>
                               <Chip size="sm" variant="flat" color="secondary">
                                 {round.id}
                               </Chip>
@@ -1182,7 +1190,7 @@ export function ParameterEditor({ config, onChange }: ParameterEditorProps) {
                                 ...Object.fromEntries(
                                   Object.entries(block.params || {}).map(([k, v]) => [
                                     k,
-                                    { def: v, source: `block ${bi + 1}` },
+                                    { def: v, source: t("blockN", { n: bi + 1 }) },
                                   ]),
                                 ),
                               }}
@@ -1194,7 +1202,7 @@ export function ParameterEditor({ config, onChange }: ParameterEditorProps) {
                               onPress={() => removeRound(bi, ri)}
                               isDisabled={block.rounds.length <= 1}
                             >
-                              Remove Round
+                              {t("removeRound")}
                             </Button>
                           </div>
                         </AccordionItem>
@@ -1208,7 +1216,7 @@ export function ParameterEditor({ config, onChange }: ParameterEditorProps) {
                       startContent={<Plus className="w-4 h-4" />}
                       onPress={() => addRound(bi)}
                     >
-                      Add Round
+                      {t("addRound")}
                     </Button>
                   </AccordionItem>
                 );
@@ -1224,7 +1232,7 @@ export function ParameterEditor({ config, onChange }: ParameterEditorProps) {
           size="sm"
           onPress={onHelpOpen}
           className="self-start mt-1"
-          aria-label="Parameter reference guide"
+          aria-label={t("paramRefGuide")}
         >
           <BookOpen className="w-5 h-5" />
         </Button>

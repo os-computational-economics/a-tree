@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import { Chip } from "@heroui/chip";
 import { Input } from "@heroui/input";
 import { Card, CardBody, CardHeader } from "@heroui/card";
@@ -46,6 +47,7 @@ function formatValue(val: number | string | boolean | null): string {
 }
 
 function ChatLogsExpander({ chatLogs }: { chatLogs: Record<string, ChatLogEntry[]> }) {
+  const t = useTranslations("admin.experiments");
   const [isOpen, setIsOpen] = useState(false);
   const blockIds = Object.keys(chatLogs).filter((k) => chatLogs[k].length > 0);
 
@@ -61,14 +63,14 @@ function ChatLogsExpander({ chatLogs }: { chatLogs: Record<string, ChatLogEntry[
         onClick={() => setIsOpen(!isOpen)}
       >
         <MessageCircle className="w-3 h-3" />
-        <span>{isOpen ? "Hide" : "View"} Chat Logs ({totalMessages} messages)</span>
+        <span>{isOpen ? t("hideChatLogs") : t("viewChatLogs")} {t("chatLogsTitle")} ({t("chatMessagesCount", { count: totalMessages })})</span>
         <ChevronDown className={`w-3 h-3 transition-transform ${isOpen ? "rotate-180" : ""}`} />
       </button>
       {isOpen && (
         <div className="mt-2 space-y-4">
           {blockIds.map((blockId) => (
             <div key={blockId} className="border border-divider rounded-lg p-3">
-              <p className="text-xs font-semibold text-default-500 mb-2">Block: {blockId}</p>
+              <p className="text-xs font-semibold text-default-500 mb-2">{t("blockChatLabel", { id: blockId })}</p>
               <div className="space-y-2 max-h-80 overflow-y-auto">
                 {chatLogs[blockId].map((entry, i) => (
                   <div
@@ -80,7 +82,7 @@ function ChatLogsExpander({ chatLogs }: { chatLogs: Record<string, ChatLogEntry[
                     }`}
                   >
                     <span className="text-xs font-semibold block mb-1">
-                      {entry.role === "user" ? "Student" : "AI"}
+                      {entry.role === "user" ? t("studentRole") : t("aiRole")}
                       {" · "}
                       {new Date(entry.timestamp).toLocaleTimeString()}
                     </span>
@@ -97,10 +99,11 @@ function ChatLogsExpander({ chatLogs }: { chatLogs: Record<string, ChatLogEntry[
 }
 
 function TrialHistoryExpander({ trial }: { trial: TrialListItem }) {
+  const t = useTranslations("admin.experiments");
   const [isOpen, setIsOpen] = useState(false);
 
   if (!trial.historyTable || trial.historyTable.length === 0) {
-    return <span className="text-xs text-default-400">No history</span>;
+    return <span className="text-xs text-default-400">{t("noHistory")}</span>;
   }
 
   const allKeys = Array.from(
@@ -111,9 +114,9 @@ function TrialHistoryExpander({ trial }: { trial: TrialListItem }) {
   );
 
   const columns = [
-    { key: "round", label: "ROUND" },
+    { key: "round", label: t("roundColumn") },
     ...allKeys.map((k) => ({ key: k, label: k })),
-    { key: "updatedAt", label: "TIMESTAMP" },
+    { key: "updatedAt", label: t("timestampColumn") },
   ];
 
   return (
@@ -124,7 +127,7 @@ function TrialHistoryExpander({ trial }: { trial: TrialListItem }) {
         onClick={() => setIsOpen(!isOpen)}
       >
         <Eye className="w-3 h-3" />
-        <span>{isOpen ? "Hide" : "View"} History ({trial.historyTable.length} rows)</span>
+        <span>{isOpen ? t("hideHistory") : t("viewHistory")} {t("history")} ({t("historyRowCount", { count: trial.historyTable.length })})</span>
         <ChevronDown className={`w-3 h-3 transition-transform ${isOpen ? "rotate-180" : ""}`} />
       </button>
       {isOpen && (
@@ -138,7 +141,7 @@ function TrialHistoryExpander({ trial }: { trial: TrialListItem }) {
                 <TableRow key={idx}>
                   {columns.map((col) => {
                     if (col.key === "round") {
-                      return <TableCell key="round">Round {idx + 1}</TableCell>;
+                      return <TableCell key="round">{t("roundN", { n: idx + 1 })}</TableCell>;
                     }
                     if (col.key === "updatedAt") {
                       return (
@@ -177,6 +180,8 @@ function TrialDetailModal({
   onOpenChange: (open: boolean) => void;
   statusColorMap: Record<string, "warning" | "success" | "default">;
 }) {
+  const t = useTranslations("admin.experiments");
+  const tCommon = useTranslations("common");
   if (!trial) return null;
 
   const allKeys = Array.from(
@@ -187,9 +192,9 @@ function TrialDetailModal({
   );
 
   const historyColumns = [
-    { key: "round", label: "ROUND" },
+    { key: "round", label: t("roundColumn") },
     ...allKeys.map((k) => ({ key: k, label: k })),
-    { key: "updatedAt", label: "TIMESTAMP" },
+    { key: "updatedAt", label: t("timestampColumn") },
   ];
 
   const chatBlockIds = trial.chatLogs
@@ -221,11 +226,11 @@ function TrialDetailModal({
               {/* Metadata */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="rounded-lg bg-default-100 p-3">
-                  <p className="text-xs text-default-500 mb-1">Started</p>
+                  <p className="text-xs text-default-500 mb-1">{t("startedLabel")}</p>
                   <p className="text-sm font-medium">{new Date(trial.createdAt).toLocaleString()}</p>
                 </div>
                 <div className="rounded-lg bg-default-100 p-3">
-                  <p className="text-xs text-default-500 mb-1">Last Updated</p>
+                  <p className="text-xs text-default-500 mb-1">{t("lastUpdatedLabel")}</p>
                   <p className="text-sm font-medium">{new Date(trial.updatedAt).toLocaleString()}</p>
                 </div>
               </div>
@@ -234,7 +239,7 @@ function TrialDetailModal({
               <div>
                 <h4 className="text-sm font-semibold mb-2 flex items-center gap-2">
                   <Eye className="w-4 h-4" />
-                  History ({trial.historyTable.length} rounds)
+                  {t("historyRoundsCount", { count: trial.historyTable.length })}
                 </h4>
                 {trial.historyTable.length > 0 ? (
                   <div className="overflow-x-auto">
@@ -247,7 +252,7 @@ function TrialDetailModal({
                           <TableRow key={idx}>
                             {historyColumns.map((col) => {
                               if (col.key === "round") {
-                                return <TableCell key="round">Round {idx + 1}</TableCell>;
+                                return <TableCell key="round">{t("roundN", { n: idx + 1 })}</TableCell>;
                               }
                               if (col.key === "updatedAt") {
                                 return (
@@ -272,7 +277,7 @@ function TrialDetailModal({
                     </Table>
                   </div>
                 ) : (
-                  <p className="text-sm text-default-400">No history recorded.</p>
+                  <p className="text-sm text-default-400">{t("noHistoryRecorded")}</p>
                 )}
               </div>
 
@@ -281,13 +286,13 @@ function TrialDetailModal({
                 <div>
                   <h4 className="text-sm font-semibold mb-2 flex items-center gap-2">
                     <MessageCircle className="w-4 h-4" />
-                    Chat Logs ({totalMessages} messages)
+                    {t("chatLogsTitle")} ({t("chatMessagesCount", { count: totalMessages })})
                   </h4>
                   <div className="space-y-4">
                     {chatBlockIds.map((blockId) => (
                       <div key={blockId} className="border border-divider rounded-lg p-3">
                         <p className="text-xs font-semibold text-default-500 mb-2">
-                          Block: {blockId}
+                          {t("blockChatLabel", { id: blockId })}
                         </p>
                         <div className="space-y-2 max-h-80 overflow-y-auto">
                           {trial.chatLogs![blockId].map((entry, i) => (
@@ -300,7 +305,7 @@ function TrialDetailModal({
                               }`}
                             >
                               <span className="text-xs font-semibold block mb-1">
-                                {entry.role === "user" ? "Student" : "AI"}
+                                {entry.role === "user" ? t("studentRole") : t("aiRole")}
                                 {" · "}
                                 {new Date(entry.timestamp).toLocaleTimeString()}
                               </span>
@@ -316,7 +321,7 @@ function TrialDetailModal({
             </ModalBody>
             <ModalFooter>
               <Button variant="light" onPress={onClose}>
-                Close
+                {tCommon("close")}
               </Button>
             </ModalFooter>
           </>
@@ -336,6 +341,8 @@ interface TrialsTabProps {
 }
 
 export function TrialsTab({ experimentId }: TrialsTabProps) {
+  const t = useTranslations("admin.experiments");
+  const tCommon = useTranslations("common");
   const [trials, setTrials] = useState<TrialListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -355,7 +362,7 @@ export function TrialsTab({ experimentId }: TrialsTabProps) {
       );
       setTrials(data.trials);
     } catch {
-      addToast({ title: "Failed to load trials", color: "danger" });
+      addToast({ title: t("failedToLoadTrials"), color: "danger" });
     } finally {
       setLoading(false);
     }
@@ -393,13 +400,13 @@ export function TrialsTab({ experimentId }: TrialsTabProps) {
 
   const handleExportCsv = useCallback(() => {
     if (filtered.length === 0) {
-      addToast({ title: "No trials to export", color: "warning" });
+      addToast({ title: t("noTrialsToExport"), color: "warning" });
       return;
     }
     const csv = buildTrialsCsv(filtered);
     const timestamp = new Date().toISOString().slice(0, 10);
     downloadCsv(csv, `trials-export-${timestamp}.csv`);
-    addToast({ title: `Exported ${filtered.length} trial(s)`, color: "success" });
+    addToast({ title: t("exportedTrials", { count: filtered.length }), color: "success" });
   }, [filtered]);
 
   const handleLookup = async () => {
@@ -412,7 +419,7 @@ export function TrialsTab({ experimentId }: TrialsTabProps) {
       );
       setLookupResult(data);
     } catch {
-      addToast({ title: "Trial not found", color: "danger" });
+      addToast({ title: t("trialNotFound"), color: "danger" });
     } finally {
       setLookupLoading(false);
     }
@@ -437,13 +444,13 @@ export function TrialsTab({ experimentId }: TrialsTabProps) {
       {/* Lookup by Code */}
       <Card>
         <CardHeader>
-          <h3 className="text-lg font-semibold">Lookup Trial by Code</h3>
+          <h3 className="text-lg font-semibold">{t("lookupByCode")}</h3>
         </CardHeader>
         <CardBody className="gap-4">
           <div className="flex items-end gap-2">
             <Input
-              label="6-Digit Trial Code"
-              placeholder="e.g. 042817"
+              label={t("trialCodeLabel")}
+              placeholder={t("trialCodePlaceholder")}
               value={lookupCode}
               onValueChange={setLookupCode}
               maxLength={6}
@@ -455,7 +462,7 @@ export function TrialsTab({ experimentId }: TrialsTabProps) {
               disabled={lookupCode.length !== 6 || lookupLoading}
               onClick={handleLookup}
             >
-              {lookupLoading ? "Searching..." : "Lookup"}
+              {lookupLoading ? t("searching") : t("lookup")}
             </button>
           </div>
           {lookupResult && (
@@ -479,7 +486,7 @@ export function TrialsTab({ experimentId }: TrialsTabProps) {
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-semibold">
-            All Trials <Chip size="sm" variant="flat">{trials.length}</Chip>
+            {t("allTrials")} <Chip size="sm" variant="flat">{trials.length}</Chip>
           </h3>
         </div>
 
@@ -488,7 +495,7 @@ export function TrialsTab({ experimentId }: TrialsTabProps) {
           <CardBody>
             <div className="flex flex-wrap items-end gap-3">
               <Input
-                placeholder="Filter by code or ID..."
+                placeholder={t("filterByCode")}
                 startContent={<Search className="w-4 h-4 text-default-400" />}
                 value={search}
                 onValueChange={setSearch}
@@ -496,7 +503,7 @@ export function TrialsTab({ experimentId }: TrialsTabProps) {
                 size="sm"
               />
               <Select
-                label="Status"
+                label={t("statusLabel")}
                 selectionMode="multiple"
                 selectedKeys={statusFilter}
                 onSelectionChange={(keys) => {
@@ -504,14 +511,14 @@ export function TrialsTab({ experimentId }: TrialsTabProps) {
                 }}
                 className="max-w-[200px]"
                 size="sm"
-                placeholder="All Statuses"
+                placeholder={t("allStatuses")}
               >
                 {uniqueStatuses.map((s) => (
                   <SelectItem key={s}>{s}</SelectItem>
                 ))}
               </Select>
               <div className="flex flex-col gap-1">
-                <label className="text-xs text-default-500">From</label>
+                <label className="text-xs text-default-500">{t("from")}</label>
                 <input
                   type="date"
                   value={dateFrom}
@@ -520,7 +527,7 @@ export function TrialsTab({ experimentId }: TrialsTabProps) {
                 />
               </div>
               <div className="flex flex-col gap-1">
-                <label className="text-xs text-default-500">To</label>
+                <label className="text-xs text-default-500">{t("to")}</label>
                 <input
                   type="date"
                   value={dateTo}
@@ -530,7 +537,7 @@ export function TrialsTab({ experimentId }: TrialsTabProps) {
               </div>
               <div className="flex items-end gap-2 ml-auto">
                 <Chip size="sm" variant="flat" color="primary">
-                  {filtered.length} result{filtered.length !== 1 ? "s" : ""}
+                  {t("resultCount", { count: filtered.length })}
                 </Chip>
                 <Button
                   size="sm"
@@ -540,7 +547,7 @@ export function TrialsTab({ experimentId }: TrialsTabProps) {
                   onPress={handleExportCsv}
                   isDisabled={filtered.length === 0}
                 >
-                  Export CSV
+                  {t("exportCsv")}
                 </Button>
               </div>
             </div>
@@ -554,13 +561,13 @@ export function TrialsTab({ experimentId }: TrialsTabProps) {
           }}
         >
           <TableHeader>
-            <TableColumn>TRIAL CODE</TableColumn>
-            <TableColumn>STATUS</TableColumn>
-            <TableColumn>STARTED</TableColumn>
-            <TableColumn>LAST UPDATED</TableColumn>
-            <TableColumn>ACTIONS</TableColumn>
+            <TableColumn>{t("trialCodeColumn")}</TableColumn>
+            <TableColumn>{t("statusColumn")}</TableColumn>
+            <TableColumn>{t("startedColumn")}</TableColumn>
+            <TableColumn>{t("lastUpdatedColumn")}</TableColumn>
+            <TableColumn>{t("actionsColumn")}</TableColumn>
           </TableHeader>
-          <TableBody emptyContent="No trials match the current filters.">
+          <TableBody emptyContent={t("noTrialsFilter")}>
             {filtered.map((trial, idx) => (
               <TableRow
                 key={trial.id}
@@ -594,7 +601,7 @@ export function TrialsTab({ experimentId }: TrialsTabProps) {
                     startContent={<ExternalLink className="w-3.5 h-3.5" />}
                     onPress={() => handleViewDetail(trial)}
                   >
-                    View Details
+                    {t("viewDetails")}
                   </Button>
                 </TableCell>
               </TableRow>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import { Spinner } from "@heroui/spinner";
 import { Card, CardBody } from "@heroui/card";
 import { Button } from "@heroui/button";
@@ -29,6 +30,7 @@ export function ExperimentChatPanel({
   initialMessages,
   onMessagesChange,
 }: ExperimentChatPanelProps) {
+  const t = useTranslations("experimentRunner");
   const [messages, setMessages] = useState<ChatLogEntry[]>(initialMessages);
   const [input, setInput] = useState("");
   const [isSending, setIsSending] = useState(false);
@@ -186,7 +188,7 @@ export function ExperimentChatPanel({
         {messages.length === 0 && (
           <div className="text-center text-default-500 mt-20">
             <Bot size={48} className="mx-auto mb-4 opacity-20" />
-            <p>Start a conversation with the AI</p>
+            <p>{t("startConversation")}</p>
           </div>
         )}
 
@@ -295,7 +297,7 @@ export function ExperimentChatPanel({
               </AnimatePresence>
 
               <Textarea
-                placeholder="Type a message..."
+                placeholder={t("typeMessage")}
                 minRows={1}
                 maxRows={5}
                 value={input}

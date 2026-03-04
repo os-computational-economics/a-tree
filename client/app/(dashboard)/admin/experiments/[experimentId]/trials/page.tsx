@@ -9,6 +9,7 @@ import { Button } from "@heroui/button";
 import { addToast } from "@heroui/toast";
 import { ArrowLeft } from "lucide-react";
 import { TrialsTab } from "../../../../../../components/experiment/trials-tab";
+import { useTranslations } from "next-intl";
 
 interface ExperimentSummary {
   id: string;
@@ -20,6 +21,8 @@ export default function TrialsPage({
 }: {
   params: Promise<{ experimentId: string }>;
 }) {
+  const t = useTranslations("admin.experiments");
+  const tAdmin = useTranslations("admin");
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const [experimentId, setExperimentId] = useState("");
@@ -38,7 +41,7 @@ export default function TrialsPage({
       );
       setExperiment(data.experiment);
     } catch {
-      addToast({ title: "Failed to load experiment", color: "danger" });
+      addToast({ title: t("failedToLoadOne"), color: "danger" });
     } finally {
       setLoading(false);
     }
@@ -55,11 +58,11 @@ export default function TrialsPage({
   }
 
   if (!user || !user.roles.includes("admin")) {
-    return <div className="p-8 text-center">Unauthorized</div>;
+    return <div className="p-8 text-center">{tAdmin("unauthorized")}</div>;
   }
 
   if (!experiment) {
-    return <div className="p-8 text-center">Experiment not found</div>;
+    return <div className="p-8 text-center">{t("experimentNotFound")}</div>;
   }
 
   return (
@@ -73,14 +76,14 @@ export default function TrialsPage({
           <ArrowLeft className="w-5 h-5" />
         </Button>
         <div className="flex-1 min-w-0">
-          <p className="text-sm text-default-500">Trials for</p>
+          <p className="text-sm text-default-500">{t("trialsFor")}</p>
           <h1 className="text-2xl font-bold truncate">{experiment.name}</h1>
         </div>
         <Button
           variant="flat"
           onPress={() => router.push(`/admin/experiments/${experimentId}`)}
         >
-          Edit Experiment
+          {t("editExperiment")}
         </Button>
       </div>
 

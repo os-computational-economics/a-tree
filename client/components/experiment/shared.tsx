@@ -7,6 +7,7 @@ import { Button } from "@heroui/button";
 import { Dices, FunctionSquare, PenLine, History, ChevronDown, BookOpen } from "lucide-react";
 import type { ParamDefinition, ResolvedParam, TemplateKind } from "@/lib/experiment/types";
 import { renderTemplate } from "@/lib/experiment/template";
+import { useTranslations } from "next-intl";
 
 export const TEMPLATE_KIND_LABELS: Record<TemplateKind, string> = {
   intro: "Intro",
@@ -96,6 +97,7 @@ export function StudentInputField({
   isInvalid?: boolean;
   validationHint?: string;
 }) {
+  const t = useTranslations("experimentRunner");
   const [localValue, setLocalValue] = useState(String(value ?? ""));
 
   useEffect(() => {
@@ -110,7 +112,7 @@ export function StudentInputField({
           {hasValue ? formatValue(value) : placeholder}
         </span>
         {isConfirmed ? (
-          <Chip size="sm" variant="flat" color="success" className="ml-0.5">Confirmed</Chip>
+          <Chip size="sm" variant="flat" color="success" className="ml-0.5">{t("confirmed")}</Chip>
         ) : (
           <button
             type="button"
@@ -137,7 +139,7 @@ export function StudentInputField({
         value={localValue}
         onValueChange={setLocalValue}
         isInvalid={isInvalid}
-        errorMessage={isInvalid ? (validationHint || "Invalid value") : undefined}
+        errorMessage={isInvalid ? (validationHint || t("invalidValue")) : undefined}
         autoFocus
       />
       <Button
@@ -150,7 +152,7 @@ export function StudentInputField({
           onCommit(paramId, committed);
         }}
       >
-        Confirm
+        {t("confirm")}
       </Button>
     </span>
   );
@@ -213,7 +215,7 @@ export function TemplateSegmentsRenderer({
                 isLocked={disabled || !editingInputs.has(seg.paramId)}
                 isConfirmed={disabled || confirmedInputs.has(seg.paramId)}
                 isInvalid={validationErrors?.has(seg.paramId)}
-                validationHint={validation ? `Required: ${validation}` : undefined}
+                validationHint={validation || undefined}
               />
             </span>
           );
@@ -225,6 +227,7 @@ export function TemplateSegmentsRenderer({
 }
 
 export function GameGuidePanel({ html }: { html: string }) {
+  const t = useTranslations("experimentRunner");
   const [isOpen, setIsOpen] = useState(false);
 
   return (
@@ -235,7 +238,7 @@ export function GameGuidePanel({ html }: { html: string }) {
         onClick={() => setIsOpen(!isOpen)}
       >
         <BookOpen className="w-4 h-4 text-primary" />
-        <span className="text-medium font-semibold">Game Guide</span>
+        <span className="text-medium font-semibold">{t("gameGuide")}</span>
         <div className="flex-1" />
         <ChevronDown className={`w-4 h-4 text-default-400 transition-transform ${isOpen ? "rotate-180" : ""}`} />
       </button>

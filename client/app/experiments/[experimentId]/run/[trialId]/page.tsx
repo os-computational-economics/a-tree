@@ -6,6 +6,7 @@ import { Spinner } from "@heroui/spinner";
 import { api } from "@/lib/api/client";
 import { StudentRunner } from "@/components/experiment/student-runner";
 import type { ExperimentConfig, HistoryRow, ChatLogEntry } from "@/lib/experiment/types";
+import { useTranslations } from "next-intl";
 
 interface TrialData {
   id: string;
@@ -31,6 +32,7 @@ export default function ExperimentRunPage({
   params: Promise<{ experimentId: string; trialId: string }>;
 }) {
   const { trialId } = use(params);
+  const t = useTranslations("studentExperiments");
   const router = useRouter();
   const [trial, setTrial] = useState<TrialData | null>(null);
   const [experiment, setExperiment] = useState<ExperimentData | null>(null);
@@ -45,7 +47,7 @@ export default function ExperimentRunPage({
         setTrial(data.trial);
         setExperiment(data.experiment);
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Failed to load experiment");
+        setError(e instanceof Error ? e.message : t("failedToLoadExperiment"));
       }
     }
     loadTrial();
@@ -59,7 +61,7 @@ export default function ExperimentRunPage({
           className="text-primary underline"
           onClick={() => router.push("/experiments")}
         >
-          Back to experiments
+          {t("backToExperiments")}
         </button>
       </div>
     );

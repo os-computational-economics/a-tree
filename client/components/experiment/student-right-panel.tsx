@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { useTranslations } from "next-intl";
 import { Chip } from "@heroui/chip";
 import { Progress } from "@heroui/progress";
 import {
@@ -61,6 +62,7 @@ function FilteredHistoryTable({
   flatConfig: FlatStepConfig[];
   displayableIds: Set<string>;
 }) {
+  const t = useTranslations("experimentRunner");
   const filteredKeys = useMemo(() => {
     const keys = new Set<string>();
     for (const row of historyTable) {
@@ -75,13 +77,13 @@ function FilteredHistoryTable({
     return (
       <div className="flex items-center gap-2 text-default-400 text-sm py-4 justify-center">
         <History className="w-4 h-4" />
-        <span>No history yet</span>
+        <span>{t("noHistoryYet")}</span>
       </div>
     );
   }
 
   const columns = [
-    { key: "round", label: "ROUND" },
+    { key: "round", label: t("roundColumn") },
     ...filteredKeys.map((k) => ({ key: k, label: k })),
   ];
 
@@ -96,9 +98,9 @@ function FilteredHistoryTable({
             const cfg = flatConfig[row.roundIndex];
             const label = cfg
               ? isFlatRoundStep(cfg)
-                ? `${cfg.blockLabel || "Block"}, R${cfg.roundIndex + 1}`
-                : (cfg.blockLabel || "Static")
-              : `Round ${idx + 1}`;
+                ? `${cfg.blockLabel || t("historyTable")}, R${cfg.roundIndex + 1}`
+                : (cfg.blockLabel || t("static"))
+              : t("round", { number: idx + 1 });
             return (
               <TableRow key={idx}>
                 {columns.map((col) => {
@@ -135,6 +137,7 @@ export function StudentRightPanel({
   roundIndex,
   currentTemplateKind,
 }: StudentRightPanelProps) {
+  const t = useTranslations("experimentRunner");
   const displayableIds = useMemo(() => getDisplayableParamIds(config), [config]);
 
   const hasCurrentParams = resolvedParams && Object.keys(resolvedParams).length > 0;
@@ -147,7 +150,7 @@ export function StudentRightPanel({
       <div>
         <div className="flex items-center gap-2 mb-2">
           <History className="w-4 h-4 text-success" />
-          <h3 className="text-sm font-semibold text-default-500">History Table</h3>
+          <h3 className="text-sm font-semibold text-default-500">{t("historyTable")}</h3>
           {historyTable.length > 0 && (
             <Chip size="sm" variant="flat">{historyTable.length}</Chip>
           )}
@@ -165,11 +168,11 @@ export function StudentRightPanel({
           <div className="flex items-center gap-2 flex-wrap">
             <Chip variant="flat" color="primary" size="sm">{blockLabel}</Chip>
             {isStaticStep ? (
-              <Chip variant="flat" color="secondary" size="sm">Static</Chip>
+              <Chip variant="flat" color="secondary" size="sm">{t("static")}</Chip>
             ) : (
               <>
                 {roundIndex !== undefined && (
-                  <Chip variant="flat" size="sm">Round {roundIndex + 1}</Chip>
+                  <Chip variant="flat" size="sm">{t("round", { number: roundIndex + 1 })}</Chip>
                 )}
                 <Chip variant="flat" color={TEMPLATE_KIND_COLORS[currentTemplateKind]} size="sm">
                   {TEMPLATE_KIND_LABELS[currentTemplateKind]}
@@ -187,7 +190,7 @@ export function StudentRightPanel({
       {/* Parameter Visualization */}
       {displayParams && (
         <div>
-          <h3 className="text-sm font-semibold text-default-500 mb-2">Parameters</h3>
+          <h3 className="text-sm font-semibold text-default-500 mb-2">{t("parameters")}</h3>
           <ParamVisualization
             resolvedParams={displayParams}
             studentInputs={displayStudentInputs}

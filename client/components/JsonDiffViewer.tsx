@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { diffLines, Change } from "diff";
+import { useTranslations } from "next-intl";
 
 interface JsonDiffViewerProps {
   oldValue: any;
@@ -12,6 +13,7 @@ export default function JsonDiffViewer({
   oldValue,
   newValue,
 }: JsonDiffViewerProps) {
+  const t = useTranslations("common");
   const diff = useMemo(() => {
     const oldJson = JSON.stringify(oldValue, null, 2);
     const newJson = JSON.stringify(newValue, null, 2);
@@ -69,7 +71,7 @@ export default function JsonDiffViewer({
   if (!hasChanges) {
     return (
       <div className="p-4 text-center text-default-500">
-        No changes detected
+        {t("noChangesDetected")}
       </div>
     );
   }

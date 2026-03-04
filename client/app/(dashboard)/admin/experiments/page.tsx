@@ -28,6 +28,7 @@ import { Textarea } from "@heroui/input";
 import { addToast } from "@heroui/toast";
 import { Plus, Search, Pencil, FlaskConical } from "lucide-react";
 import type { ExperimentConfig } from "@/lib/experiment/types";
+import { useTranslations } from "next-intl";
 
 interface ExperimentListItem {
   id: string;
@@ -62,6 +63,9 @@ function makeDefaultConfig(): ExperimentConfig {
 }
 
 export default function ExperimentsPage() {
+  const t = useTranslations("admin.experiments");
+  const tAdmin = useTranslations("admin");
+  const tCommon = useTranslations("common");
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const [experiments, setExperiments] = useState<ExperimentListItem[]>([]);
@@ -74,12 +78,10 @@ export default function ExperimentsPage() {
 
   const fetchExperiments = async () => {
     try {
-      const data = await api.get<{ experiments: ExperimentListItem[] }>(
-        "/api/admin/experiments",
-      );
+      const data = await api.get<{ experiments: ExperimentListItem[] }>("/api/admin/experiments");
       setExperiments(data.experiments);
     } catch {
-      addToast({ title: "Failed to load experiments", color: "danger" });
+      addToast({ title: t("failedToLoad"), color: "danger" });
     } finally {
       setLoading(false);
     }
@@ -110,13 +112,13 @@ export default function ExperimentsPage() {
         description: newDescription.trim() || undefined,
         config: makeDefaultConfig(),
       });
-      addToast({ title: "Experiment created", color: "success" });
+      addToast({ title: t("experimentCreated"), color: "success" });
       onClose();
       setNewName("");
       setNewDescription("");
       router.push(`/admin/experiments/${data.experiment.id}`);
     } catch {
-      addToast({ title: "Failed to create experiment", color: "danger" });
+      addToast({ title: t("failedToCreate"), color: "danger" });
     } finally {
       setCreating(false);
     }
@@ -127,38 +129,36 @@ export default function ExperimentsPage() {
   }
 
   if (!user || !user.roles.includes("admin")) {
-    return <div className="p-8 text-center">Unauthorized</div>;
+    return <div className="p-8 text-center">{tAdmin("unauthorized")}</div>;
   }
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Experiments</h1>
+        <h1 className="text-3xl font-bold">{t("title")}</h1>
         <Button color="primary" startContent={<Plus className="w-4 h-4" />} onPress={onOpen}>
-          Create Experiment
+          {t("createExperiment")}
         </Button>
       </div>
 
       <Input
-        placeholder="Search experiments..."
+        placeholder={t("searchPlaceholder")}
         startContent={<Search className="w-4 h-4 text-default-400" />}
         value={search}
         onValueChange={setSearch}
         className="max-w-md"
       />
 
-      <Table
-        aria-label="Experiments table"
-      >
+      <Table aria-label="Experiments table">
         <TableHeader>
-          <TableColumn>NAME</TableColumn>
-          <TableColumn>STATUS</TableColumn>
-          <TableColumn>BLOCKS</TableColumn>
-          <TableColumn>PARAMS</TableColumn>
-          <TableColumn>CREATED</TableColumn>
-          <TableColumn align="end">ACTIONS</TableColumn>
+          <TableColumn>{t("nameColumn")}</TableColumn>
+          <TableColumn>{t("statusColumn")}</TableColumn>
+          <TableColumn>{t("blocksColumn")}</TableColumn>
+          <TableColumn>{t("paramsColumn")}</TableColumn>
+          <TableColumn>{t("createdColumn")}</TableColumn>
+          <TableColumn align="end">{t("actionsColumn")}</TableColumn>
         </TableHeader>
-        <TableBody emptyContent="No experiments yet. Create your first one!">
+        <TableBody emptyContent={t("noExperiments")}>
           {filtered.map((exp) => (
             <TableRow key={exp.id}>
               <TableCell>
@@ -185,7 +185,7 @@ export default function ExperimentsPage() {
                     startContent={<Pencil className="w-3.5 h-3.5" />}
                     onPress={() => router.push(`/admin/experiments/${exp.id}`)}
                   >
-                    Edit
+                    {t("editButton")}
                   </Button>
                   <Button
                     size="sm"
@@ -194,7 +194,7 @@ export default function ExperimentsPage() {
                     startContent={<FlaskConical className="w-3.5 h-3.5" />}
                     onPress={() => router.push(`/admin/experiments/${exp.id}/trials`)}
                   >
-                    View Trials
+                    {t("viewTrialsButton")}
                   </Button>
                 </div>
               </TableCell>
@@ -207,33 +207,31 @@ export default function ExperimentsPage() {
         <ModalContent>
           {(onClose) => (
             <>
-              <ModalHeader>Create Experiment</ModalHeader>
+              <ModalHeader>{t("createExperiment")}</ModalHeader>
               <ModalBody>
                 <Input
-                  label="Name"
-                  placeholder="e.g. Public Goods Game"
+                  label={t("nameLabel")}
+                  placeholder={t("namePlaceholder")}
                   value={newName}
                   onValueChange={setNewName}
                   isRequired
                 />
                 <Textarea
-                  label="Description"
-                  placeholder="Optional description..."
+                  label={t("descriptionLabel")}
+                  placeholder={t("descriptionPlaceholder")}
                   value={newDescription}
                   onValueChange={setNewDescription}
                 />
               </ModalBody>
               <ModalFooter>
-                <Button variant="flat" onPress={onClose}>
-                  Cancel
-                </Button>
+                <Button variant="flat" onPress={onClose}>{tCommon("cancel")}</Button>
                 <Button
                   color="primary"
                   isLoading={creating}
                   isDisabled={!newName.trim()}
                   onPress={() => handleCreate(onClose)}
                 >
-                  Create
+                  {tCommon("create")}
                 </Button>
               </ModalFooter>
             </>

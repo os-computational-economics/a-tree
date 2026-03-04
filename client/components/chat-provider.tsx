@@ -3,6 +3,7 @@
 import { createContext, useCallback, useEffect, useState, useRef } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { usePathname, useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { addToast } from "@heroui/toast";
 
 export interface Chat {
@@ -31,6 +32,8 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const pathname = usePathname();
   const router = useRouter();
+  const t = useTranslations("chat");
+  const tCommon = useTranslations("common");
   const [chats, setChats] = useState<Chat[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -92,13 +95,13 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     } catch (error) {
       console.error("Error renaming chat:", error);
       addToast({
-        title: "Error",
-        description: "Failed to rename chat",
+        title: tCommon("errorTitle"),
+        description: t("renameError"),
         color: "danger",
       });
       throw error;
     }
-  }, []);
+  }, [t, tCommon]);
 
   const deleteChat = useCallback(async (chatId: string) => {
     try {
@@ -114,8 +117,8 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         // Remove from local state immediately
         setChats((prevChats) => prevChats.filter((chat) => chat.id !== chatId));
         addToast({
-          title: "Chat deleted",
-          description: "The chat has been deleted",
+          title: t("deleteTitle"),
+          description: t("deleteDescription"),
           color: "success",
         });
       } else {
@@ -124,13 +127,13 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     } catch (error) {
       console.error("Error deleting chat:", error);
       addToast({
-        title: "Error",
-        description: "Failed to delete chat",
+        title: tCommon("errorTitle"),
+        description: t("deleteError"),
         color: "danger",
       });
       throw error;
     }
-  }, []);
+  }, [t, tCommon]);
 
   useEffect(() => {
     fetchChats();
@@ -207,8 +210,8 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
                     "Notification" in window &&
                     Notification.permission === "granted"
                   ) {
-                    const notification = new Notification("A-Tree", {
-                      body: "Your response is ready!",
+                    const notification = new Notification(t("notificationTitle"), {
+                      body: t("notificationBody"),
                       icon: "/favicon.ico",
                       tag: chatId, // Tag allows replacing old notifications if needed
                     });
@@ -226,15 +229,15 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
                 // Also show toast if user is active in app but on different page
                 if (!isHidden && !isChatOpen) {
                   addToast({
-                    title: "Response Ready",
-                    description: "Your response is ready!",
+                    title: t("responseReadyTitle"),
+                    description: t("notificationBody"),
                     color: "success",
                     endContent: (
                       <button
                         onClick={() => router.push(`/chat/${chatId}`)}
                         className="text-xs font-medium underline hover:opacity-80 text-current px-2 py-1 rounded"
                       >
-                        View
+                        {t("view")}
                       </button>
                     ),
                   });
@@ -259,7 +262,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     }, 5000); // Poll every 5 seconds
 
     return () => clearInterval(pollInterval);
-  }, [pathname, fetchChats]); // Depend on pathname to know current location
+  }, [pathname, fetchChats, t]); // Depend on pathname to know current location
 
   return (
     <ChatContext.Provider

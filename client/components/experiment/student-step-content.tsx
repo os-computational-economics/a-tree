@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import { Card, CardBody, CardHeader } from "@heroui/card";
 import { Chip } from "@heroui/chip";
+import { useTranslations } from "next-intl";
 import type {
   FlatRoundConfig,
   FlatStaticBlockConfig,
@@ -52,6 +53,7 @@ export function StudentStepContent({
   chatMessages,
   onChatMessagesChange,
 }: StudentStepContentProps) {
+  const t = useTranslations("experimentRunner");
   const isStaticStep = isFlatStaticStep(currentStep);
   const isAiChatStep = isFlatAiChatStep(currentStep);
 
@@ -129,9 +131,9 @@ export function StudentStepContent({
                 <Chip size="sm" variant={isActive ? "solid" : "flat"} color={TEMPLATE_KIND_COLORS[kind]}>
                   {TEMPLATE_KIND_LABELS[kind]}
                 </Chip>
-                {isActive && <span className="text-medium font-semibold">Active</span>}
-                {isPast && <span className="text-sm text-default-400">Completed</span>}
-                {isFuture && <span className="text-sm text-default-400">Upcoming</span>}
+                {isActive && <span className="text-medium font-semibold">{t("active")}</span>}
+                {isPast && <span className="text-sm text-default-400">{t("completed")}</span>}
+                {isFuture && <span className="text-sm text-default-400">{t("upcoming")}</span>}
               </div>
             </CardHeader>
             <CardBody>

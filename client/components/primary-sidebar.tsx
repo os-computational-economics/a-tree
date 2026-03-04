@@ -38,7 +38,7 @@ export const PrimarySidebar = () => {
       isActive: (path: string) => path.startsWith("/chat") || path === "/",
     },
     {
-      label: "Experiments",
+      label: t("experiments"),
       href: "/experiments",
       icon: <FlaskConical size={20} />,
       isActive: (path: string) => path.startsWith("/experiments"),
