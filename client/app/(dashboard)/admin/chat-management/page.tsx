@@ -18,6 +18,7 @@ import { api } from "@/lib/api/client";
 import { useAuth } from "@/hooks/use-auth";
 import { Spinner } from "@heroui/spinner";
 import { SearchIcon } from "@/components/icons";
+import { useTranslations } from "next-intl";
 
 interface ChatData {
   id: string;
@@ -32,12 +33,13 @@ interface ChatData {
 }
 
 export default function ChatManagementPage() {
+  const t = useTranslations("admin.chats");
+  const tAdmin = useTranslations("admin");
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const [chats, setChats] = useState<ChatData[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Pagination & Search State
   const [filterValue, setFilterValue] = useState("");
   const [page, setPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
@@ -59,10 +61,8 @@ export default function ChatManagementPage() {
     }
   };
 
-  // Filter logic
   const filteredItems = useMemo(() => {
     let filteredChats = [...chats];
-
     if (filterValue) {
       const lowerFilter = filterValue.toLowerCase();
       filteredChats = filteredChats.filter(
@@ -75,16 +75,13 @@ export default function ChatManagementPage() {
             chat.userLastName.toLowerCase().includes(lowerFilter))
       );
     }
-
     return filteredChats;
   }, [chats, filterValue]);
 
-  // Pagination logic
   const pages = Math.ceil(filteredItems.length / rowsPerPage);
   const items = useMemo(() => {
     const start = (page - 1) * rowsPerPage;
     const end = start + rowsPerPage;
-
     return filteredItems.slice(start, end);
   }, [page, filteredItems, rowsPerPage]);
 
@@ -107,18 +104,18 @@ export default function ChatManagementPage() {
   }
 
   if (!user || !user.roles.includes("admin")) {
-    return <div className="p-8 text-center">Unauthorized</div>;
+    return <div className="p-8 text-center">{tAdmin("unauthorized")}</div>;
   }
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold">Chat Management</h1>
+        <h1 className="text-2xl font-bold">{t("managementTitle")}</h1>
       </div>
 
       <Card>
         <CardHeader>
-          <h2 className="text-lg font-semibold">All Chats</h2>
+          <h2 className="text-lg font-semibold">{t("allChats")}</h2>
         </CardHeader>
         <CardBody>
           <div className="flex flex-col gap-4">
@@ -126,7 +123,7 @@ export default function ChatManagementPage() {
               <Input
                 isClearable
                 className="w-full sm:max-w-[44%]"
-                placeholder="Search by chat name or user..."
+                placeholder={t("searchPlaceholder")}
                 startContent={<SearchIcon />}
                 value={filterValue}
                 onClear={() => onClear()}
@@ -155,25 +152,21 @@ export default function ChatManagementPage() {
               }
             >
               <TableHeader>
-                <TableColumn>CHAT NAME</TableColumn>
-                <TableColumn>USER</TableColumn>
-                <TableColumn>STATUS</TableColumn>
-                <TableColumn>STARTED</TableColumn>
-                <TableColumn>LAST UPDATED</TableColumn>
+                <TableColumn>{t("chatNameColumn")}</TableColumn>
+                <TableColumn>{t("userColumn")}</TableColumn>
+                <TableColumn>{t("statusColumn")}</TableColumn>
+                <TableColumn>{t("startedColumn")}</TableColumn>
+                <TableColumn>{t("lastUpdatedColumn")}</TableColumn>
               </TableHeader>
               <TableBody
-                emptyContent={loading ? <Spinner /> : "No chats found"}
+                emptyContent={loading ? <Spinner /> : t("noChatsFound")}
                 items={items}
               >
                 {(item) => (
                   <TableRow key={item.id} className="cursor-pointer">
                     <TableCell>
-                      <span
-                        className={
-                          item.deletedAt ? "text-default-400 line-through" : ""
-                        }
-                      >
-                        {item.name || "Untitled Chat"}
+                      <span className={item.deletedAt ? "text-default-400 line-through" : ""}>
+                        {item.name || t("untitledChat")}
                       </span>
                     </TableCell>
                     <TableCell>
@@ -197,20 +190,16 @@ export default function ChatManagementPage() {
                     <TableCell>
                       {item.deletedAt ? (
                         <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-danger/10 text-danger">
-                          Deleted by user
+                          {t("deletedByUser")}
                         </span>
                       ) : (
                         <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-success/10 text-success">
-                          Active
+                          {t("activeStatus")}
                         </span>
                       )}
                     </TableCell>
-                    <TableCell>
-                      {new Date(item.createdAt).toLocaleString()}
-                    </TableCell>
-                    <TableCell>
-                      {new Date(item.updatedAt).toLocaleString()}
-                    </TableCell>
+                    <TableCell>{new Date(item.createdAt).toLocaleString()}</TableCell>
+                    <TableCell>{new Date(item.updatedAt).toLocaleString()}</TableCell>
                   </TableRow>
                 )}
               </TableBody>

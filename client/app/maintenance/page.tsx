@@ -1,6 +1,10 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+
 export default function MaintenancePage() {
+  const t = useTranslations("maintenance");
+
   return (
     <div className="min-h-screen bg-linear-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-6">
       <div className="text-center max-w-lg">
@@ -29,20 +33,18 @@ export default function MaintenancePage() {
         </div>
 
         <h1 className="text-4xl font-bold text-white mb-4 tracking-tight">
-          Under Maintenance
+          {t("title")}
         </h1>
 
         <p className="text-slate-300 text-lg mb-8 leading-relaxed">
-          We&apos;re currently performing scheduled maintenance to improve your
-          experience. Please check back in a little while.
+          {t("description")}
         </p>
 
         <div className="flex items-center justify-center gap-2 text-slate-400 text-sm">
           <span className="inline-block w-2 h-2 bg-amber-400 rounded-full animate-pulse" />
-          <span>Working on it...</span>
+          <span>{t("working")}</span>
         </div>
       </div>
     </div>
   );
 }
-

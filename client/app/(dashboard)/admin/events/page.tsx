@@ -10,7 +10,7 @@ import {
   TableCell,
 } from "@heroui/table";
 import { Button } from "@heroui/button";
-import { Card, CardBody, CardHeader } from "@heroui/card";
+import { Card, CardBody } from "@heroui/card";
 import { Chip } from "@heroui/chip";
 import {
   Modal,
@@ -25,6 +25,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { Spinner } from "@heroui/spinner";
 import { Pagination } from "@heroui/pagination";
 import dynamic from "next/dynamic";
+import { useTranslations } from "next-intl";
 
 const JsonEditor = dynamic(() => import("@/components/JsonEditor"), {
   ssr: false,
@@ -40,6 +41,9 @@ interface Event {
 }
 
 export default function EventsPage() {
+  const t = useTranslations("admin.events");
+  const tAdmin = useTranslations("admin");
+  const tCommon = useTranslations("common");
   const { user, loading: authLoading } = useAuth();
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
@@ -59,9 +63,7 @@ export default function EventsPage() {
   const fetchEvents = async () => {
     setLoading(true);
     try {
-      const response = await api.get(
-        `/api/admin/events?page=${page}&limit=${limit}`
-      );
+      const response = await api.get(`/api/admin/events?page=${page}&limit=${limit}`);
       setEvents(response.data);
       setTotal(response.pagination.total);
       setTotalPages(response.pagination.totalPages);
@@ -82,15 +84,15 @@ export default function EventsPage() {
   }
 
   if (!user || !user.roles.includes("admin")) {
-    return <div className="p-8 text-center">Unauthorized</div>;
+    return <div className="p-8 text-center">{tAdmin("unauthorized")}</div>;
   }
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold">Telemetry Events</h1>
+        <h1 className="text-2xl font-bold">{t("telemetryTitle")}</h1>
         <Button onPress={fetchEvents} color="primary" variant="flat" size="sm">
-          Refresh
+          {t("refresh")}
         </Button>
       </div>
 
@@ -115,14 +117,14 @@ export default function EventsPage() {
             }
           >
             <TableHeader>
-              <TableColumn>EVENT TYPE</TableColumn>
-              <TableColumn>USER ID</TableColumn>
-              <TableColumn>IP ADDRESS</TableColumn>
-              <TableColumn>TIMESTAMP</TableColumn>
-              <TableColumn>METADATA</TableColumn>
+              <TableColumn>{t("eventTypeColumn")}</TableColumn>
+              <TableColumn>{t("userIdColumn")}</TableColumn>
+              <TableColumn>{t("ipAddressColumn")}</TableColumn>
+              <TableColumn>{t("timestampColumn")}</TableColumn>
+              <TableColumn>{t("metadataColumn")}</TableColumn>
             </TableHeader>
             <TableBody
-              emptyContent={loading ? <Spinner /> : "No events found"}
+              emptyContent={loading ? <Spinner /> : t("noEventsFound")}
               items={events}
             >
               {(item) => (
@@ -131,31 +133,21 @@ export default function EventsPage() {
                     <Chip
                       size="sm"
                       variant="flat"
-                      color={
-                        item.eventType === "image_generation"
-                          ? "secondary"
-                          : "primary"
-                      }
+                      color={item.eventType === "image_generation" ? "secondary" : "primary"}
                     >
                       {item.eventType}
                     </Chip>
                   </TableCell>
                   <TableCell>
                     <span className="text-small text-default-500">
-                      {item.userId || "Anonymous"}
+                      {item.userId || t("anonymous")}
                     </span>
                   </TableCell>
                   <TableCell>{item.ipAddress || "-"}</TableCell>
+                  <TableCell>{new Date(item.timestamp).toLocaleString()}</TableCell>
                   <TableCell>
-                    {new Date(item.timestamp).toLocaleString()}
-                  </TableCell>
-                  <TableCell>
-                    <Button
-                      size="sm"
-                      variant="light"
-                      onPress={() => handleViewDetails(item)}
-                    >
-                      View Details
+                    <Button size="sm" variant="light" onPress={() => handleViewDetails(item)}>
+                      {t("viewDetails")}
                     </Button>
                   </TableCell>
                 </TableRow>
@@ -165,16 +157,11 @@ export default function EventsPage() {
         </CardBody>
       </Card>
 
-      <Modal
-        isOpen={isOpen}
-        onOpenChange={onOpenChange}
-        size="5xl"
-        scrollBehavior="inside"
-      >
+      <Modal isOpen={isOpen} onOpenChange={onOpenChange} size="5xl" scrollBehavior="inside">
         <ModalContent>
           {(onClose) => (
             <>
-              <ModalHeader>Event Details</ModalHeader>
+              <ModalHeader>{t("eventDetailsTitle")}</ModalHeader>
               <ModalBody>
                 {selectedEvent && (
                   <div className="h-[600px]">
@@ -188,7 +175,7 @@ export default function EventsPage() {
                 )}
               </ModalBody>
               <ModalFooter>
-                <Button onPress={onClose}>Close</Button>
+                <Button onPress={onClose}>{tCommon("close")}</Button>
               </ModalFooter>
             </>
           )}

@@ -21,6 +21,7 @@ import { StudentStepContent } from "./student-step-content";
 import { StudentRightPanel } from "./student-right-panel";
 import { StudentCompletion } from "./student-completion";
 import { api } from "@/lib/api/client";
+import { useTranslations } from "next-intl";
 
 interface StudentRunnerProps {
   config: ExperimentConfig;
@@ -43,6 +44,8 @@ export function StudentRunner({
   initialStatus,
   initialChatLogs,
 }: StudentRunnerProps) {
+  const t = useTranslations("experimentRunner");
+  const tCommon = useTranslations("common");
   const router = useRouter();
   const engineRef = useRef<GameEngine | null>(null);
   const [, forceUpdate] = useState(0);
@@ -91,14 +94,11 @@ export function StudentRunner({
     setChatLogs((prev) => ({ ...prev, [blockId]: messages }));
   }, []);
 
-  // Initialize engine, restore saved state if resuming
   useEffect(() => {
     const engine = new GameEngine(config);
-
     if (initialHistoryTable.length > 0 || initialStepIndex > 0) {
       engine.restore(initialHistoryTable, initialStepIndex, initialTemplateIndex);
     }
-
     engineRef.current = engine;
     rerender();
   }, [config, initialHistoryTable, initialStepIndex, initialTemplateIndex, rerender]);
@@ -123,7 +123,6 @@ export function StudentRunner({
       ? (currentStep.blockLabel || `AI Chat Block ${currentStep.blockIndex + 1}`)
       : (currentRound?.blockLabel || `Block ${(currentRound?.blockIndex ?? 0) + 1}`);
 
-  // If already completed on load, show completion screen
   if (isCompleted) {
     return (
       <StudentCompletion
@@ -264,14 +263,14 @@ export function StudentRunner({
           startContent={<LogOut className="w-4 h-4" />}
           onPress={onExitOpen}
         >
-          Exit
+          {t("exit")}
         </Button>
         <div className="flex items-center gap-2">
-          <span className="text-xs text-default-400">Trial</span>
+          <span className="text-xs text-default-400">{t("trial")}</span>
           <Chip variant="flat" color="primary" size="sm">
             <span className="font-mono font-bold">{trialCode}</span>
           </Chip>
-          {saving && <span className="text-xs text-default-400">Saving...</span>}
+          {saving && <span className="text-xs text-default-400">{t("saving")}</span>}
         </div>
       </div>
 
@@ -296,7 +295,7 @@ export function StudentRunner({
               onChatMessagesChange={handleChatMessagesChange}
             />
           </div>
-          {/* Continue Button - pinned to bottom-right */}
+          {/* Continue Button */}
           <div className="flex justify-end px-6 py-4 border-t border-divider shrink-0">
             <Button
               color="primary"
@@ -305,7 +304,7 @@ export function StudentRunner({
               isDisabled={!allInputsValid}
               onPress={goNext}
             >
-              {engine.isFinished() ? "Finish" : "Continue"}
+              {engine.isFinished() ? t("finish") : t("continue")}
             </Button>
           </div>
         </div>
@@ -348,21 +347,16 @@ export function StudentRunner({
             onClick={onGuideOpen}
           >
             <BookOpen className="w-5 h-5" />
-            <span className="text-sm font-medium">Game Guide</span>
+            <span className="text-sm font-medium">{t("gameGuide")}</span>
           </button>
 
-          <Modal
-            isOpen={guideOpen}
-            onOpenChange={onGuideOpenChange}
-            size="3xl"
-            scrollBehavior="inside"
-          >
+          <Modal isOpen={guideOpen} onOpenChange={onGuideOpenChange} size="3xl" scrollBehavior="inside">
             <ModalContent>
               {(onClose) => (
                 <>
                   <ModalHeader className="flex items-center gap-2">
                     <BookOpen className="w-5 h-5 text-primary" />
-                    Game Guide
+                    {t("gameGuide")}
                   </ModalHeader>
                   <ModalBody>
                     <div
@@ -371,9 +365,7 @@ export function StudentRunner({
                     />
                   </ModalBody>
                   <ModalFooter>
-                    <Button variant="flat" onPress={onClose}>
-                      Close
-                    </Button>
+                    <Button variant="flat" onPress={onClose}>{tCommon("close")}</Button>
                   </ModalFooter>
                 </>
               )}
@@ -387,14 +379,12 @@ export function StudentRunner({
         <ModalContent>
           {(onClose) => (
             <>
-              <ModalHeader>Exit Experiment?</ModalHeader>
+              <ModalHeader>{t("exitTitle")}</ModalHeader>
               <ModalBody>
-                <p>Your progress has been saved up to the previous round. When you come back, you will need to redo the current round.</p>
+                <p>{t("exitDescription")}</p>
               </ModalBody>
               <ModalFooter>
-                <Button variant="flat" onPress={onClose}>
-                  Cancel
-                </Button>
+                <Button variant="flat" onPress={onClose}>{tCommon("cancel")}</Button>
                 <Button
                   color="danger"
                   onPress={() => {
@@ -402,7 +392,7 @@ export function StudentRunner({
                     router.push("/experiments");
                   }}
                 >
-                  Exit
+                  {t("exit")}
                 </Button>
               </ModalFooter>
             </>

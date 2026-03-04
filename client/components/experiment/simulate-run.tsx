@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useCallback, useEffect, useRef } from "react";
+import { useTranslations } from "next-intl";
 import { Button } from "@heroui/button";
 import { Card, CardBody, CardHeader } from "@heroui/card";
 import { Chip } from "@heroui/chip";
@@ -118,6 +119,7 @@ function formatDefinition(def: ParamDefinition): string {
 /* ---------- Table View (flattened config inspector) ---------- */
 
 function TableView({ config }: { config: ExperimentConfig }) {
+  const t = useTranslations("admin.experiments");
   const flatSteps = useMemo(() => flattenConfig(config), [config]);
 
   const allParamIds = useMemo(() => {
@@ -134,7 +136,7 @@ function TableView({ config }: { config: ExperimentConfig }) {
 
   const columns = useMemo(() => {
     return [
-      { key: "location", label: "BLOCK / ROUND" },
+      { key: "location", label: t("blockRoundColumn") },
       ...allParamIds.map((id) => ({ key: id, label: id })),
     ];
   }, [allParamIds]);
@@ -142,7 +144,7 @@ function TableView({ config }: { config: ExperimentConfig }) {
   return (
     <div className="space-y-4">
       <p className="text-sm text-default-500">
-        Flattened parameter definitions for each round after merging experiment, block, and round overrides.
+        {t("tableViewNote")}
       </p>
       <div className="overflow-x-auto">
         <Table aria-label="Flattened config" isStriped>
@@ -161,8 +163,8 @@ function TableView({ config }: { config: ExperimentConfig }) {
                     {[
                       <TableCell key="location">
                         <div>
-                          <Chip size="sm" variant="flat" color="secondary">Static</Chip>
-                          <span className="font-medium ml-2">{step.title || step.blockLabel || `Block ${step.blockIndex + 1}`}</span>
+                          <Chip size="sm" variant="flat" color="secondary">{t("staticLabel")}</Chip>
+                          <span className="font-medium ml-2">{step.title || step.blockLabel || t("blockN", { n: step.blockIndex + 1 })}</span>
                         </div>
                       </TableCell>,
                       ...allParamIds.map((id) => (
@@ -178,8 +180,8 @@ function TableView({ config }: { config: ExperimentConfig }) {
                     {[
                       <TableCell key="location">
                         <div>
-                          <Chip size="sm" variant="flat" color="primary">AI Chat</Chip>
-                          <span className="font-medium ml-2">{step.blockLabel || `Block ${step.blockIndex + 1}`}</span>
+                          <Chip size="sm" variant="flat" color="primary">{t("aiChatLabel")}</Chip>
+                          <span className="font-medium ml-2">{step.blockLabel || t("blockN", { n: step.blockIndex + 1 })}</span>
                         </div>
                       </TableCell>,
                       ...allParamIds.map((id) => (
@@ -198,7 +200,7 @@ function TableView({ config }: { config: ExperimentConfig }) {
                         <TableCell key="location">
                           <div>
                             <span className="font-medium">{blockLabel}</span>
-                            <span className="text-default-400">, Round {step.roundIndex + 1}</span>
+                            <span className="text-default-400">, {t("roundN", { n: step.roundIndex + 1 })}</span>
                           </div>
                         </TableCell>
                       );
@@ -256,6 +258,7 @@ function StudentInputField({
   isInvalid?: boolean;
   validationHint?: string;
 }) {
+  const t = useTranslations("admin.experiments");
   const [localValue, setLocalValue] = useState(String(value ?? ""));
 
   useEffect(() => {
@@ -270,7 +273,7 @@ function StudentInputField({
           {hasValue ? formatValue(value) : placeholder}
         </span>
         {isConfirmed ? (
-          <Chip size="sm" variant="flat" color="success" className="ml-0.5">Confirmed</Chip>
+          <Chip size="sm" variant="flat" color="success" className="ml-0.5">{t("confirmed")}</Chip>
         ) : (
           <button
             type="button"
@@ -297,7 +300,7 @@ function StudentInputField({
         value={localValue}
         onValueChange={setLocalValue}
         isInvalid={isInvalid}
-        errorMessage={isInvalid ? (validationHint || "Invalid value") : undefined}
+        errorMessage={isInvalid ? (validationHint || t("invalidValue")) : undefined}
         autoFocus
       />
       <Button
@@ -310,7 +313,7 @@ function StudentInputField({
           onCommit(paramId, committed);
         }}
       >
-        Confirm
+        {t("confirm")}
       </Button>
     </span>
   );
@@ -393,6 +396,7 @@ function HistoryTableView({
   historyTable: HistoryRow[];
   flatConfig: { type?: string; blockLabel?: string; roundIndex?: number }[];
 }) {
+  const t = useTranslations("admin.experiments");
   const [isOpen, setIsOpen] = useState(false);
 
   const allKeys = useMemo(() => {
@@ -406,7 +410,7 @@ function HistoryTableView({
   if (historyTable.length === 0) return null;
 
   const columns = [
-    { key: "round", label: "ROUND" },
+    { key: "round", label: t("roundColumn") },
     ...allKeys.map((k) => ({ key: k, label: k })),
   ];
 
@@ -418,8 +422,8 @@ function HistoryTableView({
       >
         <div className="flex items-center gap-2 w-full">
           <History className="w-4 h-4 text-success" />
-          <h4 className="text-medium font-semibold text-default-500">History Table</h4>
-          <Chip size="sm" variant="flat">{historyTable.length} row{historyTable.length !== 1 ? "s" : ""}</Chip>
+          <h4 className="text-medium font-semibold text-default-500">{t("historyTableTitle")}</h4>
+          <Chip size="sm" variant="flat">{t("historyRowCount", { count: historyTable.length })}</Chip>
           <div className="flex-1" />
           <ChevronDown className={`w-4 h-4 text-default-400 transition-transform ${isOpen ? "rotate-180" : ""}`} />
         </div>
@@ -436,9 +440,9 @@ function HistoryTableView({
                   const cfg = flatConfig[row.roundIndex];
                   const label = cfg
                     ? cfg.type === "static"
-                      ? `${cfg.blockLabel || "Static"}`
-                      : `${cfg.blockLabel || "Block"}, R${(cfg.roundIndex ?? 0) + 1}`
-                    : `Round ${idx + 1}`;
+                      ? `${cfg.blockLabel || t("staticLabel")}`
+                      : `${cfg.blockLabel || t("block")}, R${(cfg.roundIndex ?? 0) + 1}`
+                    : t("roundN", { n: idx + 1 });
                   return (
                     <TableRow key={idx}>
                       {columns.map((col) => {
@@ -537,6 +541,7 @@ function ParamVisualization({
 /* ---------- Game Guide Panel ---------- */
 
 function GameGuidePanel({ html }: { html: string }) {
+  const t = useTranslations("admin.experiments");
   const [isOpen, setIsOpen] = useState(false);
 
   return (
@@ -547,7 +552,7 @@ function GameGuidePanel({ html }: { html: string }) {
       >
         <div className="flex items-center gap-2 w-full">
           <BookOpen className="w-4 h-4 text-primary" />
-          <h4 className="text-medium font-semibold">Game Guide</h4>
+          <h4 className="text-medium font-semibold">{t("gameGuide")}</h4>
           <div className="flex-1" />
           <ChevronDown className={`w-4 h-4 text-default-400 transition-transform ${isOpen ? "rotate-180" : ""}`} />
         </div>
@@ -567,6 +572,7 @@ function GameGuidePanel({ html }: { html: string }) {
 /* ---------- Step-Through (refactored with GameEngine) ---------- */
 
 function StepThrough({ config }: { config: ExperimentConfig }) {
+  const t = useTranslations("admin.experiments");
   const engineRef = useRef<GameEngine>(new GameEngine(config));
   const [, forceUpdate] = useState(0);
   const rerender = useCallback(() => forceUpdate((n) => n + 1), []);
@@ -599,10 +605,10 @@ function StepThrough({ config }: { config: ExperimentConfig }) {
   const currentStepNumber = engine.getCurrentStepNumber();
 
   const blockLabel = isStaticStep
-    ? (currentStep.blockLabel || currentStep.title || `Block ${currentStep.blockIndex + 1}`)
+    ? (currentStep.blockLabel || currentStep.title || t("blockN", { n: currentStep.blockIndex + 1 }))
     : isAiChatStep
-      ? (currentStep.blockLabel || `AI Chat Block ${currentStep.blockIndex + 1}`)
-      : (currentRound?.blockLabel || `Block ${(currentRound?.blockIndex ?? 0) + 1}`);
+      ? (currentStep.blockLabel || `${t("aiChatLabel")} ${t("blockN", { n: currentStep.blockIndex + 1 })}`)
+      : (currentRound?.blockLabel || t("blockN", { n: (currentRound?.blockIndex ?? 0) + 1 }));
 
   const segmentsByKind = useMemo((): Partial<Record<TemplateKind, ReturnType<typeof renderTemplate>>> => {
     if (!resolvedParams || !currentRound || isStaticStep || isAiChatStep) return {};
@@ -733,12 +739,12 @@ function StepThrough({ config }: { config: ExperimentConfig }) {
           <div className="flex items-center gap-2">
             <Chip variant="flat" color="primary">{blockLabel}</Chip>
             {isStaticStep ? (
-              <Chip variant="flat" color="secondary">Static</Chip>
+              <Chip variant="flat" color="secondary">{t("staticLabel")}</Chip>
             ) : isAiChatStep ? (
-              <Chip variant="flat" color="primary">AI Chat</Chip>
+              <Chip variant="flat" color="primary">{t("aiChatLabel")}</Chip>
             ) : (
               <>
-                <Chip variant="flat">Round {(currentRound?.roundIndex ?? 0) + 1}</Chip>
+                <Chip variant="flat">{t("roundN", { n: (currentRound?.roundIndex ?? 0) + 1 })}</Chip>
                 <Chip variant="flat" color={TEMPLATE_KIND_COLORS[currentTemplateKind]}>
                   {TEMPLATE_KIND_LABELS[currentTemplateKind]}
                 </Chip>

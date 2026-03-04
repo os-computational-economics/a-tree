@@ -27,12 +27,16 @@ import type { Experiment } from "@/lib/db/schema";
 import { ParameterEditor } from "../../../../../components/experiment/parameter-editor";
 import { TemplateEditor } from "../../../../../components/experiment/template-editor";
 import { SimulateRun } from "../../../../../components/experiment/simulate-run";
+import { useTranslations } from "next-intl";
 
 export default function ExperimentDetailPage({
   params: routeParams,
 }: {
   params: Promise<{ experimentId: string }>;
 }) {
+  const t = useTranslations("admin.experiments");
+  const tAdmin = useTranslations("admin");
+  const tCommon = useTranslations("common");
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const [experiment, setExperiment] = useState<Experiment | null>(null);
@@ -77,7 +81,7 @@ export default function ExperimentDetailPage({
         }),
       );
     } catch {
-      addToast({ title: "Failed to load experiment", color: "danger" });
+      addToast({ title: t("failedToLoadOne"), color: "danger" });
     } finally {
       setLoading(false);
     }
@@ -99,9 +103,9 @@ export default function ExperimentDetailPage({
       );
       setExperiment(data.experiment);
       setSavedSnapshot(currentSnapshot);
-      addToast({ title: "Experiment saved", color: "success" });
+      addToast({ title: t("savedToast"), color: "success" });
     } catch {
-      addToast({ title: "Failed to save experiment", color: "danger" });
+      addToast({ title: t("failedToSave"), color: "danger" });
     } finally {
       setSaving(false);
     }
@@ -110,11 +114,11 @@ export default function ExperimentDetailPage({
   const handleDelete = async (onClose: () => void) => {
     try {
       await api.delete(`/api/admin/experiments/${experimentId}`);
-      addToast({ title: "Experiment deleted", color: "success" });
+      addToast({ title: t("deletedToast"), color: "success" });
       onClose();
       router.push("/admin/experiments");
     } catch {
-      addToast({ title: "Failed to delete experiment", color: "danger" });
+      addToast({ title: t("failedToDelete"), color: "danger" });
     }
   };
 
@@ -123,22 +127,18 @@ export default function ExperimentDetailPage({
   }
 
   if (!user || !user.roles.includes("admin")) {
-    return <div className="p-8 text-center">Unauthorized</div>;
+    return <div className="p-8 text-center">{tAdmin("unauthorized")}</div>;
   }
 
   if (!experiment || !config) {
-    return <div className="p-8 text-center">Experiment not found</div>;
+    return <div className="p-8 text-center">{t("experimentNotFound")}</div>;
   }
 
   return (
     <div className="space-y-6 pb-20">
       <div className="sticky top-0 z-40 -mx-6 px-6 py-3 bg-background/80 backdrop-blur-lg border-b border-divider">
         <div className="flex items-center gap-4">
-          <Button
-            variant="light"
-            isIconOnly
-            onPress={() => router.push("/admin/experiments")}
-          >
+          <Button variant="light" isIconOnly onPress={() => router.push("/admin/experiments")}>
             <ArrowLeft className="w-5 h-5" />
           </Button>
           <div className="flex-1 min-w-0">
@@ -151,7 +151,7 @@ export default function ExperimentDetailPage({
                   color="warning"
                   startContent={<Circle className="w-2 h-2 fill-current" />}
                 >
-                  Unsaved
+                  {t("unsaved")}
                 </Chip>
               )}
             </div>
@@ -161,7 +161,7 @@ export default function ExperimentDetailPage({
             startContent={<FlaskConical className="w-4 h-4" />}
             onPress={() => router.push(`/admin/experiments/${experimentId}/trials`)}
           >
-            View Trials
+            {t("viewTrialsButton")}
           </Button>
           <Button
             color="danger"
@@ -169,7 +169,7 @@ export default function ExperimentDetailPage({
             startContent={<Trash2 className="w-4 h-4" />}
             onPress={deleteModal.onOpen}
           >
-            Delete
+            {tCommon("delete")}
           </Button>
           <Button
             color={isDirty ? "warning" : "primary"}
@@ -177,69 +177,66 @@ export default function ExperimentDetailPage({
             isLoading={saving}
             onPress={handleSave}
           >
-            {isDirty ? "Save Changes" : "Saved"}
+            {isDirty ? t("saveChangesButton") : t("savedButton")}
           </Button>
         </div>
       </div>
 
       <Card>
         <CardHeader>
-          <h3 className="text-lg font-semibold">General Settings</h3>
+          <h3 className="text-lg font-semibold">{t("generalSettings")}</h3>
         </CardHeader>
         <CardBody className="gap-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Input label="Name" value={name} onValueChange={setName} isRequired />
+            <Input label={t("nameLabel")} value={name} onValueChange={setName} isRequired />
             <Select
-              label="Status"
+              label={t("statusLabel")}
               selectedKeys={[status]}
               onSelectionChange={(keys) => {
                 const val = Array.from(keys)[0] as string;
                 if (val) setStatus(val);
               }}
             >
-              <SelectItem key="draft">Draft</SelectItem>
-              <SelectItem key="active">Active</SelectItem>
-              <SelectItem key="completed">Completed</SelectItem>
-              <SelectItem key="archived">Archived</SelectItem>
+              <SelectItem key="draft">{t("draft")}</SelectItem>
+              <SelectItem key="active">{t("active")}</SelectItem>
+              <SelectItem key="completed">{t("completed")}</SelectItem>
+              <SelectItem key="archived">{t("archived")}</SelectItem>
             </Select>
           </div>
           <Textarea
-            label="Description"
+            label={t("descriptionLabel")}
             value={description}
             onValueChange={setDescription}
-            placeholder="Optional description..."
+            placeholder={t("descriptionPlaceholder")}
           />
         </CardBody>
       </Card>
 
       <Tabs aria-label="Experiment configuration" size="lg" color="primary">
-        <Tab key="parameters" title="Structure & Parameters">
+        <Tab key="parameters" title={t("structureParams")}>
           <ParameterEditor config={config} onChange={setConfig} />
         </Tab>
-        <Tab key="templates" title="Templates">
+        <Tab key="templates" title={t("templates")}>
           <TemplateEditor config={config} onChange={setConfig} />
         </Tab>
-        <Tab key="guide" title="Game Guide">
+        <Tab key="guide" title={t("gameGuide")}>
           <Card>
             <CardHeader>
-              <h3 className="text-lg font-semibold">Game Guide</h3>
+              <h3 className="text-lg font-semibold">{t("gameGuide")}</h3>
             </CardHeader>
             <CardBody className="gap-4">
-              <p className="text-sm text-default-500">
-                A single HTML document shown to participants as a reference guide throughout the experiment.
-                Supports full HTML.
-              </p>
+              <p className="text-sm text-default-500">{t("gameGuideDesc")}</p>
               <Textarea
-                label="Game Guide (HTML)"
+                label={t("gameGuideLabel")}
                 value={config.gameGuide || ""}
                 onValueChange={(v) => setConfig({ ...config, gameGuide: v || undefined })}
-                placeholder="<h2>How to Play</h2>\n<p>Instructions go here...</p>"
+                placeholder={t("gameGuidePlaceholder")}
                 minRows={8}
                 maxRows={30}
               />
               {config.gameGuide && (
                 <div className="space-y-2">
-                  <p className="text-sm font-medium text-default-500">Preview:</p>
+                  <p className="text-sm font-medium text-default-500">{t("previewLabel")}</p>
                   <div
                     className="p-4 rounded-lg bg-content2/50 border border-divider prose prose-sm dark:prose-invert max-w-none"
                     dangerouslySetInnerHTML={{ __html: config.gameGuide }}
@@ -249,7 +246,7 @@ export default function ExperimentDetailPage({
             </CardBody>
           </Card>
         </Tab>
-        <Tab key="simulate" title="Simulate">
+        <Tab key="simulate" title={t("simulate")}>
           <SimulateRun config={config} />
         </Tab>
       </Tabs>
@@ -258,13 +255,13 @@ export default function ExperimentDetailPage({
         <ModalContent>
           {(onClose) => (
             <>
-              <ModalHeader>Delete Experiment</ModalHeader>
+              <ModalHeader>{t("deleteModalTitle")}</ModalHeader>
               <ModalBody>
-                <p>Are you sure you want to delete &ldquo;{name}&rdquo;? This action cannot be undone.</p>
+                <p>{t("deleteMessage", { name })}</p>
               </ModalBody>
               <ModalFooter>
-                <Button variant="flat" onPress={onClose}>Cancel</Button>
-                <Button color="danger" onPress={() => handleDelete(onClose)}>Delete</Button>
+                <Button variant="flat" onPress={onClose}>{tCommon("cancel")}</Button>
+                <Button color="danger" onPress={() => handleDelete(onClose)}>{tCommon("delete")}</Button>
               </ModalFooter>
             </>
           )}

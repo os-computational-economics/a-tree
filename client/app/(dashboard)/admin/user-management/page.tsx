@@ -30,6 +30,7 @@ import { User } from "@/hooks/use-auth";
 import { Pagination } from "@heroui/pagination";
 import { SearchIcon } from "@/components/icons";
 import { addToast } from "@heroui/toast";
+import { useTranslations } from "next-intl";
 
 interface InvitationCode {
   code: string;
@@ -38,17 +39,18 @@ interface InvitationCode {
 }
 
 export default function AdminPage() {
+  const t = useTranslations("admin.users");
+  const tCommon = useTranslations("common");
+  const tAdmin = useTranslations("admin");
   const { user, loading: authLoading } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
 
-  // Pagination & Search State
   const [filterValue, setFilterValue] = useState("");
   const [page, setPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
 
-  // Invite Email State
   const {
     isOpen: isInviteOpen,
     onOpen: onInviteOpen,
@@ -57,7 +59,6 @@ export default function AdminPage() {
   const [inviteEmails, setInviteEmails] = useState("");
   const [sendingInvites, setSendingInvites] = useState(false);
 
-  // Generate Code State
   const {
     isOpen: isCodeOpen,
     onOpen: onCodeOpen,
@@ -67,7 +68,6 @@ export default function AdminPage() {
   const [generatingCodes, setGeneratingCodes] = useState(false);
   const [generatedCodes, setGeneratedCodes] = useState<InvitationCode[]>([]);
 
-  // Edit User State
   const {
     isOpen: isEditOpen,
     onOpen: onEditOpen,
@@ -98,10 +98,8 @@ export default function AdminPage() {
     }
   };
 
-  // Filter logic
   const filteredItems = useMemo(() => {
     let filteredUsers = [...users];
-
     if (filterValue) {
       filteredUsers = filteredUsers.filter(
         (user) =>
@@ -112,16 +110,13 @@ export default function AdminPage() {
             user.lastName.toLowerCase().includes(filterValue.toLowerCase()))
       );
     }
-
     return filteredUsers;
   }, [users, filterValue]);
 
-  // Pagination logic
   const pages = Math.ceil(filteredItems.length / rowsPerPage);
   const items = useMemo(() => {
     const start = (page - 1) * rowsPerPage;
     const end = start + rowsPerPage;
-
     return filteredItems.slice(start, end);
   }, [page, filteredItems, rowsPerPage]);
 
@@ -142,24 +137,21 @@ export default function AdminPage() {
   const handleSendInvites = async () => {
     setSendingInvites(true);
     try {
-      // Split by newlines, commas, spaces
       const emails = inviteEmails
         .split(/[\n, ]+/)
         .map((e) => e.trim())
         .filter((e) => e.length > 0);
-
       const response = await api.post("/api/admin/invite-email", { emails });
       addToast({
-        title: "Success",
-        description: `Successfully sent ${response.count} invitations.`,
+        title: tCommon("success"),
+        description: t("inviteSuccess", { count: response.count }),
         color: "success",
       });
       setInviteEmails("");
     } catch (error) {
       addToast({
-        title: "Error",
-        description:
-          error instanceof Error ? error.message : "Failed to send invitations",
+        title: tCommon("error"),
+        description: error instanceof Error ? error.message : t("inviteError"),
         color: "danger",
       });
     } finally {
@@ -175,15 +167,15 @@ export default function AdminPage() {
       });
       setGeneratedCodes(response.codes);
       addToast({
-        title: "Success",
-        description: "Successfully generated invitation codes.",
+        title: tCommon("success"),
+        description: t("generateSuccess"),
         color: "success",
       });
     } catch (error) {
       console.error("Failed to generate codes:", error);
       addToast({
-        title: "Error",
-        description: "Failed to generate codes",
+        title: tCommon("error"),
+        description: t("generateError"),
         color: "danger",
       });
     } finally {
@@ -213,15 +205,15 @@ export default function AdminPage() {
       await fetchUsers();
       onEditClose();
       addToast({
-        title: "Success",
-        description: "User updated successfully.",
+        title: tCommon("success"),
+        description: t("updateSuccess"),
         color: "success",
       });
     } catch (error) {
       console.error("Failed to update user:", error);
       addToast({
-        title: "Error",
-        description: "Failed to update user",
+        title: tCommon("error"),
+        description: t("updateError"),
         color: "danger",
       });
     } finally {
@@ -234,35 +226,26 @@ export default function AdminPage() {
   }
 
   if (!user || !user.roles.includes("admin")) {
-    return <div className="p-8 text-center">Unauthorized</div>;
+    return <div className="p-8 text-center">{tAdmin("unauthorized")}</div>;
   }
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 sm:gap-0">
-        <h1 className="text-2xl font-bold">Admin Dashboard</h1>
+        <h1 className="text-2xl font-bold">{t("managementTitle")}</h1>
         <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-          <Button
-            color="primary"
-            variant="flat"
-            onPress={onCodeOpen}
-            className="w-full sm:w-auto"
-          >
-            Generate Codes
+          <Button color="primary" variant="flat" onPress={onCodeOpen} className="w-full sm:w-auto">
+            {t("generateCodes")}
           </Button>
-          <Button
-            color="primary"
-            onPress={onInviteOpen}
-            className="w-full sm:w-auto"
-          >
-            Invite Users
+          <Button color="primary" onPress={onInviteOpen} className="w-full sm:w-auto">
+            {t("inviteUsers")}
           </Button>
         </div>
       </div>
 
       <Card>
         <CardHeader>
-          <h2 className="text-lg font-semibold">User Management</h2>
+          <h2 className="text-lg font-semibold">{t("title")}</h2>
         </CardHeader>
         <CardBody>
           <div className="flex flex-col gap-4">
@@ -270,7 +253,7 @@ export default function AdminPage() {
               <Input
                 isClearable
                 className="w-full sm:max-w-[44%]"
-                placeholder="Search by name or email..."
+                placeholder={t("searchPlaceholder")}
                 startContent={<SearchIcon />}
                 value={filterValue}
                 onClear={() => onClear()}
@@ -296,14 +279,14 @@ export default function AdminPage() {
               }
             >
               <TableHeader>
-                <TableColumn>USER</TableColumn>
-                <TableColumn>ROLES</TableColumn>
-                <TableColumn>PROVIDER</TableColumn>
-                <TableColumn>JOINED</TableColumn>
-                <TableColumn>ACTIONS</TableColumn>
+                <TableColumn>{t("userColumn")}</TableColumn>
+                <TableColumn>{t("rolesColumn")}</TableColumn>
+                <TableColumn>{t("providerColumn")}</TableColumn>
+                <TableColumn>{t("joinedColumn")}</TableColumn>
+                <TableColumn>{t("actionsColumn")}</TableColumn>
               </TableHeader>
               <TableBody
-                emptyContent={loading ? <Spinner /> : "No users found"}
+                emptyContent={loading ? <Spinner /> : t("noUsersFound")}
                 items={items}
               >
                 {(item) => (
@@ -344,19 +327,11 @@ export default function AdminPage() {
                         ))}
                       </div>
                     </TableCell>
-                    <TableCell className="capitalize">
-                      {item.authProvider}
-                    </TableCell>
+                    <TableCell className="capitalize">{item.authProvider}</TableCell>
+                    <TableCell>{new Date(item.createdAt).toLocaleDateString()}</TableCell>
                     <TableCell>
-                      {new Date(item.createdAt).toLocaleDateString()}
-                    </TableCell>
-                    <TableCell>
-                      <Button
-                        size="sm"
-                        variant="flat"
-                        onPress={() => handleEditUser(item)}
-                      >
-                        Edit
+                      <Button size="sm" variant="flat" onPress={() => handleEditUser(item)}>
+                        {t("editButton")}
                       </Button>
                     </TableCell>
                   </TableRow>
@@ -372,32 +347,26 @@ export default function AdminPage() {
         <ModalContent>
           {(onClose) => (
             <>
-              <ModalHeader>Invite Users via Email</ModalHeader>
+              <ModalHeader>{t("inviteModal")}</ModalHeader>
               <ModalBody>
-                <p className="text-sm text-gray-500">
-                  Enter email addresses separated by newlines, commas, or
-                  spaces. This will send a blind copy (BCC) invitation email to
-                  all recipients.
-                </p>
+                <p className="text-sm text-gray-500">{t("inviteDescription")}</p>
                 <Textarea
-                  label="Emails"
-                  placeholder="user@example.com, another@example.com"
+                  label={t("emailsLabel")}
+                  placeholder={t("emailsPlaceholder")}
                   minRows={4}
                   value={inviteEmails}
                   onValueChange={setInviteEmails}
                 />
               </ModalBody>
               <ModalFooter>
-                <Button variant="light" onPress={onClose}>
-                  Close
-                </Button>
+                <Button variant="light" onPress={onClose}>{tCommon("close")}</Button>
                 <Button
                   color="primary"
                   onPress={handleSendInvites}
                   isLoading={sendingInvites}
                   isDisabled={!inviteEmails.trim()}
                 >
-                  Send Invites
+                  {t("sendInvites")}
                 </Button>
               </ModalFooter>
             </>
@@ -406,57 +375,40 @@ export default function AdminPage() {
       </Modal>
 
       {/* Generate Codes Modal */}
-      <Modal
-        isOpen={isCodeOpen}
-        onOpenChange={onCodeOpenChange}
-        size="lg"
-        scrollBehavior="inside"
-      >
+      <Modal isOpen={isCodeOpen} onOpenChange={onCodeOpenChange} size="lg" scrollBehavior="inside">
         <ModalContent>
           {(onClose) => (
             <>
-              <ModalHeader>Generate Invitation Codes</ModalHeader>
+              <ModalHeader>{t("generateCodesModal")}</ModalHeader>
               <ModalBody>
                 <div className="flex items-end gap-4 mb-4">
                   <Input
                     type="number"
-                    label="Number of codes"
+                    label={t("numberOfCodes")}
                     value={codeCount}
                     onValueChange={setCodeCount}
                     min={1}
                     max={100}
                   />
-                  <Button
-                    color="primary"
-                    onPress={handleGenerateCodes}
-                    isLoading={generatingCodes}
-                  >
-                    Generate
+                  <Button color="primary" onPress={handleGenerateCodes} isLoading={generatingCodes}>
+                    {t("generateButton")}
                   </Button>
                 </div>
 
                 {generatedCodes.length > 0 && (
                   <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg">
                     <div className="flex justify-between items-center mb-2">
-                      <span className="text-sm font-medium">
-                        Generated Codes:
-                      </span>
+                      <span className="text-sm font-medium">{t("generatedCodesLabel")}</span>
                       <Button
                         size="sm"
                         variant="flat"
                         onPress={() => {
-                          const text = generatedCodes
-                            .map((c) => c.code)
-                            .join("\n");
+                          const text = generatedCodes.map((c) => c.code).join("\n");
                           navigator.clipboard.writeText(text);
-                          addToast({
-                            title: "Copied",
-                            description: "Codes copied to clipboard",
-                            color: "default",
-                          });
+                          addToast({ title: t("copiedToClipboard"), color: "default" });
                         }}
                       >
-                        Copy All
+                        {t("copyAll")}
                       </Button>
                     </div>
                     <div className="grid grid-cols-3 gap-2 max-h-60 overflow-y-auto">
@@ -473,7 +425,7 @@ export default function AdminPage() {
                 )}
               </ModalBody>
               <ModalFooter>
-                <Button onPress={onClose}>Done</Button>
+                <Button onPress={onClose}>{t("done")}</Button>
               </ModalFooter>
             </>
           )}
@@ -485,57 +437,43 @@ export default function AdminPage() {
         <ModalContent>
           {(onClose) => (
             <>
-              <ModalHeader>Edit User</ModalHeader>
+              <ModalHeader>{t("editUserModal")}</ModalHeader>
               <ModalBody>
                 <div className="flex gap-4">
                   <Input
-                    label="First Name"
+                    label={t("firstNameLabel")}
                     value={editFormData.firstName}
-                    onValueChange={(v) =>
-                      setEditFormData({ ...editFormData, firstName: v })
-                    }
+                    onValueChange={(v) => setEditFormData({ ...editFormData, firstName: v })}
                   />
                   <Input
-                    label="Last Name"
+                    label={t("lastNameLabel")}
                     value={editFormData.lastName}
-                    onValueChange={(v) =>
-                      setEditFormData({ ...editFormData, lastName: v })
-                    }
+                    onValueChange={(v) => setEditFormData({ ...editFormData, lastName: v })}
                   />
                 </div>
                 <Select
-                  label="Roles"
+                  label={t("rolesLabel")}
                   selectionMode="multiple"
                   selectedKeys={new Set(editFormData.roles)}
                   onSelectionChange={(keys) =>
-                    setEditFormData({
-                      ...editFormData,
-                      roles: Array.from(keys) as string[],
-                    })
+                    setEditFormData({ ...editFormData, roles: Array.from(keys) as string[] })
                   }
                 >
-                  <SelectItem key="user">User</SelectItem>
-                  <SelectItem key="admin">Admin</SelectItem>
-                  <SelectItem key="new_user">New User</SelectItem>
+                  <SelectItem key="user">{t("roleUser")}</SelectItem>
+                  <SelectItem key="admin">{t("roleAdmin")}</SelectItem>
+                  <SelectItem key="new_user">{t("roleNewUser")}</SelectItem>
                 </Select>
               </ModalBody>
               <ModalFooter>
-                <Button variant="light" onPress={onClose}>
-                  Cancel
-                </Button>
-                <Button
-                  color="primary"
-                  onPress={handleSaveUser}
-                  isLoading={savingUser}
-                >
-                  Save Changes
+                <Button variant="light" onPress={onClose}>{tCommon("cancel")}</Button>
+                <Button color="primary" onPress={handleSaveUser} isLoading={savingUser}>
+                  {t("saveUserButton")}
                 </Button>
               </ModalFooter>
             </>
           )}
         </ModalContent>
       </Modal>
-
     </div>
   );
 }
