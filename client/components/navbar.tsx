@@ -362,7 +362,7 @@ export const Navbar = () => {
                   className="flex items-center gap-2 px-3 py-2 rounded-xl transition-colors text-default-500 hover:bg-default-100"
                 >
                   <FlaskConical size={20} />
-                  <span>Experiments</span>
+                  <span>{t("nav.experiments")}</span>
                 </NextLink>
 
                 <div className="flex items-center justify-between gap-2 bg-default-100/50 p-2 rounded-xl">
