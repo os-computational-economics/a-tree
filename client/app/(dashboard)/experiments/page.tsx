@@ -55,7 +55,7 @@ function formatValue(val: number | string | boolean | null): string {
   return String(val);
 }
 
-function CompletedTrialHistory({ trial, roundLabel }: { trial: TrialItem; roundLabel: (n: number) => string }) {
+function CompletedTrialHistory({ trial, roundLabel, viewLabel, hideLabel }: { trial: TrialItem; roundLabel: (n: number) => string; viewLabel: string; hideLabel: string }) {
   const [isOpen, setIsOpen] = useState(false);
 
   if (!trial.historyTable || trial.historyTable.length === 0) return null;
@@ -87,7 +87,7 @@ function CompletedTrialHistory({ trial, roundLabel }: { trial: TrialItem; roundL
         onClick={() => setIsOpen(!isOpen)}
       >
         <Eye className="w-3 h-3" />
-        <span>{isOpen ? "\u25b4" : "\u25be"}</span>
+        <span>{isOpen ? hideLabel : viewLabel}</span>
         <ChevronDown className={`w-3 h-3 transition-transform ${isOpen ? "rotate-180" : ""}`} />
       </button>
       {isOpen && (
@@ -267,6 +267,8 @@ export default function StudentExperimentsPage() {
                                 <CompletedTrialHistory
                                   trial={trial}
                                   roundLabel={(n) => t("round", { number: n })}
+                                  viewLabel={t("viewHistory")}
+                                  hideLabel={t("hideHistory")}
                                 />
                               </div>
                             ))}

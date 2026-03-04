@@ -479,6 +479,8 @@
     "joinConfirm": "确定要为此实验开始新试验吗？",
     "joinDescription": "系统将为您生成一个唯一的 6 位实验 ID。",
     "yesStart": "确定，开始",
+    "viewHistory": "查看",
+    "hideHistory": "收起",
     "failedToLoad": "加载实验失败",
     "failedToJoin": "加入实验失败",
     "backToExperiments": "返回实验列表",

@@ -479,6 +479,8 @@
     "joinConfirm": "Are you sure you want to start a new trial for this experiment?",
     "joinDescription": "A unique 6-digit experiment ID will be generated for you.",
     "yesStart": "Yes, Start",
+    "viewHistory": "View",
+    "hideHistory": "Collapse",
     "failedToLoad": "Failed to load experiments",
     "failedToJoin": "Failed to join experiment",
     "backToExperiments": "Back to experiments",
