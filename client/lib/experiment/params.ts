@@ -201,7 +201,7 @@ function resolveValue(
     case "equation": {
       const expr = def.expression.replace(
         /\{\{(\w+)\}\}/g,
-        (_, id) => String(resolvedScope[id] ?? 0),
+        (_, id) => `(${resolvedScope[id] ?? 0})`,
       );
       return safeEval(expr, resolvedScope);
     }
