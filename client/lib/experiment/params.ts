@@ -7,7 +7,7 @@ import type {
   HistoryRow,
   HistoryAggregation,
 } from "./types";
-import { isStaticBlock, isAiChatBlock } from "./types";
+import { isStaticBlock, isInformationBlock, isAiChatBlock } from "./types";
 
 function mergeParams(
   config: ExperimentConfig,
@@ -21,13 +21,13 @@ function mergeParams(
   }
 
   const block = config.blocks[blockIndex];
-  if (block && !isStaticBlock(block) && !isAiChatBlock(block) && block.params) {
+  if (block && !isStaticBlock(block) && !isInformationBlock(block) && !isAiChatBlock(block) && block.params) {
     for (const [k, v] of Object.entries(block.params)) {
       result[k] = { def: v, source: "block" };
     }
   }
 
-  const round = block && !isStaticBlock(block) && !isAiChatBlock(block) ? block.rounds?.[roundIndex] : undefined;
+  const round = block && !isStaticBlock(block) && !isInformationBlock(block) && !isAiChatBlock(block) ? block.rounds?.[roundIndex] : undefined;
   if (round?.params) {
     for (const [k, v] of Object.entries(round.params)) {
       result[k] = { def: v, source: "round" };
@@ -298,7 +298,7 @@ export function resolveFullRun(
 
   for (let bi = 0; bi < config.blocks.length; bi++) {
     const block = config.blocks[bi];
-    if (isStaticBlock(block) || isAiChatBlock(block)) continue;
+    if (isStaticBlock(block) || isInformationBlock(block) || isAiChatBlock(block)) continue;
     for (let ri = 0; ri < block.rounds.length; ri++) {
       const round = block.rounds[ri];
       const params = resolveParameters(config, bi, ri, undefined, historyTable, globalRoundIdx);

@@ -14,7 +14,7 @@ import {
 import { useDisclosure } from "@heroui/modal";
 import { ChevronRight, LogOut, BookOpen } from "lucide-react";
 import type { ExperimentConfig, HistoryRow, ResolvedParam, TemplateKind, ChatLogEntry } from "@/lib/experiment/types";
-import { TEMPLATE_KINDS, isFlatStaticStep, isFlatAiChatStep } from "@/lib/experiment/types";
+import { TEMPLATE_KINDS, isFlatStaticStep, isFlatInformationStep, isFlatAiChatStep } from "@/lib/experiment/types";
 import { GameEngine } from "@/lib/experiment/engine";
 import { runValidation } from "./shared";
 import { StudentStepContent } from "./student-step-content";
@@ -103,12 +103,19 @@ export function StudentRunner({
     rerender();
   }, [config, initialHistoryTable, initialStepIndex, initialTemplateIndex, rerender]);
 
+  useEffect(() => {
+    const prevent = (e: MouseEvent) => e.preventDefault();
+    document.addEventListener("contextmenu", prevent);
+    return () => document.removeEventListener("contextmenu", prevent);
+  }, []);
+
   const engine = engineRef.current;
   if (!engine) return null;
 
   const currentStep = engine.getCurrentStep();
   const currentRound = engine.getCurrentRound();
   const isStaticStep = currentStep && isFlatStaticStep(currentStep);
+  const isInformationStep = currentStep && isFlatInformationStep(currentStep);
   const isAiChatStep = currentStep && isFlatAiChatStep(currentStep);
   const resolvedParams = engine.getResolvedParams();
   const currentTemplateIndex = engine.getCurrentTemplateIndex();
@@ -119,9 +126,11 @@ export function StudentRunner({
 
   const blockLabel = isStaticStep
     ? (currentStep.blockLabel || currentStep.title || `Block ${currentStep.blockIndex + 1}`)
-    : isAiChatStep
-      ? (currentStep.blockLabel || `AI Chat Block ${currentStep.blockIndex + 1}`)
-      : (currentRound?.blockLabel || `Block ${(currentRound?.blockIndex ?? 0) + 1}`);
+    : isInformationStep
+      ? (currentStep.blockLabel || currentStep.title || `Block ${currentStep.blockIndex + 1}`)
+      : isAiChatStep
+        ? (currentStep.blockLabel || `AI Chat Block ${currentStep.blockIndex + 1}`)
+        : (currentRound?.blockLabel || `Block ${(currentRound?.blockIndex ?? 0) + 1}`);
 
   if (isCompleted) {
     return (
@@ -135,7 +144,7 @@ export function StudentRunner({
   }
 
   const studentInputParamIds = (() => {
-    if (!resolvedParams || !currentRound || isStaticStep || isAiChatStep) return [];
+    if (!resolvedParams || !currentRound || isStaticStep || isInformationStep || isAiChatStep) return [];
     const activeKind = TEMPLATE_KINDS[currentTemplateIndex];
     const templateFields: Record<TemplateKind, string> = {
       intro: currentRound.introTemplate,
@@ -156,7 +165,7 @@ export function StudentRunner({
   })();
 
   const allInputsValid = (() => {
-    if (isStaticStep || isAiChatStep) return true;
+    if (isStaticStep || isInformationStep || isAiChatStep) return true;
     if (studentInputParamIds.length === 0) return true;
     if (validationErrors.size > 0) return false;
     return studentInputParamIds.every((id) => confirmedInputs.has(id));
@@ -277,7 +286,7 @@ export function StudentRunner({
       {/* Split Screen */}
       <div ref={splitContainerRef} className="flex flex-1 overflow-hidden">
         {/* Left Panel */}
-        <div className="flex flex-col min-w-0" style={{ width: `${leftPanelPct}%` }}>
+        <div className="flex flex-col min-w-0" style={{ width: isInformationStep ? "100%" : `${leftPanelPct}%` }}>
           <div className="flex-1 overflow-y-auto p-6">
             <StudentStepContent
               currentStep={currentStep}
@@ -310,32 +319,36 @@ export function StudentRunner({
         </div>
 
         {/* Resize Handle */}
-        <div
-          className="w-1.5 shrink-0 cursor-col-resize bg-divider hover:bg-primary/40 active:bg-primary/60 transition-colors relative group"
-          onMouseDown={handleResizeStart}
-        >
-          <div className="absolute inset-y-0 -left-1 -right-1" />
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-1 h-8 rounded-full bg-default-400 group-hover:bg-primary opacity-0 group-hover:opacity-100 transition-opacity" />
-        </div>
+        {!isInformationStep && (
+          <div
+            className="w-1.5 shrink-0 cursor-col-resize bg-divider hover:bg-primary/40 active:bg-primary/60 transition-colors relative group"
+            onMouseDown={handleResizeStart}
+          >
+            <div className="absolute inset-y-0 -left-1 -right-1" />
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-1 h-8 rounded-full bg-default-400 group-hover:bg-primary opacity-0 group-hover:opacity-100 transition-opacity" />
+          </div>
+        )}
 
         {/* Right Panel */}
-        <div className="min-w-0 bg-content1 overflow-hidden" style={{ width: `${100 - leftPanelPct}%` }}>
-          <StudentRightPanel
-            config={config}
-            historyTable={historyTable}
-            flatConfig={engine.getFlatConfig()}
-            resolvedParams={resolvedParams}
-            lastRoundResolvedParams={engine.getLastRoundResolvedParams()}
-            studentInputs={studentInputs}
-            lastRoundStudentInputs={engine.getLastRoundStudentInputs()}
-            currentStepNumber={currentStepNumber}
-            totalSteps={totalSteps}
-            blockLabel={blockLabel}
-            isStaticStep={!!isStaticStep}
-            roundIndex={currentRound?.roundIndex}
-            currentTemplateKind={currentTemplateKind}
-          />
-        </div>
+        {!isInformationStep && (
+          <div className="min-w-0 bg-content1 overflow-hidden" style={{ width: `${100 - leftPanelPct}%` }}>
+            <StudentRightPanel
+              config={config}
+              historyTable={historyTable}
+              flatConfig={engine.getFlatConfig()}
+              resolvedParams={resolvedParams}
+              lastRoundResolvedParams={engine.getLastRoundResolvedParams()}
+              studentInputs={studentInputs}
+              lastRoundStudentInputs={engine.getLastRoundStudentInputs()}
+              currentStepNumber={currentStepNumber}
+              totalSteps={totalSteps}
+              blockLabel={blockLabel}
+              isStaticStep={!!isStaticStep}
+              roundIndex={currentRound?.roundIndex}
+              currentTemplateKind={currentTemplateKind}
+            />
+          </div>
+        )}
       </div>
 
       {/* Floating Game Guide Button */}
