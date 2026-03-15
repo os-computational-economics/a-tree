@@ -284,31 +284,52 @@ export function ParamVisualization({
   );
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       {visualizedEntries.map(([id, r]) => {
         const raw = studentInputs[id] !== undefined ? Number(studentInputs[id]) : (r.value as number);
         const isNegative = raw < 0;
         const scaleMax = r.definition.visualizeMax != null ? r.definition.visualizeMax : autoMax;
-        const pct = scaleMax > 0 ? Math.min((Math.abs(raw) / scaleMax) * 100, 100) : 0;
+        const pct = isNegative ? 0 : (scaleMax > 0 ? Math.min((raw / scaleMax) * 100, 100) : 0);
         const fraction = pct / 100;
         const clamped = Math.max(0, Math.min(1, fraction));
         const hue = clamped * 120;
-        const color = isNegative ? "hsl(0, 75%, 45%)" : `hsl(${hue}, 75%, 45%)`;
+        const color = `hsl(${hue}, 75%, 45%)`;
         const label = id.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+        const formattedValue = Number.isInteger(raw) ? String(raw) : raw.toFixed(2);
+        const formattedMax = Number.isInteger(scaleMax) ? String(scaleMax) : scaleMax.toFixed(2);
 
         return (
           <div key={id} className="space-y-1">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">{label}</span>
-              <span className={`text-sm font-mono font-semibold ${isNegative ? "text-red-500" : ""}`}>
-                {Number.isInteger(raw) ? String(raw) : raw.toFixed(2)}
-              </span>
-            </div>
-            <div className="h-4 w-full rounded-full bg-content2 overflow-hidden">
-              <div
-                className="h-full rounded-full transition-all duration-300"
-                style={{ width: `${pct}%`, backgroundColor: color }}
-              />
+            <span className="text-sm font-medium">{label}</span>
+            <div className="relative">
+              <div className="h-4 w-full rounded-full bg-content2 overflow-hidden">
+                {pct > 0 && (
+                  <div
+                    className="h-full rounded-full transition-all duration-300"
+                    style={{ width: `${pct}%`, backgroundColor: color }}
+                  />
+                )}
+              </div>
+              <div className="flex justify-between mt-1">
+                <span className={`text-xs font-mono ${isNegative ? "text-red-500 font-semibold" : "text-default-400"}`}>
+                  {isNegative ? formattedValue : "0"}
+                </span>
+                {!isNegative && pct > 0 && pct < 100 && (
+                  <span
+                    className="text-xs font-mono font-semibold absolute"
+                    style={{ left: `${pct}%`, transform: "translateX(-50%)", bottom: "-1.25rem" }}
+                  >
+                    {formattedValue}
+                  </span>
+                )}
+                <span className="text-xs font-mono text-default-400">
+                  {pct >= 100 && !isNegative ? (
+                    <span className="font-semibold text-foreground">{formattedValue}</span>
+                  ) : (
+                    formattedMax
+                  )}
+                </span>
+              </div>
             </div>
           </div>
         );
