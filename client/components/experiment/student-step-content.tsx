@@ -140,7 +140,7 @@ export function StudentStepContent({
         const isFuture = kindIdx > currentTemplateIndex;
 
         let cardClasses = "transition-all duration-200";
-        if (isFuture) cardClasses += " opacity-30 pointer-events-none";
+        if (isFuture) cardClasses += " pointer-events-none select-none [&_*]:!blur-[6px]";
         else if (isPast) cardClasses += " opacity-60 pointer-events-none";
 
         return (
