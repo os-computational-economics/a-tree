@@ -18,7 +18,7 @@ import {
 } from "@heroui/table";
 import { Dices, FunctionSquare, ChevronLeft, ChevronRight, PenLine, History, ChevronDown, BookOpen } from "lucide-react";
 import type { ExperimentConfig, ParamDefinition, ParamSource, ResolvedParam, TemplateKind, HistoryRow, FlatRoundConfig, FlatStepConfig } from "@/lib/experiment/types";
-import { TEMPLATE_KINDS, isFlatRoundStep, isFlatStaticStep, isFlatAiChatStep } from "@/lib/experiment/types";
+import { TEMPLATE_KINDS, isFlatRoundStep, isFlatStaticStep, isFlatInformationStep, isFlatAiChatStep } from "@/lib/experiment/types";
 import { renderTemplate } from "@/lib/experiment/template";
 import { GameEngine } from "@/lib/experiment/engine";
 import { flattenConfig } from "@/lib/experiment/flatten";
@@ -164,6 +164,23 @@ function TableView({ config }: { config: ExperimentConfig }) {
                       <TableCell key="location">
                         <div>
                           <Chip size="sm" variant="flat" color="secondary">{t("staticLabel")}</Chip>
+                          <span className="font-medium ml-2">{step.title || step.blockLabel || t("blockN", { n: step.blockIndex + 1 })}</span>
+                        </div>
+                      </TableCell>,
+                      ...allParamIds.map((id) => (
+                        <TableCell key={id}>{"\u2014"}</TableCell>
+                      )),
+                    ]}
+                  </TableRow>
+                );
+              }
+              if (isFlatInformationStep(step)) {
+                return (
+                  <TableRow key={step.blockId}>
+                    {[
+                      <TableCell key="location">
+                        <div>
+                          <Chip size="sm" variant="flat" color="warning">{t("informationLabel")}</Chip>
                           <span className="font-medium ml-2">{step.title || step.blockLabel || t("blockN", { n: step.blockIndex + 1 })}</span>
                         </div>
                       </TableCell>,
@@ -441,7 +458,9 @@ function HistoryTableView({
                   const label = cfg
                     ? cfg.type === "static"
                       ? `${cfg.blockLabel || t("staticLabel")}`
-                      : `${cfg.blockLabel || t("block")}, R${(cfg.roundIndex ?? 0) + 1}`
+                      : cfg.type === "information"
+                        ? `${cfg.blockLabel || t("informationLabel")}`
+                        : `${cfg.blockLabel || t("block")}, R${(cfg.roundIndex ?? 0) + 1}`
                     : t("roundN", { n: idx + 1 });
                   return (
                     <TableRow key={idx}>
@@ -596,6 +615,7 @@ function StepThrough({ config }: { config: ExperimentConfig }) {
   const currentStep = engine.getCurrentStep();
   const currentRound = engine.getCurrentRound();
   const isStaticStep = currentStep && isFlatStaticStep(currentStep);
+  const isInformationStep = currentStep && isFlatInformationStep(currentStep);
   const isAiChatStep = currentStep && isFlatAiChatStep(currentStep);
   const resolvedParams = engine.getResolvedParams();
   const currentTemplateIndex = engine.getCurrentTemplateIndex();
@@ -606,12 +626,14 @@ function StepThrough({ config }: { config: ExperimentConfig }) {
 
   const blockLabel = isStaticStep
     ? (currentStep.blockLabel || currentStep.title || t("blockN", { n: currentStep.blockIndex + 1 }))
-    : isAiChatStep
-      ? (currentStep.blockLabel || `${t("aiChatLabel")} ${t("blockN", { n: currentStep.blockIndex + 1 })}`)
-      : (currentRound?.blockLabel || t("blockN", { n: (currentRound?.blockIndex ?? 0) + 1 }));
+    : isInformationStep
+      ? (currentStep.blockLabel || currentStep.title || t("blockN", { n: currentStep.blockIndex + 1 }))
+      : isAiChatStep
+        ? (currentStep.blockLabel || `${t("aiChatLabel")} ${t("blockN", { n: currentStep.blockIndex + 1 })}`)
+        : (currentRound?.blockLabel || t("blockN", { n: (currentRound?.blockIndex ?? 0) + 1 }));
 
   const segmentsByKind = useMemo((): Partial<Record<TemplateKind, ReturnType<typeof renderTemplate>>> => {
-    if (!resolvedParams || !currentRound || isStaticStep || isAiChatStep) return {};
+    if (!resolvedParams || !currentRound || isStaticStep || isInformationStep || isAiChatStep) return {};
     const forRendering = { ...resolvedParams };
     for (const [k, r] of Object.entries(forRendering)) {
       if (r.definition.type === "student_input") {
@@ -628,10 +650,10 @@ function StepThrough({ config }: { config: ExperimentConfig }) {
       result[kind] = renderTemplate(templateFields[kind], forRendering);
     }
     return result;
-  }, [resolvedParams, currentRound, isStaticStep, isAiChatStep]);
+  }, [resolvedParams, currentRound, isStaticStep, isInformationStep, isAiChatStep]);
 
   const studentInputParamIds = useMemo(() => {
-    if (!resolvedParams || !currentRound || isStaticStep || isAiChatStep) return [];
+    if (!resolvedParams || !currentRound || isStaticStep || isInformationStep || isAiChatStep) return [];
     const activeKind = TEMPLATE_KINDS[currentTemplateIndex];
     const templateFields: Record<TemplateKind, string> = {
       intro: currentRound.introTemplate,
@@ -649,16 +671,16 @@ function StepThrough({ config }: { config: ExperimentConfig }) {
       }
     }
     return ids;
-  }, [resolvedParams, currentRound, currentTemplateIndex, isStaticStep, isAiChatStep]);
+  }, [resolvedParams, currentRound, currentTemplateIndex, isStaticStep, isInformationStep, isAiChatStep]);
 
   const allInputsValid = useMemo(() => {
-    if (isStaticStep || isAiChatStep) return true;
+    if (isStaticStep || isInformationStep || isAiChatStep) return true;
     if (studentInputParamIds.length === 0) return true;
     if (validationErrors.size > 0) return false;
     return studentInputParamIds.every(
       (id) => confirmedInputs.has(id),
     );
-  }, [studentInputParamIds, confirmedInputs, validationErrors, isStaticStep, isAiChatStep]);
+  }, [studentInputParamIds, confirmedInputs, validationErrors, isStaticStep, isInformationStep, isAiChatStep]);
 
   const handleStudentInput = useCallback((id: string, v: string | number) => {
     if (v === "" || v === undefined) {
@@ -740,6 +762,8 @@ function StepThrough({ config }: { config: ExperimentConfig }) {
             <Chip variant="flat" color="primary">{blockLabel}</Chip>
             {isStaticStep ? (
               <Chip variant="flat" color="secondary">{t("staticLabel")}</Chip>
+            ) : isInformationStep ? (
+              <Chip variant="flat" color="warning">{t("informationLabel")}</Chip>
             ) : isAiChatStep ? (
               <Chip variant="flat" color="primary">{t("aiChatLabel")}</Chip>
             ) : (
@@ -765,6 +789,21 @@ function StepThrough({ config }: { config: ExperimentConfig }) {
 
       {/* Static Block Content */}
       {isStaticStep && (
+        <Card>
+          <CardHeader>
+            <h4 className="text-lg font-semibold">{currentStep.title}</h4>
+          </CardHeader>
+          <CardBody>
+            <div
+              className="prose prose-sm dark:prose-invert max-w-none leading-relaxed"
+              dangerouslySetInnerHTML={{ __html: currentStep.body }}
+            />
+          </CardBody>
+        </Card>
+      )}
+
+      {/* Information Block Content */}
+      {isInformationStep && (
         <Card>
           <CardHeader>
             <h4 className="text-lg font-semibold">{currentStep.title}</h4>
@@ -805,7 +844,7 @@ function StepThrough({ config }: { config: ExperimentConfig }) {
       )}
 
       {/* Template Cards (round steps only) */}
-      {!isStaticStep && !isAiChatStep && TEMPLATE_KINDS.map((kind, kindIdx) => {
+      {!isStaticStep && !isInformationStep && !isAiChatStep && TEMPLATE_KINDS.map((kind, kindIdx) => {
         const kindSegments = segmentsByKind[kind];
         if (!kindSegments || kindSegments.length === 0) return null;
         const hasContent = kindSegments.some(
@@ -850,7 +889,7 @@ function StepThrough({ config }: { config: ExperimentConfig }) {
       })}
 
       {/* Parameter Visualization Bars (round steps only) */}
-      {!isStaticStep && !isAiChatStep && resolvedParams && (
+      {!isStaticStep && !isInformationStep && !isAiChatStep && resolvedParams && (
         <ParamVisualization
           resolvedParams={resolvedParams}
           studentInputs={studentInputs}
@@ -858,7 +897,7 @@ function StepThrough({ config }: { config: ExperimentConfig }) {
       )}
 
       {/* Resolved Parameters Debug (round steps only) */}
-      {!isStaticStep && !isAiChatStep && resolvedParams && (
+      {!isStaticStep && !isInformationStep && !isAiChatStep && resolvedParams && (
         <Card>
           <CardHeader>
             <h4 className="text-medium font-semibold text-default-500">Resolved Parameters (Debug)</h4>

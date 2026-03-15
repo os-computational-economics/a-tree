@@ -9,7 +9,7 @@ import { Chip } from "@heroui/chip";
 import { Textarea } from "@heroui/input";
 import { Divider } from "@heroui/divider";
 import type { ExperimentConfig, TemplateKind, AiChatBlockConfig } from "@/lib/experiment/types";
-import { TEMPLATE_KINDS, isStaticBlock, isAiChatBlock } from "@/lib/experiment/types";
+import { TEMPLATE_KINDS, isStaticBlock, isInformationBlock, isAiChatBlock } from "@/lib/experiment/types";
 import { resolveParameters } from "@/lib/experiment/params";
 import { renderTemplate } from "@/lib/experiment/template";
 
@@ -238,14 +238,14 @@ function TripleTemplateEditor({
 function resolveBlockTemplate(config: ExperimentConfig, blockIndex: number, kind: TemplateKind): string {
   const field = TEMPLATE_FIELD_MAP[kind];
   const block = config.blocks[blockIndex];
-  if (!block || isStaticBlock(block) || isAiChatBlock(block)) return config[field];
+  if (!block || isStaticBlock(block) || isInformationBlock(block) || isAiChatBlock(block)) return config[field];
   return block[field] || config[field];
 }
 
 function resolveRoundTemplate(config: ExperimentConfig, blockIndex: number, roundIndex: number, kind: TemplateKind): string {
   const field = TEMPLATE_FIELD_MAP[kind];
   const block = config.blocks[blockIndex];
-  if (!block || isStaticBlock(block) || isAiChatBlock(block)) return config[field];
+  if (!block || isStaticBlock(block) || isInformationBlock(block) || isAiChatBlock(block)) return config[field];
   const round = block.rounds?.[roundIndex];
   return round?.[field] || block[field] || config[field];
 }
@@ -273,7 +273,7 @@ export function TemplateEditor({ config, onChange }: TemplateEditorProps) {
     const field = TEMPLATE_FIELD_MAP[kind];
     const blocks = [...config.blocks];
     const block = blocks[blockIdx];
-    if (isStaticBlock(block) || isAiChatBlock(block)) return;
+    if (isStaticBlock(block) || isInformationBlock(block) || isAiChatBlock(block)) return;
     blocks[blockIdx] = { ...block, [field]: value || undefined };
     onChange({ ...config, blocks });
   };
@@ -295,7 +295,7 @@ export function TemplateEditor({ config, onChange }: TemplateEditorProps) {
     const field = TEMPLATE_FIELD_MAP[kind];
     const blocks = [...config.blocks];
     const block = blocks[blockIdx];
-    if (isStaticBlock(block) || isAiChatBlock(block)) return;
+    if (isStaticBlock(block) || isInformationBlock(block) || isAiChatBlock(block)) return;
     const rounds = [...block.rounds];
     rounds[roundIdx] = { ...rounds[roundIdx], [field]: value || undefined };
     blocks[blockIdx] = { ...block, rounds };
@@ -303,7 +303,7 @@ export function TemplateEditor({ config, onChange }: TemplateEditorProps) {
   };
 
   const hasBlockOverride = (block: ExperimentConfig["blocks"][number]) =>
-    !isStaticBlock(block) && !isAiChatBlock(block) && TEMPLATE_KINDS.some((k) => block[TEMPLATE_FIELD_MAP[k]]);
+    !isStaticBlock(block) && !isInformationBlock(block) && !isAiChatBlock(block) && TEMPLATE_KINDS.some((k) => block[TEMPLATE_FIELD_MAP[k]]);
 
   const hasRoundOverride = (round: { introTemplate?: string; decisionTemplate?: string; resultTemplate?: string }) =>
     TEMPLATE_KINDS.some((k) => round[TEMPLATE_FIELD_MAP[k]]);
@@ -355,6 +355,26 @@ export function TemplateEditor({ config, onChange }: TemplateEditorProps) {
                   >
                     <p className="text-sm text-default-400">
                       {t("staticUsesFixed")}
+                    </p>
+                  </AccordionItem>
+                );
+              }
+              if (isInformationBlock(block)) {
+                return (
+                  <AccordionItem
+                    key={block.id}
+                    title={
+                      <div className="flex items-center gap-2">
+                        <span>{t("blockN", { n: bi + 1 })}</span>
+                        {block.label && (
+                          <Chip size="sm" variant="flat">{block.label}</Chip>
+                        )}
+                        <Chip size="sm" variant="flat" color="warning">{t("informationLabel")}</Chip>
+                      </div>
+                    }
+                  >
+                    <p className="text-sm text-default-400">
+                      {t("informationUsesFixed")}
                     </p>
                   </AccordionItem>
                 );
@@ -445,6 +465,23 @@ export function TemplateEditor({ config, onChange }: TemplateEditorProps) {
                   >
                     <p className="text-sm text-default-400">
                       {t("staticNoRounds")}
+                    </p>
+                  </AccordionItem>
+                );
+              }
+              if (isInformationBlock(block)) {
+                return (
+                  <AccordionItem
+                    key={block.id}
+                    title={
+                      <div className="flex items-center gap-2">
+                        <span>Block {bi + 1} {block.label ? `(${block.label})` : ""}</span>
+                        <Chip size="sm" variant="flat" color="warning">{t("informationLabel")}</Chip>
+                      </div>
+                    }
+                  >
+                    <p className="text-sm text-default-400">
+                      {t("informationNoRounds")}
                     </p>
                   </AccordionItem>
                 );

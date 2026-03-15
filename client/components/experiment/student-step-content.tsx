@@ -7,13 +7,14 @@ import { useTranslations } from "next-intl";
 import type {
   FlatRoundConfig,
   FlatStaticBlockConfig,
+  FlatInformationBlockConfig,
   FlatAiChatBlockConfig,
   FlatStepConfig,
   ResolvedParam,
   TemplateKind,
   ChatLogEntry,
 } from "@/lib/experiment/types";
-import { TEMPLATE_KINDS, isFlatStaticStep, isFlatAiChatStep } from "@/lib/experiment/types";
+import { TEMPLATE_KINDS, isFlatStaticStep, isFlatInformationStep, isFlatAiChatStep } from "@/lib/experiment/types";
 import { renderTemplate } from "@/lib/experiment/template";
 import {
   TEMPLATE_KIND_LABELS,
@@ -55,10 +56,11 @@ export function StudentStepContent({
 }: StudentStepContentProps) {
   const t = useTranslations("experimentRunner");
   const isStaticStep = isFlatStaticStep(currentStep);
+  const isInformationStep = isFlatInformationStep(currentStep);
   const isAiChatStep = isFlatAiChatStep(currentStep);
 
   const segmentsByKind = useMemo((): Partial<Record<TemplateKind, ReturnType<typeof renderTemplate>>> => {
-    if (!resolvedParams || !currentRound || isStaticStep || isAiChatStep) return {};
+    if (!resolvedParams || !currentRound || isStaticStep || isInformationStep || isAiChatStep) return {};
     const forRendering = { ...resolvedParams };
     for (const [k, r] of Object.entries(forRendering)) {
       if (r.definition.type === "student_input") {
@@ -75,7 +77,7 @@ export function StudentStepContent({
       result[kind] = renderTemplate(templateFields[kind], forRendering);
     }
     return result;
-  }, [resolvedParams, currentRound, isStaticStep, isAiChatStep]);
+  }, [resolvedParams, currentRound, isStaticStep, isInformationStep, isAiChatStep]);
 
   return (
     <div className={isAiChatStep ? "h-full flex flex-col" : "space-y-4"}>
@@ -96,6 +98,23 @@ export function StudentStepContent({
         </Card>
       )}
 
+      {/* Information Block Content */}
+      {isInformationStep && (
+        <Card>
+          <CardHeader>
+            <h4 className="text-lg font-semibold">
+              {(currentStep as FlatInformationBlockConfig).title}
+            </h4>
+          </CardHeader>
+          <CardBody>
+            <div
+              className="prose prose-sm dark:prose-invert max-w-none leading-relaxed"
+              dangerouslySetInnerHTML={{ __html: (currentStep as FlatInformationBlockConfig).body }}
+            />
+          </CardBody>
+        </Card>
+      )}
+
       {/* AI Chat Block Content */}
       {isAiChatStep && trialId && onChatMessagesChange && (
         <ExperimentChatPanel
@@ -108,7 +127,7 @@ export function StudentStepContent({
       )}
 
       {/* Template Cards (round steps only) */}
-      {!isStaticStep && !isAiChatStep && TEMPLATE_KINDS.map((kind, kindIdx) => {
+      {!isStaticStep && !isInformationStep && !isAiChatStep && TEMPLATE_KINDS.map((kind, kindIdx) => {
         const kindSegments = segmentsByKind[kind];
         if (!kindSegments || kindSegments.length === 0) return null;
         const hasContent = kindSegments.some(
