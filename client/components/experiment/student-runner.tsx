@@ -254,6 +254,12 @@ export function StudentRunner({
     await saveProgress(false);
   };
 
+  useEffect(() => {
+    const prevent = (e: MouseEvent) => e.preventDefault();
+    document.addEventListener("contextmenu", prevent);
+    return () => document.removeEventListener("contextmenu", prevent);
+  }, []);
+
   const currentBlockId = currentStep?.blockId;
 
   return (
