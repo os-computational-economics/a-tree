@@ -24,11 +24,17 @@ import {
   useDisclosure,
 } from "@heroui/modal";
 import { Select, SelectItem } from "@heroui/select";
-import { Search, ChevronDown, Eye, MessageCircle, ExternalLink, Download } from "lucide-react";
+import { Search, ChevronDown, Eye, MessageCircle, ExternalLink, Download, ClipboardList } from "lucide-react";
 import { addToast } from "@heroui/toast";
 import { api } from "@/lib/api/client";
-import type { HistoryRow, ChatLogEntry } from "@/lib/experiment/types";
-import { buildTrialsCsv, downloadCsv } from "@/lib/experiment/export-csv";
+import type { HistoryRow, ChatLogEntry, ExperimentConfig } from "@/lib/experiment/types";
+import {
+  Dropdown,
+  DropdownTrigger,
+  DropdownMenu,
+  DropdownItem,
+} from "@heroui/dropdown";
+import { buildTrialsCsv, buildSurveyResponsesCsv, buildChatLogsCsv, buildQuestionMap, downloadCsv } from "@/lib/experiment/export-csv";
 
 interface TrialListItem {
   id: string;
@@ -36,6 +42,7 @@ interface TrialListItem {
   status: string;
   historyTable: HistoryRow[];
   chatLogs?: Record<string, ChatLogEntry[]>;
+  surveyResponses?: Record<string, Record<string, string>>;
   createdAt: string;
   updatedAt: string;
 }
@@ -87,6 +94,47 @@ function ChatLogsExpander({ chatLogs }: { chatLogs: Record<string, ChatLogEntry[
                       {new Date(entry.timestamp).toLocaleTimeString()}
                     </span>
                     <p className="whitespace-pre-wrap">{entry.content}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SurveyResponsesExpander({ surveyResponses }: { surveyResponses: Record<string, Record<string, string>> }) {
+  const t = useTranslations("admin.experiments");
+  const [isOpen, setIsOpen] = useState(false);
+  const blockIds = Object.keys(surveyResponses).filter((k) => Object.keys(surveyResponses[k]).length > 0);
+
+  if (blockIds.length === 0) return null;
+
+  const totalResponses = blockIds.reduce((sum, k) => sum + Object.keys(surveyResponses[k]).length, 0);
+
+  return (
+    <div className="mt-2">
+      <button
+        type="button"
+        className="flex items-center gap-1 text-xs text-primary hover:underline"
+        onClick={() => setIsOpen(!isOpen)}
+      >
+        <ClipboardList className="w-3 h-3" />
+        <span>{isOpen ? t("hideSurveyResponses") : t("viewSurveyResponses")} {t("surveyResponsesTitle")} ({t("surveyResponseCount", { count: totalResponses })})</span>
+        <ChevronDown className={`w-3 h-3 transition-transform ${isOpen ? "rotate-180" : ""}`} />
+      </button>
+      {isOpen && (
+        <div className="mt-2 space-y-4">
+          {blockIds.map((blockId) => (
+            <div key={blockId} className="border border-divider rounded-lg p-3">
+              <p className="text-xs font-semibold text-default-500 mb-2">{t("blockChatLabel", { id: blockId })}</p>
+              <div className="space-y-2">
+                {Object.entries(surveyResponses[blockId]).map(([questionId, answer]) => (
+                  <div key={questionId} className="text-sm p-2 rounded-lg bg-default-100">
+                    <span className="text-xs font-semibold block mb-1 text-default-500">{questionId}</span>
+                    <p className="whitespace-pre-wrap">{answer}</p>
                   </div>
                 ))}
               </div>
@@ -165,6 +213,7 @@ function TrialHistoryExpander({ trial }: { trial: TrialListItem }) {
         </div>
       )}
       {trial.chatLogs && <ChatLogsExpander chatLogs={trial.chatLogs} />}
+      {trial.surveyResponses && <SurveyResponsesExpander surveyResponses={trial.surveyResponses} />}
     </div>
   );
 }
@@ -318,6 +367,32 @@ function TrialDetailModal({
                   </div>
                 </div>
               )}
+              {/* Survey Responses */}
+              {trial.surveyResponses && Object.keys(trial.surveyResponses).some((k) => Object.keys(trial.surveyResponses![k]).length > 0) && (
+                <div>
+                  <h4 className="text-sm font-semibold mb-2 flex items-center gap-2">
+                    <ClipboardList className="w-4 h-4" />
+                    {t("surveyResponsesTitle")}
+                  </h4>
+                  <div className="space-y-4">
+                    {Object.entries(trial.surveyResponses).filter(([, answers]) => Object.keys(answers).length > 0).map(([blockId, answers]) => (
+                      <div key={blockId} className="border border-divider rounded-lg p-3">
+                        <p className="text-xs font-semibold text-default-500 mb-2">
+                          {t("blockChatLabel", { id: blockId })}
+                        </p>
+                        <div className="space-y-2">
+                          {Object.entries(answers).map(([questionId, answer]) => (
+                            <div key={questionId} className="text-sm p-2 rounded-lg bg-default-100">
+                              <span className="text-xs font-semibold block mb-1 text-default-500">{questionId}</span>
+                              <p className="whitespace-pre-wrap">{answer}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </ModalBody>
             <ModalFooter>
               <Button variant="light" onPress={onClose}>
@@ -353,14 +428,21 @@ export function TrialsTab({ experimentId }: TrialsTabProps) {
   const [lookupResult, setLookupResult] = useState<{ trial: TrialListItem; experiment: { name: string } } | null>(null);
   const [lookupLoading, setLookupLoading] = useState(false);
   const [selectedTrial, setSelectedTrial] = useState<TrialListItem | null>(null);
+  const [experimentConfig, setExperimentConfig] = useState<ExperimentConfig | null>(null);
   const { isOpen, onOpen, onOpenChange } = useDisclosure();
 
   const fetchTrials = useCallback(async () => {
     try {
-      const data = await api.get<{ trials: TrialListItem[] }>(
-        `/api/admin/experiments/${experimentId}/trials`,
-      );
-      setTrials(data.trials);
+      const [trialsData, expData] = await Promise.all([
+        api.get<{ trials: TrialListItem[] }>(
+          `/api/admin/experiments/${experimentId}/trials`,
+        ),
+        api.get<{ experiment: { config: ExperimentConfig } }>(
+          `/api/admin/experiments/${experimentId}`,
+        ),
+      ]);
+      setTrials(trialsData.trials);
+      setExperimentConfig(expData.experiment.config);
     } catch {
       addToast({ title: t("failedToLoadTrials"), color: "danger" });
     } finally {
@@ -398,7 +480,7 @@ export function TrialsTab({ experimentId }: TrialsTabProps) {
     });
   }, [trials, search, statusFilter, dateFrom, dateTo]);
 
-  const handleExportCsv = useCallback(() => {
+  const handleExportTrialsCsv = useCallback(() => {
     if (filtered.length === 0) {
       addToast({ title: t("noTrialsToExport"), color: "warning" });
       return;
@@ -407,6 +489,29 @@ export function TrialsTab({ experimentId }: TrialsTabProps) {
     const timestamp = new Date().toISOString().slice(0, 10);
     downloadCsv(csv, `trials-export-${timestamp}.csv`);
     addToast({ title: t("exportedTrials", { count: filtered.length }), color: "success" });
+  }, [filtered]);
+
+  const handleExportSurveyCsv = useCallback(() => {
+    if (filtered.length === 0) {
+      addToast({ title: t("noTrialsToExport"), color: "warning" });
+      return;
+    }
+    const questionMap = experimentConfig ? buildQuestionMap(experimentConfig) : undefined;
+    const csv = buildSurveyResponsesCsv(filtered, questionMap);
+    const timestamp = new Date().toISOString().slice(0, 10);
+    downloadCsv(csv, `survey-responses-${timestamp}.csv`);
+    addToast({ title: t("exportedSurveyResponses", { count: filtered.length }), color: "success" });
+  }, [filtered, experimentConfig]);
+
+  const handleExportChatLogsCsv = useCallback(() => {
+    if (filtered.length === 0) {
+      addToast({ title: t("noTrialsToExport"), color: "warning" });
+      return;
+    }
+    const csv = buildChatLogsCsv(filtered);
+    const timestamp = new Date().toISOString().slice(0, 10);
+    downloadCsv(csv, `chat-logs-${timestamp}.csv`);
+    addToast({ title: t("exportedChatLogs", { count: filtered.length }), color: "success" });
   }, [filtered]);
 
   const handleLookup = async () => {
@@ -539,16 +644,31 @@ export function TrialsTab({ experimentId }: TrialsTabProps) {
                 <Chip size="sm" variant="flat" color="primary">
                   {t("resultCount", { count: filtered.length })}
                 </Chip>
-                <Button
-                  size="sm"
-                  color="primary"
-                  variant="flat"
-                  startContent={<Download className="w-3.5 h-3.5" />}
-                  onPress={handleExportCsv}
-                  isDisabled={filtered.length === 0}
-                >
-                  {t("exportCsv")}
-                </Button>
+                <Dropdown>
+                  <DropdownTrigger>
+                    <Button
+                      size="sm"
+                      color="primary"
+                      variant="flat"
+                      startContent={<Download className="w-3.5 h-3.5" />}
+                      endContent={<ChevronDown className="w-3 h-3" />}
+                      isDisabled={filtered.length === 0}
+                    >
+                      {t("exportCsv")}
+                    </Button>
+                  </DropdownTrigger>
+                  <DropdownMenu aria-label="Export options">
+                    <DropdownItem key="trials" onPress={handleExportTrialsCsv}>
+                      {t("exportTrialsCsv")}
+                    </DropdownItem>
+                    <DropdownItem key="survey" onPress={handleExportSurveyCsv}>
+                      {t("exportSurveyCsv")}
+                    </DropdownItem>
+                    <DropdownItem key="chat" onPress={handleExportChatLogsCsv}>
+                      {t("exportChatLogsCsv")}
+                    </DropdownItem>
+                  </DropdownMenu>
+                </Dropdown>
               </div>
             </div>
           </CardBody>

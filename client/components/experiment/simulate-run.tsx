@@ -18,7 +18,7 @@ import {
 } from "@heroui/table";
 import { Dices, FunctionSquare, ChevronLeft, ChevronRight, PenLine, History, ChevronDown, BookOpen } from "lucide-react";
 import type { ExperimentConfig, ParamDefinition, ParamSource, ResolvedParam, TemplateKind, HistoryRow, FlatRoundConfig, FlatStepConfig } from "@/lib/experiment/types";
-import { TEMPLATE_KINDS, isFlatRoundStep, isFlatStaticStep, isFlatInformationStep, isFlatAiChatStep } from "@/lib/experiment/types";
+import { TEMPLATE_KINDS, isFlatRoundStep, isFlatStaticStep, isFlatInformationStep, isFlatAiChatStep, isFlatSurveyStep } from "@/lib/experiment/types";
 import { renderTemplate } from "@/lib/experiment/template";
 import { GameEngine } from "@/lib/experiment/engine";
 import { flattenConfig } from "@/lib/experiment/flatten";
@@ -198,6 +198,23 @@ function TableView({ config }: { config: ExperimentConfig }) {
                       <TableCell key="location">
                         <div>
                           <Chip size="sm" variant="flat" color="primary">{t("aiChatLabel")}</Chip>
+                          <span className="font-medium ml-2">{step.blockLabel || t("blockN", { n: step.blockIndex + 1 })}</span>
+                        </div>
+                      </TableCell>,
+                      ...allParamIds.map((id) => (
+                        <TableCell key={id}>{"\u2014"}</TableCell>
+                      )),
+                    ]}
+                  </TableRow>
+                );
+              }
+              if (isFlatSurveyStep(step)) {
+                return (
+                  <TableRow key={step.blockId}>
+                    {[
+                      <TableCell key="location">
+                        <div>
+                          <Chip size="sm" variant="flat" color="success">{t("surveyLabel")}</Chip>
                           <span className="font-medium ml-2">{step.blockLabel || t("blockN", { n: step.blockIndex + 1 })}</span>
                         </div>
                       </TableCell>,
@@ -638,6 +655,7 @@ function StepThrough({ config }: { config: ExperimentConfig }) {
   const isStaticStep = currentStep && isFlatStaticStep(currentStep);
   const isInformationStep = currentStep && isFlatInformationStep(currentStep);
   const isAiChatStep = currentStep && isFlatAiChatStep(currentStep);
+  const isSurveyStep = currentStep && isFlatSurveyStep(currentStep);
   const resolvedParams = engine.getResolvedParams();
   const currentTemplateIndex = engine.getCurrentTemplateIndex();
   const currentTemplateKind = engine.getCurrentTemplateKind();
@@ -651,10 +669,12 @@ function StepThrough({ config }: { config: ExperimentConfig }) {
       ? (currentStep.blockLabel || currentStep.title || t("blockN", { n: currentStep.blockIndex + 1 }))
       : isAiChatStep
         ? (currentStep.blockLabel || `${t("aiChatLabel")} ${t("blockN", { n: currentStep.blockIndex + 1 })}`)
-        : (currentRound?.blockLabel || t("blockN", { n: (currentRound?.blockIndex ?? 0) + 1 }));
+        : isSurveyStep
+          ? (currentStep.blockLabel || `${t("surveyLabel")} ${t("blockN", { n: currentStep.blockIndex + 1 })}`)
+          : (currentRound?.blockLabel || t("blockN", { n: (currentRound?.blockIndex ?? 0) + 1 }));
 
   const segmentsByKind = useMemo((): Partial<Record<TemplateKind, ReturnType<typeof renderTemplate>>> => {
-    if (!resolvedParams || !currentRound || isStaticStep || isInformationStep || isAiChatStep) return {};
+    if (!resolvedParams || !currentRound || isStaticStep || isInformationStep || isAiChatStep || isSurveyStep) return {};
     const forRendering = { ...resolvedParams };
     for (const [k, r] of Object.entries(forRendering)) {
       if (r.definition.type === "student_input") {
@@ -674,7 +694,7 @@ function StepThrough({ config }: { config: ExperimentConfig }) {
   }, [resolvedParams, currentRound, isStaticStep, isInformationStep, isAiChatStep]);
 
   const studentInputParamIds = useMemo(() => {
-    if (!resolvedParams || !currentRound || isStaticStep || isInformationStep || isAiChatStep) return [];
+    if (!resolvedParams || !currentRound || isStaticStep || isInformationStep || isAiChatStep || isSurveyStep) return [];
     const activeKind = TEMPLATE_KINDS[currentTemplateIndex];
     const templateFields: Record<TemplateKind, string> = {
       intro: currentRound.introTemplate,
@@ -695,7 +715,7 @@ function StepThrough({ config }: { config: ExperimentConfig }) {
   }, [resolvedParams, currentRound, currentTemplateIndex, isStaticStep, isInformationStep, isAiChatStep]);
 
   const allInputsValid = useMemo(() => {
-    if (isStaticStep || isInformationStep || isAiChatStep) return true;
+    if (isStaticStep || isInformationStep || isAiChatStep || isSurveyStep) return true;
     if (studentInputParamIds.length === 0) return true;
     if (validationErrors.size > 0) return false;
     return studentInputParamIds.every(
@@ -787,6 +807,8 @@ function StepThrough({ config }: { config: ExperimentConfig }) {
               <Chip variant="flat" color="warning">{t("informationLabel")}</Chip>
             ) : isAiChatStep ? (
               <Chip variant="flat" color="primary">{t("aiChatLabel")}</Chip>
+            ) : isSurveyStep ? (
+              <Chip variant="flat" color="success">{t("surveyLabel")}</Chip>
             ) : (
               <>
                 <Chip variant="flat">{t("roundN", { n: (currentRound?.roundIndex ?? 0) + 1 })}</Chip>
@@ -864,8 +886,26 @@ function StepThrough({ config }: { config: ExperimentConfig }) {
         </Card>
       )}
 
+      {/* Survey Block Placeholder */}
+      {isSurveyStep && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Chip size="sm" variant="flat" color="success">{t("surveyLabel")}</Chip>
+              <h4 className="text-lg font-semibold">{currentStep.blockLabel || t("surveyLabel")}</h4>
+            </div>
+          </CardHeader>
+          <CardBody>
+            <div className="text-center text-default-400 py-8">
+              <p className="text-sm">{t("surveySimPlaceholder")}</p>
+              <p className="text-xs mt-1">{t("surveySimDesc", { count: currentStep.questions.length })}</p>
+            </div>
+          </CardBody>
+        </Card>
+      )}
+
       {/* Template Cards (round steps only) */}
-      {!isStaticStep && !isInformationStep && !isAiChatStep && TEMPLATE_KINDS.map((kind, kindIdx) => {
+      {!isStaticStep && !isInformationStep && !isAiChatStep && !isSurveyStep && TEMPLATE_KINDS.map((kind, kindIdx) => {
         const kindSegments = segmentsByKind[kind];
         if (!kindSegments || kindSegments.length === 0) return null;
         const hasContent = kindSegments.some(
@@ -910,7 +950,7 @@ function StepThrough({ config }: { config: ExperimentConfig }) {
       })}
 
       {/* Parameter Visualization Bars (round steps only) */}
-      {!isStaticStep && !isInformationStep && !isAiChatStep && resolvedParams && (
+      {!isStaticStep && !isInformationStep && !isAiChatStep && !isSurveyStep && resolvedParams && (
         <ParamVisualization
           resolvedParams={resolvedParams}
           studentInputs={studentInputs}
@@ -918,7 +958,7 @@ function StepThrough({ config }: { config: ExperimentConfig }) {
       )}
 
       {/* Resolved Parameters Debug (round steps only) */}
-      {!isStaticStep && !isInformationStep && !isAiChatStep && resolvedParams && (
+      {!isStaticStep && !isInformationStep && !isAiChatStep && !isSurveyStep && resolvedParams && (
         <Card>
           <CardHeader>
             <h4 className="text-medium font-semibold text-default-500">Resolved Parameters (Debug)</h4>

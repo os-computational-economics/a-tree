@@ -9,12 +9,14 @@ import type {
   FlatStaticBlockConfig,
   FlatInformationBlockConfig,
   FlatAiChatBlockConfig,
+  FlatSurveyBlockConfig,
   FlatStepConfig,
   ResolvedParam,
   TemplateKind,
   ChatLogEntry,
+  SurveyQuestion,
 } from "@/lib/experiment/types";
-import { TEMPLATE_KINDS, isFlatStaticStep, isFlatInformationStep, isFlatAiChatStep } from "@/lib/experiment/types";
+import { TEMPLATE_KINDS, isFlatStaticStep, isFlatInformationStep, isFlatAiChatStep, isFlatSurveyStep } from "@/lib/experiment/types";
 import { renderTemplate } from "@/lib/experiment/template";
 import {
   TEMPLATE_KIND_LABELS,
@@ -37,6 +39,8 @@ interface StudentStepContentProps {
   trialId?: string;
   chatMessages?: ChatLogEntry[];
   onChatMessagesChange?: (blockId: string, messages: ChatLogEntry[]) => void;
+  surveyAnswers?: Record<string, string>;
+  onSurveyAnswerChange?: (questionId: string, answer: string) => void;
 }
 
 export function StudentStepContent({
@@ -53,14 +57,17 @@ export function StudentStepContent({
   trialId,
   chatMessages,
   onChatMessagesChange,
+  surveyAnswers,
+  onSurveyAnswerChange,
 }: StudentStepContentProps) {
   const t = useTranslations("experimentRunner");
   const isStaticStep = isFlatStaticStep(currentStep);
   const isInformationStep = isFlatInformationStep(currentStep);
   const isAiChatStep = isFlatAiChatStep(currentStep);
+  const isSurveyStep = isFlatSurveyStep(currentStep);
 
   const segmentsByKind = useMemo((): Partial<Record<TemplateKind, ReturnType<typeof renderTemplate>>> => {
-    if (!resolvedParams || !currentRound || isStaticStep || isInformationStep || isAiChatStep) return {};
+    if (!resolvedParams || !currentRound || isStaticStep || isInformationStep || isAiChatStep || isSurveyStep) return {};
     const forRendering = { ...resolvedParams };
     for (const [k, r] of Object.entries(forRendering)) {
       if (r.definition.type === "student_input") {
@@ -77,7 +84,7 @@ export function StudentStepContent({
       result[kind] = renderTemplate(templateFields[kind], forRendering);
     }
     return result;
-  }, [resolvedParams, currentRound, isStaticStep, isInformationStep, isAiChatStep]);
+  }, [resolvedParams, currentRound, isStaticStep, isInformationStep, isAiChatStep, isSurveyStep]);
 
   return (
     <div className={isAiChatStep ? "h-full flex flex-col" : "space-y-4"}>
@@ -126,8 +133,50 @@ export function StudentStepContent({
         />
       )}
 
+      {/* Survey Block Content */}
+      {isSurveyStep && (
+        <Card>
+          <CardHeader>
+            <h4 className="text-lg font-semibold">
+              {(currentStep as FlatSurveyBlockConfig).blockLabel || t("survey")}
+            </h4>
+          </CardHeader>
+          <CardBody className="gap-4">
+            {(currentStep as FlatSurveyBlockConfig).questions.map((q: SurveyQuestion) => (
+              <div key={q.id} className="space-y-2">
+                <p className="text-sm font-medium">{q.text}</p>
+                {q.questionType === "text" ? (
+                  <textarea
+                    className="w-full min-h-[80px] p-3 rounded-lg border border-default-200 bg-default-100 text-sm focus:outline-none focus:ring-2 focus:ring-primary resize-y"
+                    value={surveyAnswers?.[q.id] || ""}
+                    onChange={(e) => onSurveyAnswerChange?.(q.id, e.target.value)}
+                    placeholder={t("typeMessage")}
+                  />
+                ) : (
+                  <div className="space-y-1">
+                    {(q.options || []).map((opt: string, oi: number) => (
+                      <label key={oi} className="flex items-center gap-2 p-2 rounded-lg hover:bg-default-100 cursor-pointer">
+                        <input
+                          type="radio"
+                          name={`survey-${q.id}`}
+                          value={opt}
+                          checked={surveyAnswers?.[q.id] === opt}
+                          onChange={() => onSurveyAnswerChange?.(q.id, opt)}
+                          className="accent-primary"
+                        />
+                        <span className="text-sm">{opt}</span>
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </CardBody>
+        </Card>
+      )}
+
       {/* Template Cards (round steps only) */}
-      {!isStaticStep && !isInformationStep && !isAiChatStep && TEMPLATE_KINDS.map((kind, kindIdx) => {
+      {!isStaticStep && !isInformationStep && !isAiChatStep && !isSurveyStep && TEMPLATE_KINDS.map((kind, kindIdx) => {
         const kindSegments = segmentsByKind[kind];
         if (!kindSegments || kindSegments.length === 0) return null;
         const hasContent = kindSegments.some(

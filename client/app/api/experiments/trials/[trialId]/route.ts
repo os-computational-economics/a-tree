@@ -54,6 +54,7 @@ export async function GET(
         status: trial.status,
         historyTable: trial.historyTable,
         chatLogs: trial.chatLogs,
+        surveyResponses: trial.surveyResponses,
         currentStepIndex: trial.currentStepIndex,
         currentTemplateIndex: trial.currentTemplateIndex,
         createdAt: trial.createdAt,
@@ -102,7 +103,7 @@ export async function PATCH(
     }
 
     const body = await request.json();
-    const { historyTable, currentStepIndex, currentTemplateIndex, status, chatLogs } = body;
+    const { historyTable, currentStepIndex, currentTemplateIndex, status, chatLogs, surveyResponses } = body;
 
     const updates: Record<string, unknown> = {
       updatedAt: new Date(),
@@ -112,6 +113,7 @@ export async function PATCH(
     if (currentTemplateIndex !== undefined) updates.currentTemplateIndex = currentTemplateIndex;
     if (status !== undefined) updates.status = status;
     if (chatLogs !== undefined) updates.chatLogs = chatLogs;
+    if (surveyResponses !== undefined) updates.surveyResponses = surveyResponses;
 
     const [updated] = await db
       .update(experimentTrials)

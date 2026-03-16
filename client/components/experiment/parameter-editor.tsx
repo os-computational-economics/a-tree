@@ -28,8 +28,10 @@ import type {
   StaticBlockConfig,
   InformationBlockConfig,
   AiChatBlockConfig,
+  SurveyBlockConfig,
+  SurveyQuestion,
 } from "@/lib/experiment/types";
-import { isStaticBlock, isInformationBlock, isAiChatBlock, isNumericParam } from "@/lib/experiment/types";
+import { isStaticBlock, isInformationBlock, isAiChatBlock, isSurveyBlock, isNumericParam } from "@/lib/experiment/types";
 
 interface ParameterEditorProps {
   config: ExperimentConfig;
@@ -783,7 +785,7 @@ export function ParameterEditor({ config, onChange }: ParameterEditorProps) {
   ) => {
     const blocks = [...config.blocks];
     const block = blocks[blockIdx];
-    if (isStaticBlock(block) || isInformationBlock(block) || isAiChatBlock(block)) return;
+    if (isStaticBlock(block) || isInformationBlock(block) || isAiChatBlock(block) || isSurveyBlock(block)) return;
     blocks[blockIdx] = { ...block, params };
     onChange({ ...config, blocks });
   };
@@ -795,7 +797,7 @@ export function ParameterEditor({ config, onChange }: ParameterEditorProps) {
   ) => {
     const blocks = [...config.blocks];
     const block = blocks[blockIdx];
-    if (isStaticBlock(block) || isInformationBlock(block) || isAiChatBlock(block)) return;
+    if (isStaticBlock(block) || isInformationBlock(block) || isAiChatBlock(block) || isSurveyBlock(block)) return;
     const rounds = [...block.rounds];
     rounds[roundIdx] = { ...rounds[roundIdx], params };
     blocks[blockIdx] = { ...block, rounds };
@@ -839,6 +841,15 @@ export function ParameterEditor({ config, onChange }: ParameterEditorProps) {
     onChange({ ...config, blocks: [...config.blocks, newBlock] });
   };
 
+  const addSurveyBlock = () => {
+    const newBlock: SurveyBlockConfig = {
+      type: "survey",
+      id: `b_${crypto.randomUUID().slice(0, 8)}`,
+      questions: [],
+    };
+    onChange({ ...config, blocks: [...config.blocks, newBlock] });
+  };
+
   const removeBlock = (idx: number) => {
     const blocks = config.blocks.filter((_, i) => i !== idx);
     onChange({ ...config, blocks });
@@ -847,7 +858,7 @@ export function ParameterEditor({ config, onChange }: ParameterEditorProps) {
   const addRound = (blockIdx: number) => {
     const blocks = [...config.blocks];
     const block = blocks[blockIdx];
-    if (isStaticBlock(block) || isInformationBlock(block) || isAiChatBlock(block)) return;
+    if (isStaticBlock(block) || isInformationBlock(block) || isAiChatBlock(block) || isSurveyBlock(block)) return;
     blocks[blockIdx] = {
       ...block,
       rounds: [
@@ -861,7 +872,7 @@ export function ParameterEditor({ config, onChange }: ParameterEditorProps) {
   const removeRound = (blockIdx: number, roundIdx: number) => {
     const blocks = [...config.blocks];
     const block = blocks[blockIdx];
-    if (isStaticBlock(block) || isInformationBlock(block) || isAiChatBlock(block)) return;
+    if (isStaticBlock(block) || isInformationBlock(block) || isAiChatBlock(block) || isSurveyBlock(block)) return;
     blocks[blockIdx] = {
       ...block,
       rounds: block.rounds.filter((_: unknown, i: number) => i !== roundIdx),
@@ -908,28 +919,28 @@ export function ParameterEditor({ config, onChange }: ParameterEditorProps) {
                   title={
                     <div className="flex items-center gap-2">
                       <div className="flex flex-col gap-0.5">
-                        <Button
-                          isIconOnly
-                          variant="light"
-                          size="sm"
-                          className="w-5 h-5 min-w-0"
-                          isDisabled={bi === 0}
-                          onPress={() => moveBlock(bi, -1)}
+                        <div
+                          role="button"
+                          tabIndex={0}
+                          className={`w-5 h-5 min-w-0 inline-flex items-center justify-center rounded-md hover:bg-default-100 transition-colors ${bi === 0 ? "opacity-30 pointer-events-none" : "cursor-pointer"}`}
+                          onClick={(e) => { e.stopPropagation(); if (bi > 0) moveBlock(bi, -1); }}
+                          onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.stopPropagation(); e.preventDefault(); if (bi > 0) moveBlock(bi, -1); } }}
                           aria-label="Move block up"
+                          aria-disabled={bi === 0}
                         >
                           <ArrowUp className="w-3 h-3" />
-                        </Button>
-                        <Button
-                          isIconOnly
-                          variant="light"
-                          size="sm"
-                          className="w-5 h-5 min-w-0"
-                          isDisabled={bi === config.blocks.length - 1}
-                          onPress={() => moveBlock(bi, 1)}
+                        </div>
+                        <div
+                          role="button"
+                          tabIndex={0}
+                          className={`w-5 h-5 min-w-0 inline-flex items-center justify-center rounded-md hover:bg-default-100 transition-colors ${bi === config.blocks.length - 1 ? "opacity-30 pointer-events-none" : "cursor-pointer"}`}
+                          onClick={(e) => { e.stopPropagation(); if (bi < config.blocks.length - 1) moveBlock(bi, 1); }}
+                          onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.stopPropagation(); e.preventDefault(); if (bi < config.blocks.length - 1) moveBlock(bi, 1); } }}
                           aria-label="Move block down"
+                          aria-disabled={bi === config.blocks.length - 1}
                         >
                           <ArrowDown className="w-3 h-3" />
-                        </Button>
+                        </div>
                       </div>
                       <span>{t("blockN", { n: bi + 1 })}</span>
                       {isStaticBlock(block) && (
@@ -940,6 +951,9 @@ export function ParameterEditor({ config, onChange }: ParameterEditorProps) {
                       )}
                       {isAiChatBlock(block) && (
                         <Chip size="sm" variant="flat" color="primary">{t("aiChatLabel")}</Chip>
+                      )}
+                      {isSurveyBlock(block) && (
+                        <Chip size="sm" variant="flat" color="success">{t("surveyLabel")}</Chip>
                       )}
                       {block.label && (
                         <Chip size="sm" variant="flat">
@@ -1105,6 +1119,168 @@ export function ParameterEditor({ config, onChange }: ParameterEditorProps) {
                         </Button>
                       </div>
                     </div>
+                  ) : isSurveyBlock(block) ? (
+                    <div className="space-y-3">
+                      <Input
+                        label={t("blockLabelOptional")}
+                        size="sm"
+                        value={block.label || ""}
+                        onValueChange={(v) => {
+                          const blocks = [...config.blocks];
+                          blocks[bi] = { ...blocks[bi], label: v || undefined };
+                          onChange({ ...config, blocks });
+                        }}
+                        placeholder="e.g. Post-Experiment Survey"
+                      />
+                      {block.questions.map((q: SurveyQuestion, qi: number) => (
+                        <Card key={q.id} className="p-3">
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-semibold">Q{qi + 1}</span>
+                              <Chip size="sm" variant="flat" color={q.questionType === "text" ? "primary" : "secondary"}>
+                                {q.questionType === "text" ? t("textQuestion") : t("multipleChoiceQuestion")}
+                              </Chip>
+                              <div className="flex-1" />
+                              <Button
+                                size="sm"
+                                variant="light"
+                                color="danger"
+                                onPress={() => {
+                                  const blocks = [...config.blocks];
+                                  const b = blocks[bi] as SurveyBlockConfig;
+                                  blocks[bi] = { ...b, questions: b.questions.filter((_: SurveyQuestion, i: number) => i !== qi) };
+                                  onChange({ ...config, blocks });
+                                }}
+                              >
+                                {t("removeQuestion")}
+                              </Button>
+                            </div>
+                            <Input
+                              label={t("questionText")}
+                              size="sm"
+                              value={q.text}
+                              onValueChange={(v) => {
+                                const blocks = [...config.blocks];
+                                const b = blocks[bi] as SurveyBlockConfig;
+                                const questions = [...b.questions];
+                                questions[qi] = { ...questions[qi], text: v };
+                                blocks[bi] = { ...b, questions };
+                                onChange({ ...config, blocks });
+                              }}
+                              placeholder="e.g. What did you learn from this experiment?"
+                            />
+                            <Select
+                              label={t("questionType")}
+                              size="sm"
+                              selectedKeys={new Set([q.questionType])}
+                              onSelectionChange={(keys) => {
+                                const type = Array.from(keys)[0] as "text" | "multiple_choice";
+                                const blocks = [...config.blocks];
+                                const b = blocks[bi] as SurveyBlockConfig;
+                                const questions = [...b.questions];
+                                if (type === "multiple_choice") {
+                                  questions[qi] = { ...questions[qi], questionType: type, options: questions[qi].options || [""] };
+                                } else {
+                                  const { options: _, ...rest } = questions[qi];
+                                  questions[qi] = { ...rest, questionType: type };
+                                }
+                                blocks[bi] = { ...b, questions };
+                                onChange({ ...config, blocks });
+                              }}
+                            >
+                              <SelectItem key="text">{t("textQuestion")}</SelectItem>
+                              <SelectItem key="multiple_choice">{t("multipleChoiceQuestion")}</SelectItem>
+                            </Select>
+                            {q.questionType === "multiple_choice" && q.options && (
+                              <div className="space-y-2 pl-4">
+                                {q.options.map((opt: string, oi: number) => (
+                                  <div key={oi} className="flex items-center gap-2">
+                                    <Input
+                                      size="sm"
+                                      value={opt}
+                                      onValueChange={(v) => {
+                                        const blocks = [...config.blocks];
+                                        const b = blocks[bi] as SurveyBlockConfig;
+                                        const questions = [...b.questions];
+                                        const options = [...(questions[qi].options || [])];
+                                        options[oi] = v;
+                                        questions[qi] = { ...questions[qi], options };
+                                        blocks[bi] = { ...b, questions };
+                                        onChange({ ...config, blocks });
+                                      }}
+                                      placeholder={t("optionPlaceholder", { n: oi + 1 })}
+                                    />
+                                    <Button
+                                      isIconOnly
+                                      size="sm"
+                                      variant="light"
+                                      color="danger"
+                                      onPress={() => {
+                                        const blocks = [...config.blocks];
+                                        const b = blocks[bi] as SurveyBlockConfig;
+                                        const questions = [...b.questions];
+                                        const options = (questions[qi].options || []).filter((_: string, i: number) => i !== oi);
+                                        questions[qi] = { ...questions[qi], options };
+                                        blocks[bi] = { ...b, questions };
+                                        onChange({ ...config, blocks });
+                                      }}
+                                      isDisabled={(q.options?.length || 0) <= 1}
+                                    >
+                                      <Trash2 className="w-3 h-3" />
+                                    </Button>
+                                  </div>
+                                ))}
+                                <Button
+                                  size="sm"
+                                  variant="flat"
+                                  startContent={<Plus className="w-3 h-3" />}
+                                  onPress={() => {
+                                    const blocks = [...config.blocks];
+                                    const b = blocks[bi] as SurveyBlockConfig;
+                                    const questions = [...b.questions];
+                                    questions[qi] = { ...questions[qi], options: [...(questions[qi].options || []), ""] };
+                                    blocks[bi] = { ...b, questions };
+                                    onChange({ ...config, blocks });
+                                  }}
+                                >
+                                  {t("addOption")}
+                                </Button>
+                              </div>
+                            )}
+                          </div>
+                        </Card>
+                      ))}
+                      <Button
+                        size="sm"
+                        variant="flat"
+                        color="success"
+                        startContent={<Plus className="w-4 h-4" />}
+                        onPress={() => {
+                          const blocks = [...config.blocks];
+                          const b = blocks[bi] as SurveyBlockConfig;
+                          const newQuestion: SurveyQuestion = {
+                            id: `q_${crypto.randomUUID().slice(0, 8)}`,
+                            text: "",
+                            questionType: "text",
+                          };
+                          blocks[bi] = { ...b, questions: [...b.questions, newQuestion] };
+                          onChange({ ...config, blocks });
+                        }}
+                      >
+                        {t("addQuestion")}
+                      </Button>
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="flat"
+                          color="danger"
+                          onPress={() => removeBlock(bi)}
+                          isDisabled={config.blocks.length <= 1}
+                        >
+                          {t("removeBlock")}
+                        </Button>
+                      </div>
+                    </div>
                   ) : (
                     <div className="space-y-3">
                       <Input
@@ -1182,6 +1358,15 @@ export function ParameterEditor({ config, onChange }: ParameterEditorProps) {
               >
                 {t("addAiChatBlock")}
               </Button>
+              <Button
+                size="sm"
+                variant="flat"
+                color="success"
+                startContent={<Plus className="w-4 h-4" />}
+                onPress={addSurveyBlock}
+              >
+                {t("addSurveyBlock")}
+              </Button>
             </div>
           </div>
         </Tab>
@@ -1237,6 +1422,23 @@ export function ParameterEditor({ config, onChange }: ParameterEditorProps) {
                     >
                       <p className="text-sm text-default-400">
                         {t("aiChatNoRoundsOrParams")}
+                      </p>
+                    </AccordionItem>
+                  );
+                }
+                if (isSurveyBlock(block)) {
+                  return (
+                    <AccordionItem
+                      key={block.id}
+                      title={
+                        <div className="flex items-center gap-2">
+                          <span>{t("blockN", { n: bi + 1 })} {block.label ? `(${block.label})` : ""}</span>
+                          <Chip size="sm" variant="flat" color="success">{t("surveyLabel")}</Chip>
+                        </div>
+                      }
+                    >
+                      <p className="text-sm text-default-400">
+                        {t("surveyNoRoundsOrParams")}
                       </p>
                     </AccordionItem>
                   );

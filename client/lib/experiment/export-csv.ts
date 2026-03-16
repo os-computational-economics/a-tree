@@ -1,10 +1,14 @@
-import type { HistoryRow, ParamValue } from "./types";
+import type { HistoryRow, ParamValue, ExperimentConfig, SurveyBlockConfig, ChatLogEntry } from "./types";
 
 interface TrialForExport {
   id: string;
   trialCode: string;
   historyTable: HistoryRow[];
+  chatLogs?: Record<string, ChatLogEntry[]>;
+  surveyResponses?: Record<string, Record<string, string>>;
 }
+
+type QuestionMap = Record<string, Record<string, string>>;
 
 /**
  * Escapes a CSV cell value: wraps in quotes if it contains comma, quote, or newline.
@@ -54,6 +58,77 @@ export function buildTrialsCsv(trials: TrialForExport[]): string {
         row.updatedAt ?? "",
       ];
       lines.push(cells.map(escapeCsvCell).join(","));
+    }
+  }
+
+  return lines.join("\n");
+}
+
+/**
+ * Builds a mapping of blockId -> questionId -> questionText from an experiment config.
+ */
+export function buildQuestionMap(config: ExperimentConfig): QuestionMap {
+  const map: QuestionMap = {};
+  for (const block of config.blocks) {
+    if (block.type === "survey") {
+      const surveyBlock = block as SurveyBlockConfig;
+      map[surveyBlock.id] = {};
+      for (const q of surveyBlock.questions) {
+        map[surveyBlock.id][q.id] = q.text;
+      }
+    }
+  }
+  return map;
+}
+
+/**
+ * Builds a CSV string from filtered trials' survey responses.
+ *
+ * Each CSV row represents one answer from one trial.
+ * Columns: trial_id, trial_code, block_id, question_id, question_text, answer
+ */
+export function buildSurveyResponsesCsv(trials: TrialForExport[], questionMap?: QuestionMap): string {
+  const headers = ["trial_id", "trial_code", "block_id", "question_id", "question_text", "answer"];
+  const lines: string[] = [headers.map(escapeCsvCell).join(",")];
+
+  for (const trial of trials) {
+    if (!trial.surveyResponses) continue;
+    for (const [blockId, answers] of Object.entries(trial.surveyResponses)) {
+      for (const [questionId, answer] of Object.entries(answers)) {
+        const questionText = questionMap?.[blockId]?.[questionId] ?? "";
+        const cells = [trial.id, trial.trialCode, blockId, questionId, questionText, answer];
+        lines.push(cells.map(escapeCsvCell).join(","));
+      }
+    }
+  }
+
+  return lines.join("\n");
+}
+
+/**
+ * Builds a CSV string from filtered trials' AI chat logs.
+ *
+ * Each CSV row represents one message from one trial.
+ * Columns: trial_id, trial_code, block_id, role, content, timestamp
+ */
+export function buildChatLogsCsv(trials: TrialForExport[]): string {
+  const headers = ["trial_id", "trial_code", "block_id", "role", "content", "timestamp"];
+  const lines: string[] = [headers.map(escapeCsvCell).join(",")];
+
+  for (const trial of trials) {
+    if (!trial.chatLogs) continue;
+    for (const [blockId, entries] of Object.entries(trial.chatLogs)) {
+      for (const entry of entries) {
+        const cells = [
+          trial.id,
+          trial.trialCode,
+          blockId,
+          entry.role,
+          entry.content,
+          entry.timestamp ? new Date(entry.timestamp).toISOString() : "",
+        ];
+        lines.push(cells.map(escapeCsvCell).join(","));
+      }
     }
   }
 

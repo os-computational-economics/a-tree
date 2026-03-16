@@ -15,6 +15,7 @@ interface TrialData {
   status: string;
   historyTable: HistoryRow[];
   chatLogs: Record<string, ChatLogEntry[]>;
+  surveyResponses: Record<string, Record<string, string>>;
   currentStepIndex: number;
   currentTemplateIndex: number;
 }
@@ -85,6 +86,7 @@ export default function ExperimentRunPage({
       initialTemplateIndex={trial.currentTemplateIndex}
       initialStatus={trial.status}
       initialChatLogs={trial.chatLogs}
+      initialSurveyResponses={trial.surveyResponses}
     />
   );
 }

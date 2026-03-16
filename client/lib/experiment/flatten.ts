@@ -5,7 +5,7 @@ import type {
   ParamDefinition,
   ParamSource,
 } from "./types";
-import { isStaticBlock, isInformationBlock, isAiChatBlock } from "./types";
+import { isStaticBlock, isInformationBlock, isAiChatBlock, isSurveyBlock } from "./types";
 import { resolveTemplate } from "./template";
 
 function mergeParams(
@@ -20,13 +20,13 @@ function mergeParams(
   }
 
   const block = config.blocks[blockIndex];
-  if (block && !isStaticBlock(block) && !isInformationBlock(block) && !isAiChatBlock(block) && block.params) {
+  if (block && !isStaticBlock(block) && !isInformationBlock(block) && !isAiChatBlock(block) && !isSurveyBlock(block) && block.params) {
     for (const [k, v] of Object.entries(block.params)) {
       result[k] = { def: v, source: "block" };
     }
   }
 
-  const round = block && !isStaticBlock(block) && !isInformationBlock(block) && !isAiChatBlock(block) ? block.rounds?.[roundIndex] : undefined;
+  const round = block && !isStaticBlock(block) && !isInformationBlock(block) && !isAiChatBlock(block) && !isSurveyBlock(block) ? block.rounds?.[roundIndex] : undefined;
   if (round?.params) {
     for (const [k, v] of Object.entries(round.params)) {
       result[k] = { def: v, source: "round" };
@@ -77,6 +77,17 @@ export function flattenConfig(config: ExperimentConfig): FlatStepConfig[] {
         blockId: block.id,
         blockLabel: block.label,
         systemPromptTemplate: block.systemPromptTemplate,
+      });
+      continue;
+    }
+
+    if (isSurveyBlock(block)) {
+      result.push({
+        type: "survey",
+        blockIndex: bi,
+        blockId: block.id,
+        blockLabel: block.label,
+        questions: block.questions,
       });
       continue;
     }
