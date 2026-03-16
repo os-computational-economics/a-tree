@@ -136,6 +136,8 @@ export function StudentRunner({
   const historyTable = engine.getHistoryTable();
   const totalSteps = engine.getTotalSteps();
   const currentStepNumber = engine.getCurrentStepNumber();
+  const totalGameRounds = engine.getTotalGameRounds();
+  const completedGameRounds = engine.getCompletedGameRounds();
 
   const blockLabel = isStaticStep
     ? (currentStep.blockLabel || currentStep.title || `Block ${currentStep.blockIndex + 1}`)
@@ -365,6 +367,8 @@ export function StudentRunner({
               lastRoundStudentInputs={engine.getLastRoundStudentInputs()}
               currentStepNumber={currentStepNumber}
               totalSteps={totalSteps}
+              totalGameRounds={totalGameRounds}
+              completedGameRounds={completedGameRounds}
               blockLabel={blockLabel}
               isStaticStep={!!isStaticStep}
               roundIndex={currentRound?.roundIndex}

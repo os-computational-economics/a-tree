@@ -27,6 +27,8 @@ interface StudentRightPanelProps {
   lastRoundStudentInputs: Record<string, string | number>;
   currentStepNumber: number;
   totalSteps: number;
+  totalGameRounds: number;
+  completedGameRounds: number;
   blockLabel: string;
   isStaticStep: boolean;
   roundIndex?: number;
@@ -132,6 +134,8 @@ export function StudentRightPanel({
   lastRoundStudentInputs,
   currentStepNumber,
   totalSteps,
+  totalGameRounds,
+  completedGameRounds,
   blockLabel,
   isStaticStep,
   roundIndex,
@@ -145,9 +149,48 @@ export function StudentRightPanel({
   const displayStudentInputs = hasCurrentParams ? studentInputs : lastRoundStudentInputs;
 
   return (
-    <div className="flex flex-col gap-4 h-full overflow-y-auto p-4">
-      {/* History Table */}
-      <div>
+    <div className="flex flex-col h-full">
+      {/* Fixed top section: Progress + Parameters */}
+      <div className="shrink-0 border-b border-divider p-4 pb-6 space-y-4">
+        {/* Game Progress / Round Indicator */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 flex-wrap">
+              <Chip variant="flat" color="primary" size="sm">{blockLabel}</Chip>
+              {isStaticStep ? (
+                <Chip variant="flat" color="secondary" size="sm">{t("static")}</Chip>
+              ) : (
+                <>
+                  {roundIndex !== undefined && (
+                    <Chip variant="flat" size="sm">{t("round", { number: roundIndex + 1 })}</Chip>
+                  )}
+                  <Chip variant="flat" color={TEMPLATE_KIND_COLORS[currentTemplateKind]} size="sm">
+                    {TEMPLATE_KIND_LABELS[currentTemplateKind]}
+                  </Chip>
+                </>
+              )}
+            </div>
+            <span className="text-sm font-medium text-default-500">
+              {completedGameRounds} / {totalGameRounds}
+            </span>
+          </div>
+          <Progress value={totalGameRounds > 0 ? (completedGameRounds / totalGameRounds) * 100 : 0} size="lg" color="primary" />
+        </div>
+
+        {/* Parameter Visualization */}
+        {displayParams && (
+          <div>
+            <h3 className="text-sm font-semibold text-default-500 mb-2">{t("parameters")}</h3>
+            <ParamVisualization
+              resolvedParams={displayParams}
+              studentInputs={displayStudentInputs}
+            />
+          </div>
+        )}
+      </div>
+
+      {/* History Table — scrollable */}
+      <div className="flex-1 min-h-0 overflow-y-auto p-4">
         <div className="flex items-center gap-2 mb-2">
           <History className="w-4 h-4 text-success" />
           <h3 className="text-sm font-semibold text-default-500">{t("historyTable")}</h3>
@@ -161,42 +204,6 @@ export function StudentRightPanel({
           displayableIds={displayableIds}
         />
       </div>
-
-      {/* Game Progress / Round Indicator */}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 flex-wrap">
-            <Chip variant="flat" color="primary" size="sm">{blockLabel}</Chip>
-            {isStaticStep ? (
-              <Chip variant="flat" color="secondary" size="sm">{t("static")}</Chip>
-            ) : (
-              <>
-                {roundIndex !== undefined && (
-                  <Chip variant="flat" size="sm">{t("round", { number: roundIndex + 1 })}</Chip>
-                )}
-                <Chip variant="flat" color={TEMPLATE_KIND_COLORS[currentTemplateKind]} size="sm">
-                  {TEMPLATE_KIND_LABELS[currentTemplateKind]}
-                </Chip>
-              </>
-            )}
-          </div>
-          <span className="text-sm font-medium text-default-500">
-            {currentStepNumber} / {totalSteps}
-          </span>
-        </div>
-        <Progress value={(currentStepNumber / totalSteps) * 100} size="lg" color="primary" />
-      </div>
-
-      {/* Parameter Visualization */}
-      {displayParams && (
-        <div>
-          <h3 className="text-sm font-semibold text-default-500 mb-2">{t("parameters")}</h3>
-          <ParamVisualization
-            resolvedParams={displayParams}
-            studentInputs={displayStudentInputs}
-          />
-        </div>
-      )}
     </div>
   );
 }

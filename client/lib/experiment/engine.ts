@@ -293,6 +293,18 @@ export class GameEngine {
     return count;
   }
 
+  getTotalGameRounds(): number {
+    return this.flatConfig.filter(isFlatRoundStep).length;
+  }
+
+  getCompletedGameRounds(): number {
+    let count = 0;
+    for (let i = 0; i < this.currentStepIndex; i++) {
+      if (isFlatRoundStep(this.flatConfig[i])) count++;
+    }
+    return count;
+  }
+
   isFirst(): boolean {
     return this.currentStepIndex === 0 && this.currentTemplateIndex === 0;
   }
