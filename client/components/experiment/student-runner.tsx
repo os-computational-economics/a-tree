@@ -13,8 +13,8 @@ import {
 } from "@heroui/modal";
 import { useDisclosure } from "@heroui/modal";
 import { ChevronRight, LogOut, BookOpen } from "lucide-react";
-import type { ExperimentConfig, HistoryRow, ResolvedParam, TemplateKind, ChatLogEntry } from "@/lib/experiment/types";
-import { TEMPLATE_KINDS, isFlatStaticStep, isFlatInformationStep, isFlatAiChatStep } from "@/lib/experiment/types";
+import type { ExperimentConfig, HistoryRow, ResolvedParam, TemplateKind, ChatLogEntry, FlatSurveyBlockConfig } from "@/lib/experiment/types";
+import { TEMPLATE_KINDS, isFlatStaticStep, isFlatInformationStep, isFlatAiChatStep, isFlatSurveyStep } from "@/lib/experiment/types";
 import { GameEngine } from "@/lib/experiment/engine";
 import { runValidation } from "./shared";
 import { StudentStepContent } from "./student-step-content";
@@ -32,6 +32,7 @@ interface StudentRunnerProps {
   initialTemplateIndex: number;
   initialStatus: string;
   initialChatLogs?: Record<string, ChatLogEntry[]>;
+  initialSurveyResponses?: Record<string, Record<string, string>>;
 }
 
 export function StudentRunner({
@@ -43,6 +44,7 @@ export function StudentRunner({
   initialTemplateIndex,
   initialStatus,
   initialChatLogs,
+  initialSurveyResponses,
 }: StudentRunnerProps) {
   const t = useTranslations("experimentRunner");
   const tCommon = useTranslations("common");
@@ -60,6 +62,7 @@ export function StudentRunner({
   const [isCompleted, setIsCompleted] = useState(initialStatus === "completed");
   const [saving, setSaving] = useState(false);
   const [chatLogs, setChatLogs] = useState<Record<string, ChatLogEntry[]>>(initialChatLogs || {});
+  const [surveyResponses, setSurveyResponses] = useState<Record<string, Record<string, string>>>(initialSurveyResponses || {});
   const [finalHistoryTable, setFinalHistoryTable] = useState<HistoryRow[] | null>(null);
   const [leftPanelPct, setLeftPanelPct] = useState(60);
   const splitContainerRef = useRef<HTMLDivElement>(null);
@@ -94,6 +97,15 @@ export function StudentRunner({
     setChatLogs((prev) => ({ ...prev, [blockId]: messages }));
   }, []);
 
+  const handleSurveyAnswerChange = useCallback((questionId: string, answer: string) => {
+    const blockId = engineRef.current?.getCurrentStep()?.blockId;
+    if (!blockId) return;
+    setSurveyResponses((prev) => ({
+      ...prev,
+      [blockId]: { ...(prev[blockId] || {}), [questionId]: answer },
+    }));
+  }, []);
+
   useEffect(() => {
     const engine = new GameEngine(config);
     if (initialHistoryTable.length > 0 || initialStepIndex > 0) {
@@ -117,6 +129,7 @@ export function StudentRunner({
   const isStaticStep = currentStep && isFlatStaticStep(currentStep);
   const isInformationStep = currentStep && isFlatInformationStep(currentStep);
   const isAiChatStep = currentStep && isFlatAiChatStep(currentStep);
+  const isSurveyStep = currentStep && isFlatSurveyStep(currentStep);
   const resolvedParams = engine.getResolvedParams();
   const currentTemplateIndex = engine.getCurrentTemplateIndex();
   const currentTemplateKind = engine.getCurrentTemplateKind();
@@ -130,7 +143,9 @@ export function StudentRunner({
       ? (currentStep.blockLabel || currentStep.title || `Block ${currentStep.blockIndex + 1}`)
       : isAiChatStep
         ? (currentStep.blockLabel || `AI Chat Block ${currentStep.blockIndex + 1}`)
-        : (currentRound?.blockLabel || `Block ${(currentRound?.blockIndex ?? 0) + 1}`);
+        : isSurveyStep
+          ? (currentStep.blockLabel || `Survey Block ${currentStep.blockIndex + 1}`)
+          : (currentRound?.blockLabel || `Block ${(currentRound?.blockIndex ?? 0) + 1}`);
 
   if (isCompleted) {
     return (
@@ -144,7 +159,7 @@ export function StudentRunner({
   }
 
   const studentInputParamIds = (() => {
-    if (!resolvedParams || !currentRound || isStaticStep || isInformationStep || isAiChatStep) return [];
+    if (!resolvedParams || !currentRound || isStaticStep || isInformationStep || isAiChatStep || isSurveyStep) return [];
     const activeKind = TEMPLATE_KINDS[currentTemplateIndex];
     const templateFields: Record<TemplateKind, string> = {
       intro: currentRound.introTemplate,
@@ -166,6 +181,11 @@ export function StudentRunner({
 
   const allInputsValid = (() => {
     if (isStaticStep || isInformationStep || isAiChatStep) return true;
+    if (isSurveyStep) {
+      const surveyStep = currentStep as FlatSurveyBlockConfig;
+      const answers = surveyResponses[currentStep.blockId] || {};
+      return surveyStep.questions.every((q) => answers[q.id]?.trim());
+    }
     if (studentInputParamIds.length === 0) return true;
     if (validationErrors.size > 0) return false;
     return studentInputParamIds.every((id) => confirmedInputs.has(id));
@@ -232,6 +252,7 @@ export function StudentRunner({
         currentStepIndex: engine.getCurrentStepIndex(),
         currentTemplateIndex: engine.getCurrentTemplateIndex(),
         chatLogs,
+        surveyResponses,
       };
       if (finished) body.status = "completed";
       await api.patch(`/api/experiments/trials/${trialId}`, body);
@@ -302,6 +323,8 @@ export function StudentRunner({
               trialId={trialId}
               chatMessages={currentBlockId ? chatLogs[currentBlockId] : undefined}
               onChatMessagesChange={handleChatMessagesChange}
+              surveyAnswers={currentBlockId ? surveyResponses[currentBlockId] : undefined}
+              onSurveyAnswerChange={handleSurveyAnswerChange}
             />
           </div>
           {/* Continue Button */}

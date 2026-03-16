@@ -4,6 +4,7 @@ interface TrialForExport {
   id: string;
   trialCode: string;
   historyTable: HistoryRow[];
+  surveyResponses?: Record<string, Record<string, string>>;
 }
 
 /**
@@ -54,6 +55,29 @@ export function buildTrialsCsv(trials: TrialForExport[]): string {
         row.updatedAt ?? "",
       ];
       lines.push(cells.map(escapeCsvCell).join(","));
+    }
+  }
+
+  return lines.join("\n");
+}
+
+/**
+ * Builds a CSV string from filtered trials' survey responses.
+ *
+ * Each CSV row represents one answer from one trial.
+ * Columns: trial_id, trial_code, block_id, question_id, answer
+ */
+export function buildSurveyResponsesCsv(trials: TrialForExport[]): string {
+  const headers = ["trial_id", "trial_code", "block_id", "question_id", "answer"];
+  const lines: string[] = [headers.map(escapeCsvCell).join(",")];
+
+  for (const trial of trials) {
+    if (!trial.surveyResponses) continue;
+    for (const [blockId, answers] of Object.entries(trial.surveyResponses)) {
+      for (const [questionId, answer] of Object.entries(answers)) {
+        const cells = [trial.id, trial.trialCode, blockId, questionId, answer];
+        lines.push(cells.map(escapeCsvCell).join(","));
+      }
     }
   }
 

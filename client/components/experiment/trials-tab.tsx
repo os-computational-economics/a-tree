@@ -24,7 +24,7 @@ import {
   useDisclosure,
 } from "@heroui/modal";
 import { Select, SelectItem } from "@heroui/select";
-import { Search, ChevronDown, Eye, MessageCircle, ExternalLink, Download } from "lucide-react";
+import { Search, ChevronDown, Eye, MessageCircle, ExternalLink, Download, ClipboardList } from "lucide-react";
 import { addToast } from "@heroui/toast";
 import { api } from "@/lib/api/client";
 import type { HistoryRow, ChatLogEntry } from "@/lib/experiment/types";
@@ -36,6 +36,7 @@ interface TrialListItem {
   status: string;
   historyTable: HistoryRow[];
   chatLogs?: Record<string, ChatLogEntry[]>;
+  surveyResponses?: Record<string, Record<string, string>>;
   createdAt: string;
   updatedAt: string;
 }
@@ -87,6 +88,47 @@ function ChatLogsExpander({ chatLogs }: { chatLogs: Record<string, ChatLogEntry[
                       {new Date(entry.timestamp).toLocaleTimeString()}
                     </span>
                     <p className="whitespace-pre-wrap">{entry.content}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SurveyResponsesExpander({ surveyResponses }: { surveyResponses: Record<string, Record<string, string>> }) {
+  const t = useTranslations("admin.experiments");
+  const [isOpen, setIsOpen] = useState(false);
+  const blockIds = Object.keys(surveyResponses).filter((k) => Object.keys(surveyResponses[k]).length > 0);
+
+  if (blockIds.length === 0) return null;
+
+  const totalResponses = blockIds.reduce((sum, k) => sum + Object.keys(surveyResponses[k]).length, 0);
+
+  return (
+    <div className="mt-2">
+      <button
+        type="button"
+        className="flex items-center gap-1 text-xs text-primary hover:underline"
+        onClick={() => setIsOpen(!isOpen)}
+      >
+        <ClipboardList className="w-3 h-3" />
+        <span>{isOpen ? t("hideSurveyResponses") : t("viewSurveyResponses")} {t("surveyResponsesTitle")} ({t("surveyResponseCount", { count: totalResponses })})</span>
+        <ChevronDown className={`w-3 h-3 transition-transform ${isOpen ? "rotate-180" : ""}`} />
+      </button>
+      {isOpen && (
+        <div className="mt-2 space-y-4">
+          {blockIds.map((blockId) => (
+            <div key={blockId} className="border border-divider rounded-lg p-3">
+              <p className="text-xs font-semibold text-default-500 mb-2">{t("blockChatLabel", { id: blockId })}</p>
+              <div className="space-y-2">
+                {Object.entries(surveyResponses[blockId]).map(([questionId, answer]) => (
+                  <div key={questionId} className="text-sm p-2 rounded-lg bg-default-100">
+                    <span className="text-xs font-semibold block mb-1 text-default-500">{questionId}</span>
+                    <p className="whitespace-pre-wrap">{answer}</p>
                   </div>
                 ))}
               </div>
@@ -165,6 +207,7 @@ function TrialHistoryExpander({ trial }: { trial: TrialListItem }) {
         </div>
       )}
       {trial.chatLogs && <ChatLogsExpander chatLogs={trial.chatLogs} />}
+      {trial.surveyResponses && <SurveyResponsesExpander surveyResponses={trial.surveyResponses} />}
     </div>
   );
 }
@@ -310,6 +353,32 @@ function TrialDetailModal({
                                 {new Date(entry.timestamp).toLocaleTimeString()}
                               </span>
                               <p className="whitespace-pre-wrap">{entry.content}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {/* Survey Responses */}
+              {trial.surveyResponses && Object.keys(trial.surveyResponses).some((k) => Object.keys(trial.surveyResponses![k]).length > 0) && (
+                <div>
+                  <h4 className="text-sm font-semibold mb-2 flex items-center gap-2">
+                    <ClipboardList className="w-4 h-4" />
+                    {t("surveyResponsesTitle")}
+                  </h4>
+                  <div className="space-y-4">
+                    {Object.entries(trial.surveyResponses).filter(([, answers]) => Object.keys(answers).length > 0).map(([blockId, answers]) => (
+                      <div key={blockId} className="border border-divider rounded-lg p-3">
+                        <p className="text-xs font-semibold text-default-500 mb-2">
+                          {t("blockChatLabel", { id: blockId })}
+                        </p>
+                        <div className="space-y-2">
+                          {Object.entries(answers).map(([questionId, answer]) => (
+                            <div key={questionId} className="text-sm p-2 rounded-lg bg-default-100">
+                              <span className="text-xs font-semibold block mb-1 text-default-500">{questionId}</span>
+                              <p className="whitespace-pre-wrap">{answer}</p>
                             </div>
                           ))}
                         </div>

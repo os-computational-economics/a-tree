@@ -60,7 +60,21 @@ export interface AiChatBlockConfig {
   systemPromptTemplate: string;
 }
 
-export type BlockConfig = RoundBlockConfig | StaticBlockConfig | InformationBlockConfig | AiChatBlockConfig;
+export interface SurveyQuestion {
+  id: string;
+  text: string;
+  questionType: "text" | "multiple_choice";
+  options?: string[];
+}
+
+export interface SurveyBlockConfig {
+  type: "survey";
+  id: string;
+  label?: string;
+  questions: SurveyQuestion[];
+}
+
+export type BlockConfig = RoundBlockConfig | StaticBlockConfig | InformationBlockConfig | AiChatBlockConfig | SurveyBlockConfig;
 
 export interface ExperimentConfig {
   params: Record<string, ParamDefinition>;
@@ -132,7 +146,15 @@ export interface FlatAiChatBlockConfig {
   systemPromptTemplate: string;
 }
 
-export type FlatStepConfig = FlatRoundConfig | FlatStaticBlockConfig | FlatInformationBlockConfig | FlatAiChatBlockConfig;
+export interface FlatSurveyBlockConfig {
+  type: "survey";
+  blockIndex: number;
+  blockId: string;
+  blockLabel?: string;
+  questions: SurveyQuestion[];
+}
+
+export type FlatStepConfig = FlatRoundConfig | FlatStaticBlockConfig | FlatInformationBlockConfig | FlatAiChatBlockConfig | FlatSurveyBlockConfig;
 
 export interface ChatLogEntry {
   role: "user" | "assistant";
@@ -152,8 +174,12 @@ export function isAiChatBlock(block: BlockConfig): block is AiChatBlockConfig {
   return block.type === "ai_chat";
 }
 
+export function isSurveyBlock(block: BlockConfig): block is SurveyBlockConfig {
+  return block.type === "survey";
+}
+
 export function isRoundBlock(block: BlockConfig): block is RoundBlockConfig {
-  return block.type !== "static" && block.type !== "information" && block.type !== "ai_chat";
+  return block.type !== "static" && block.type !== "information" && block.type !== "ai_chat" && block.type !== "survey";
 }
 
 export function isFlatStaticStep(step: FlatStepConfig): step is FlatStaticBlockConfig {
@@ -168,8 +194,12 @@ export function isFlatAiChatStep(step: FlatStepConfig): step is FlatAiChatBlockC
   return step.type === "ai_chat";
 }
 
+export function isFlatSurveyStep(step: FlatStepConfig): step is FlatSurveyBlockConfig {
+  return step.type === "survey";
+}
+
 export function isFlatRoundStep(step: FlatStepConfig): step is FlatRoundConfig {
-  return step.type !== "static" && step.type !== "information" && step.type !== "ai_chat";
+  return step.type !== "static" && step.type !== "information" && step.type !== "ai_chat" && step.type !== "survey";
 }
 
 export function isNumericParam(def: ParamDefinition): boolean {
