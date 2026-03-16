@@ -477,7 +477,14 @@
       "systemPromptTemplateLabel": "System Prompt Template",
       "aiChatNoRoundsText": "AI Chat blocks do not have rounds.",
       "viewDetails": "View Details",
-      "trialDetailModalTitle": "Trial Details"
+      "trialDetailModalTitle": "Trial Details",
+      "duplicateButton": "Duplicate",
+      "duplicatedToast": "Experiment duplicated",
+      "failedToDuplicate": "Failed to duplicate experiment",
+      "deleteTrialsTitle": "Delete Trials",
+      "deleteTrialsMessage": "Are you sure you want to delete {count} trial(s)? This action cannot be undone.",
+      "deletedTrialsToast": "Deleted {count} trial(s)",
+      "failedToDeleteTrials": "Failed to delete trials"
     }
   },
   "dashboard": {

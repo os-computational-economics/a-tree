@@ -169,6 +169,7 @@ export const experiments = pgTable("experiments", {
   createdBy: uuid("created_by")
     .notNull()
     .references(() => users.id),
+  deletedAt: timestamp("deleted_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -191,6 +192,7 @@ export const experimentTrials = pgTable("experiment_trials", {
   surveyResponses: jsonb("survey_responses").$type<Record<string, Record<string, string>>>().notNull().default({}),
   currentStepIndex: integer("current_step_index").notNull().default(0),
   currentTemplateIndex: integer("current_template_index").notNull().default(0),
+  deletedAt: timestamp("deleted_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

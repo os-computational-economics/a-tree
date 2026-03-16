@@ -26,7 +26,7 @@ import {
 import { useDisclosure } from "@heroui/modal";
 import { Textarea } from "@heroui/input";
 import { addToast } from "@heroui/toast";
-import { Plus, Search, Pencil, FlaskConical } from "lucide-react";
+import { Plus, Search, Pencil, FlaskConical, Copy, Trash2 } from "lucide-react";
 import type { ExperimentConfig } from "@/lib/experiment/types";
 import { useTranslations } from "next-intl";
 
@@ -72,9 +72,11 @@ export default function ExperimentsPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const { isOpen, onOpen, onOpenChange } = useDisclosure();
+  const deleteModal = useDisclosure();
   const [newName, setNewName] = useState("");
   const [newDescription, setNewDescription] = useState("");
   const [creating, setCreating] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<ExperimentListItem | null>(null);
 
   const fetchExperiments = async () => {
     try {
@@ -121,6 +123,31 @@ export default function ExperimentsPage() {
       addToast({ title: t("failedToCreate"), color: "danger" });
     } finally {
       setCreating(false);
+    }
+  };
+
+  const handleDuplicate = async (exp: ExperimentListItem) => {
+    try {
+      const data = await api.post<{ experiment: { id: string } }>(
+        `/api/admin/experiments/${exp.id}/duplicate`,
+      );
+      addToast({ title: t("duplicatedToast"), color: "success" });
+      router.push(`/admin/experiments/${data.experiment.id}`);
+    } catch {
+      addToast({ title: t("failedToDuplicate"), color: "danger" });
+    }
+  };
+
+  const handleDelete = async (onClose: () => void) => {
+    if (!deleteTarget) return;
+    try {
+      await api.delete(`/api/admin/experiments/${deleteTarget.id}`);
+      addToast({ title: t("deletedToast"), color: "success" });
+      onClose();
+      setDeleteTarget(null);
+      fetchExperiments();
+    } catch {
+      addToast({ title: t("failedToDelete"), color: "danger" });
     }
   };
 
@@ -182,6 +209,14 @@ export default function ExperimentsPage() {
                   <Button
                     size="sm"
                     variant="flat"
+                    startContent={<Copy className="w-3.5 h-3.5" />}
+                    onPress={() => handleDuplicate(exp)}
+                  >
+                    {t("duplicateButton")}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="flat"
                     startContent={<Pencil className="w-3.5 h-3.5" />}
                     onPress={() => router.push(`/admin/experiments/${exp.id}`)}
                   >
@@ -195,6 +230,18 @@ export default function ExperimentsPage() {
                     onPress={() => router.push(`/admin/experiments/${exp.id}/trials`)}
                   >
                     {t("viewTrialsButton")}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="flat"
+                    color="danger"
+                    startContent={<Trash2 className="w-3.5 h-3.5" />}
+                    onPress={() => {
+                      setDeleteTarget(exp);
+                      deleteModal.onOpen();
+                    }}
+                  >
+                    {tCommon("delete")}
                   </Button>
                 </div>
               </TableCell>
@@ -233,6 +280,23 @@ export default function ExperimentsPage() {
                 >
                   {tCommon("create")}
                 </Button>
+              </ModalFooter>
+            </>
+          )}
+        </ModalContent>
+      </Modal>
+
+      <Modal isOpen={deleteModal.isOpen} onOpenChange={deleteModal.onOpenChange}>
+        <ModalContent>
+          {(onClose) => (
+            <>
+              <ModalHeader>{t("deleteModalTitle")}</ModalHeader>
+              <ModalBody>
+                <p>{t("deleteMessage", { name: deleteTarget?.name ?? "" })}</p>
+              </ModalBody>
+              <ModalFooter>
+                <Button variant="flat" onPress={onClose}>{tCommon("cancel")}</Button>
+                <Button color="danger" onPress={() => handleDelete(onClose)}>{tCommon("delete")}</Button>
               </ModalFooter>
             </>
           )}

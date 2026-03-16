@@ -4,6 +4,7 @@ import { verifyAccessToken } from "@/lib/auth/jwt";
 import { db } from "@/lib/db";
 import { experiments } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
+import { experimentTrials } from "@/lib/db/schema";
 
 export async function GET(
   request: NextRequest,
@@ -93,7 +94,8 @@ export async function DELETE(
 
     const { experimentId } = await params;
     const [deleted] = await db
-      .delete(experiments)
+      .update(experiments)
+      .set({ deletedAt: new Date() })
       .where(eq(experiments.id, experimentId))
       .returning({ id: experiments.id });
 

@@ -24,7 +24,7 @@ import {
   useDisclosure,
 } from "@heroui/modal";
 import { Select, SelectItem } from "@heroui/select";
-import { Search, ChevronDown, Eye, MessageCircle, ExternalLink, Download, ClipboardList } from "lucide-react";
+import { Search, ChevronDown, Eye, MessageCircle, ExternalLink, Download, ClipboardList, Trash2 } from "lucide-react";
 import { addToast } from "@heroui/toast";
 import { api } from "@/lib/api/client";
 import type { HistoryRow, ChatLogEntry, ExperimentConfig } from "@/lib/experiment/types";
@@ -429,6 +429,8 @@ export function TrialsTab({ experimentId }: TrialsTabProps) {
   const [lookupLoading, setLookupLoading] = useState(false);
   const [selectedTrial, setSelectedTrial] = useState<TrialListItem | null>(null);
   const [experimentConfig, setExperimentConfig] = useState<ExperimentConfig | null>(null);
+  const [selectedTrialIds, setSelectedTrialIds] = useState<Set<string>>(new Set());
+  const deleteModal = useDisclosure();
   const { isOpen, onOpen, onOpenChange } = useDisclosure();
 
   const fetchTrials = useCallback(async () => {
@@ -533,6 +535,23 @@ export function TrialsTab({ experimentId }: TrialsTabProps) {
   const handleViewDetail = (trial: TrialListItem) => {
     setSelectedTrial(trial);
     onOpen();
+  };
+
+  const handleDeleteTrials = async (onClose: () => void) => {
+    const ids = Array.from(selectedTrialIds);
+    if (ids.length === 0) return;
+    try {
+      await api.delete(`/api/admin/experiments/${experimentId}/trials`, {
+        body: JSON.stringify({ trialIds: ids }),
+        headers: { "Content-Type": "application/json" },
+      });
+      addToast({ title: t("deletedTrialsToast", { count: ids.length }), color: "success" });
+      setSelectedTrialIds(new Set());
+      onClose();
+      fetchTrials();
+    } catch {
+      addToast({ title: t("failedToDeleteTrials"), color: "danger" });
+    }
   };
 
   const statusColorMap: Record<string, "warning" | "success" | "default"> = {
@@ -714,15 +733,29 @@ export function TrialsTab({ experimentId }: TrialsTabProps) {
                   {new Date(trial.updatedAt).toLocaleString()}
                 </TableCell>
                 <TableCell>
-                  <Button
-                    size="sm"
-                    variant="light"
-                    color="primary"
-                    startContent={<ExternalLink className="w-3.5 h-3.5" />}
-                    onPress={() => handleViewDetail(trial)}
-                  >
-                    {t("viewDetails")}
-                  </Button>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      size="sm"
+                      variant="light"
+                      color="primary"
+                      startContent={<ExternalLink className="w-3.5 h-3.5" />}
+                      onPress={() => handleViewDetail(trial)}
+                    >
+                      {t("viewDetails")}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="light"
+                      color="danger"
+                      isIconOnly
+                      onPress={() => {
+                        setSelectedTrialIds(new Set([trial.id]));
+                        deleteModal.onOpen();
+                      }}
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
                 </TableCell>
               </TableRow>
             ))}
@@ -736,6 +769,23 @@ export function TrialsTab({ experimentId }: TrialsTabProps) {
         onOpenChange={onOpenChange}
         statusColorMap={statusColorMap}
       />
+
+      <Modal isOpen={deleteModal.isOpen} onOpenChange={deleteModal.onOpenChange}>
+        <ModalContent>
+          {(onClose) => (
+            <>
+              <ModalHeader>{t("deleteTrialsTitle")}</ModalHeader>
+              <ModalBody>
+                <p>{t("deleteTrialsMessage", { count: selectedTrialIds.size })}</p>
+              </ModalBody>
+              <ModalFooter>
+                <Button variant="flat" onPress={onClose}>{tCommon("cancel")}</Button>
+                <Button color="danger" onPress={() => handleDeleteTrials(onClose)}>{tCommon("delete")}</Button>
+              </ModalFooter>
+            </>
+          )}
+        </ModalContent>
+      </Modal>
     </div>
   );
 }

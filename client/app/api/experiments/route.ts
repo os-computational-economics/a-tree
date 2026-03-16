@@ -3,7 +3,7 @@ import { getAccessToken } from "@/lib/auth/cookies";
 import { verifyAccessToken } from "@/lib/auth/jwt";
 import { db } from "@/lib/db";
 import { experiments } from "@/lib/db/schema";
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, and, isNull } from "drizzle-orm";
 
 export async function GET(request: NextRequest) {
   try {
@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
         createdAt: experiments.createdAt,
       })
       .from(experiments)
-      .where(eq(experiments.status, "active"))
+      .where(and(eq(experiments.status, "active"), isNull(experiments.deletedAt)))
       .orderBy(desc(experiments.createdAt));
 
     const list = activeExperiments.map((exp) => ({

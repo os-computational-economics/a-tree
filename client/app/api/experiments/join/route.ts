@@ -3,7 +3,7 @@ import { getAccessToken } from "@/lib/auth/cookies";
 import { verifyAccessToken } from "@/lib/auth/jwt";
 import { db } from "@/lib/db";
 import { experiments, experimentTrials } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, and, isNull } from "drizzle-orm";
 
 function generateTrialCode(): string {
   return String(Math.floor(Math.random() * 1000000)).padStart(6, "0");
@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
     const [experiment] = await db
       .select({ id: experiments.id, status: experiments.status })
       .from(experiments)
-      .where(eq(experiments.id, experimentId))
+      .where(and(eq(experiments.id, experimentId), isNull(experiments.deletedAt)))
       .limit(1);
 
     if (!experiment) {

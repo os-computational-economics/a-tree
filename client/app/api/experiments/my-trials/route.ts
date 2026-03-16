@@ -3,7 +3,7 @@ import { getAccessToken } from "@/lib/auth/cookies";
 import { verifyAccessToken } from "@/lib/auth/jwt";
 import { db } from "@/lib/db";
 import { experimentTrials, experiments } from "@/lib/db/schema";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and, isNull } from "drizzle-orm";
 import type { ExperimentConfig } from "@/lib/experiment/types";
 
 function getDisplayableParamIds(config: ExperimentConfig): string[] {
@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
       })
       .from(experimentTrials)
       .innerJoin(experiments, eq(experimentTrials.experimentId, experiments.id))
-      .where(eq(experimentTrials.userId, payload.userId))
+      .where(and(eq(experimentTrials.userId, payload.userId), isNull(experimentTrials.deletedAt), isNull(experiments.deletedAt)))
       .orderBy(desc(experimentTrials.createdAt));
 
     const trials = rows.map((row) => ({

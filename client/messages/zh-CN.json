@@ -477,7 +477,14 @@
       "systemPromptTemplateLabel": "系统提示模板",
       "aiChatNoRoundsText": "AI 对话区组没有轮次。",
       "viewDetails": "查看详情",
-      "trialDetailModalTitle": "试验详情"
+      "trialDetailModalTitle": "试验详情",
+      "duplicateButton": "复制",
+      "duplicatedToast": "实验已复制",
+      "failedToDuplicate": "复制实验失败",
+      "deleteTrialsTitle": "删除试验",
+      "deleteTrialsMessage": "确定要删除 {count} 个试验吗？此操作无法撤销。",
+      "deletedTrialsToast": "已删除 {count} 个试验",
+      "failedToDeleteTrials": "删除试验失败"
     }
   },
   "dashboard": {
