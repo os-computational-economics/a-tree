@@ -919,28 +919,28 @@ export function ParameterEditor({ config, onChange }: ParameterEditorProps) {
                   title={
                     <div className="flex items-center gap-2">
                       <div className="flex flex-col gap-0.5">
-                        <Button
-                          isIconOnly
-                          variant="light"
-                          size="sm"
-                          className="w-5 h-5 min-w-0"
-                          isDisabled={bi === 0}
-                          onPress={() => moveBlock(bi, -1)}
+                        <div
+                          role="button"
+                          tabIndex={0}
+                          className={`w-5 h-5 min-w-0 inline-flex items-center justify-center rounded-md hover:bg-default-100 transition-colors ${bi === 0 ? "opacity-30 pointer-events-none" : "cursor-pointer"}`}
+                          onClick={(e) => { e.stopPropagation(); if (bi > 0) moveBlock(bi, -1); }}
+                          onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.stopPropagation(); e.preventDefault(); if (bi > 0) moveBlock(bi, -1); } }}
                           aria-label="Move block up"
+                          aria-disabled={bi === 0}
                         >
                           <ArrowUp className="w-3 h-3" />
-                        </Button>
-                        <Button
-                          isIconOnly
-                          variant="light"
-                          size="sm"
-                          className="w-5 h-5 min-w-0"
-                          isDisabled={bi === config.blocks.length - 1}
-                          onPress={() => moveBlock(bi, 1)}
+                        </div>
+                        <div
+                          role="button"
+                          tabIndex={0}
+                          className={`w-5 h-5 min-w-0 inline-flex items-center justify-center rounded-md hover:bg-default-100 transition-colors ${bi === config.blocks.length - 1 ? "opacity-30 pointer-events-none" : "cursor-pointer"}`}
+                          onClick={(e) => { e.stopPropagation(); if (bi < config.blocks.length - 1) moveBlock(bi, 1); }}
+                          onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.stopPropagation(); e.preventDefault(); if (bi < config.blocks.length - 1) moveBlock(bi, 1); } }}
                           aria-label="Move block down"
+                          aria-disabled={bi === config.blocks.length - 1}
                         >
                           <ArrowDown className="w-3 h-3" />
-                        </Button>
+                        </div>
                       </div>
                       <span>{t("blockN", { n: bi + 1 })}</span>
                       {isStaticBlock(block) && (
