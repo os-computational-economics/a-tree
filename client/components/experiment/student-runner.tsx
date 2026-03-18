@@ -322,6 +322,7 @@ export function StudentRunner({
               validationErrors={validationErrors}
               onStudentInput={handleStudentInput}
               onResetInput={handleResetInput}
+              historyTable={historyTable}
               trialId={trialId}
               chatMessages={currentBlockId ? chatLogs[currentBlockId] : undefined}
               onChatMessagesChange={handleChatMessagesChange}

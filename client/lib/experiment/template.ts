@@ -1,5 +1,7 @@
 import type {
   ExperimentConfig,
+  HistoryRow,
+  ParamValue,
   ResolvedParam,
   TemplateSegment,
   TemplateKind,
@@ -110,4 +112,34 @@ export function renderTemplate(
   }
 
   return segments;
+}
+
+function formatParamValue(val: ParamValue): string {
+  if (val === null) return "\u2014";
+  if (typeof val === "number") return Number.isInteger(val) ? String(val) : val.toFixed(4);
+  return String(val);
+}
+
+/**
+ * Replace {{param_id}} placeholders in an HTML string with the latest value
+ * of that variable from the history table. Unknown variables are left as-is.
+ */
+export function interpolateHistoryVars(html: string, historyTable: HistoryRow[]): string {
+  if (historyTable.length === 0) return html;
+
+  const latestValues: Record<string, ParamValue> = {};
+  for (const row of historyTable) {
+    for (const [k, v] of Object.entries(row.values)) {
+      latestValues[k] = v;
+    }
+  }
+
+  return html.replace(/\{\{(\w+)\}\}/g, (full, paramId: string) => {
+    if (paramId in latestValues) {
+      const raw = formatParamValue(latestValues[paramId]);
+      const escaped = raw.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+      return `<span class="font-semibold text-primary">${escaped}</span>`;
+    }
+    return full;
+  });
 }

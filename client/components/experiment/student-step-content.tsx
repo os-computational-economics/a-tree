@@ -11,13 +11,14 @@ import type {
   FlatAiChatBlockConfig,
   FlatSurveyBlockConfig,
   FlatStepConfig,
+  HistoryRow,
   ResolvedParam,
   TemplateKind,
   ChatLogEntry,
   SurveyQuestion,
 } from "@/lib/experiment/types";
 import { TEMPLATE_KINDS, isFlatStaticStep, isFlatInformationStep, isFlatAiChatStep, isFlatSurveyStep } from "@/lib/experiment/types";
-import { renderTemplate } from "@/lib/experiment/template";
+import { renderTemplate, interpolateHistoryVars } from "@/lib/experiment/template";
 import {
   TEMPLATE_KIND_LABELS,
   TEMPLATE_KIND_COLORS,
@@ -36,6 +37,7 @@ interface StudentStepContentProps {
   validationErrors: Set<string>;
   onStudentInput: (id: string, v: string | number) => void;
   onResetInput: (id: string) => void;
+  historyTable: HistoryRow[];
   trialId?: string;
   chatMessages?: ChatLogEntry[];
   onChatMessagesChange?: (blockId: string, messages: ChatLogEntry[]) => void;
@@ -54,6 +56,7 @@ export function StudentStepContent({
   validationErrors,
   onStudentInput,
   onResetInput,
+  historyTable,
   trialId,
   chatMessages,
   onChatMessagesChange,
@@ -99,7 +102,7 @@ export function StudentStepContent({
           <CardBody>
             <div
               className="prose prose-sm dark:prose-invert max-w-none leading-relaxed"
-              dangerouslySetInnerHTML={{ __html: (currentStep as FlatStaticBlockConfig).body }}
+              dangerouslySetInnerHTML={{ __html: interpolateHistoryVars((currentStep as FlatStaticBlockConfig).body, historyTable) }}
             />
           </CardBody>
         </Card>
@@ -116,7 +119,7 @@ export function StudentStepContent({
           <CardBody>
             <div
               className="prose prose-sm dark:prose-invert max-w-none leading-relaxed"
-              dangerouslySetInnerHTML={{ __html: (currentStep as FlatInformationBlockConfig).body }}
+              dangerouslySetInnerHTML={{ __html: interpolateHistoryVars((currentStep as FlatInformationBlockConfig).body, historyTable) }}
             />
           </CardBody>
         </Card>

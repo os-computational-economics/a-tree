@@ -19,7 +19,7 @@ import {
 import { Dices, FunctionSquare, ChevronLeft, ChevronRight, PenLine, History, ChevronDown, BookOpen } from "lucide-react";
 import type { ExperimentConfig, ParamDefinition, ParamSource, ResolvedParam, TemplateKind, HistoryRow, FlatRoundConfig, FlatStepConfig } from "@/lib/experiment/types";
 import { TEMPLATE_KINDS, isFlatRoundStep, isFlatStaticStep, isFlatInformationStep, isFlatAiChatStep, isFlatSurveyStep } from "@/lib/experiment/types";
-import { renderTemplate } from "@/lib/experiment/template";
+import { renderTemplate, interpolateHistoryVars } from "@/lib/experiment/template";
 import { GameEngine } from "@/lib/experiment/engine";
 import { flattenConfig } from "@/lib/experiment/flatten";
 
@@ -839,7 +839,7 @@ function StepThrough({ config }: { config: ExperimentConfig }) {
           <CardBody>
             <div
               className="prose prose-sm dark:prose-invert max-w-none leading-relaxed"
-              dangerouslySetInnerHTML={{ __html: currentStep.body }}
+              dangerouslySetInnerHTML={{ __html: interpolateHistoryVars(currentStep.body, historyTable) }}
             />
           </CardBody>
         </Card>
@@ -854,7 +854,7 @@ function StepThrough({ config }: { config: ExperimentConfig }) {
           <CardBody>
             <div
               className="prose prose-sm dark:prose-invert max-w-none leading-relaxed"
-              dangerouslySetInnerHTML={{ __html: currentStep.body }}
+              dangerouslySetInnerHTML={{ __html: interpolateHistoryVars(currentStep.body, historyTable) }}
             />
           </CardBody>
         </Card>
