@@ -27,6 +27,27 @@ export class GameEngine {
   private lastRoundResolvedParams: Record<string, ResolvedParam>;
   private lastRoundStudentInputs: Record<string, string | number>;
 
+  /**
+   * Returns the first non-empty template index for a round step.
+   * Skips intro (0) if its template is empty, falling back to decision (1).
+   */
+  private getFirstTemplateIndex(step: FlatRoundConfig): number {
+    return step.introTemplate.trim() ? 0 : 1;
+  }
+
+  /**
+   * Returns the last non-empty template index for a round step.
+   * Skips result (2) if its template is empty, falling back to decision (1).
+   */
+  private getLastTemplateIndex(step: FlatRoundConfig): number {
+    return step.resultTemplate.trim() ? 2 : 1;
+  }
+
+  /** Number of visible template sub-steps for a given round step. */
+  getVisibleTemplateCount(step: FlatRoundConfig): number {
+    return this.getLastTemplateIndex(step) - this.getFirstTemplateIndex(step) + 1;
+  }
+
   constructor(config: ExperimentConfig) {
     this.flatConfig = flattenConfig(config);
     this.historyTable = [];
@@ -66,6 +87,8 @@ export class GameEngine {
       this.resolvedParams = {};
       return;
     }
+
+    this.currentTemplateIndex = this.getFirstTemplateIndex(step);
 
     for (const [paramId, { def }] of Object.entries(step.params)) {
       if (def.type === "norm" || def.type === "unif") {
@@ -186,7 +209,8 @@ export class GameEngine {
 
     this.recalculate(studentInputs);
 
-    if (this.currentTemplateIndex < 2) {
+    const lastIdx = this.getLastTemplateIndex(step);
+    if (this.currentTemplateIndex < lastIdx) {
       this.currentTemplateIndex++;
       this.recalculate(studentInputs);
     } else if (this.currentStepIndex < this.flatConfig.length - 1) {
@@ -196,8 +220,9 @@ export class GameEngine {
 
   goBack(): void {
     const step = this.flatConfig[this.currentStepIndex];
+    const firstIdx = step && isFlatRoundStep(step) ? this.getFirstTemplateIndex(step) : 0;
 
-    if (step && isFlatRoundStep(step) && this.currentTemplateIndex > 0) {
+    if (step && isFlatRoundStep(step) && this.currentTemplateIndex > firstIdx) {
       this.currentTemplateIndex--;
       return;
     }
@@ -206,7 +231,7 @@ export class GameEngine {
       this.currentStepIndex--;
       const prevStep = this.flatConfig[this.currentStepIndex];
       if (prevStep && isFlatRoundStep(prevStep)) {
-        this.currentTemplateIndex = 2;
+        this.currentTemplateIndex = this.getLastTemplateIndex(prevStep);
       } else {
         this.currentTemplateIndex = 0;
       }
@@ -269,13 +294,13 @@ export class GameEngine {
   }
 
   /**
-   * Total logical steps: round steps contribute 3 (intro/decision/result),
-   * static steps contribute 1.
+   * Total logical steps: round steps contribute their visible template count
+   * (skipping empty intro/result), non-round steps contribute 1.
    */
   getTotalSteps(): number {
     let total = 0;
     for (const step of this.flatConfig) {
-      total += isFlatRoundStep(step) ? TEMPLATE_KINDS.length : 1;
+      total += isFlatRoundStep(step) ? this.getVisibleTemplateCount(step) : 1;
     }
     return total;
   }
@@ -286,10 +311,15 @@ export class GameEngine {
   getCurrentStepNumber(): number {
     let count = 0;
     for (let i = 0; i < this.currentStepIndex; i++) {
-      count += isFlatRoundStep(this.flatConfig[i]) ? TEMPLATE_KINDS.length : 1;
+      const s = this.flatConfig[i];
+      count += isFlatRoundStep(s) ? this.getVisibleTemplateCount(s) : 1;
     }
     const current = this.flatConfig[this.currentStepIndex];
-    count += current && isFlatRoundStep(current) ? this.currentTemplateIndex + 1 : 1;
+    if (current && isFlatRoundStep(current)) {
+      count += this.currentTemplateIndex - this.getFirstTemplateIndex(current) + 1;
+    } else {
+      count += 1;
+    }
     return count;
   }
 
@@ -306,21 +336,26 @@ export class GameEngine {
   }
 
   isFirst(): boolean {
-    return this.currentStepIndex === 0 && this.currentTemplateIndex === 0;
+    if (this.currentStepIndex !== 0) return false;
+    const step = this.flatConfig[0];
+    if (step && isFlatRoundStep(step)) {
+      return this.currentTemplateIndex === this.getFirstTemplateIndex(step);
+    }
+    return this.currentTemplateIndex === 0;
   }
 
   isFinished(): boolean {
     if (this.currentStepIndex !== this.flatConfig.length - 1) return false;
     const step = this.flatConfig[this.currentStepIndex];
     if (step && isFlatRoundStep(step)) {
-      return this.currentTemplateIndex === 2;
+      return this.currentTemplateIndex === this.getLastTemplateIndex(step);
     }
     return true;
   }
 
   /**
    * Restore engine state from previously saved data (for resuming a trial).
-   * Always snaps back to the intro (templateIndex=0) of the current round,
+   * Snaps back to the first visible template of the current round,
    * preserving random values but requiring the student to redo the round.
    */
   restore(
@@ -343,8 +378,8 @@ export class GameEngine {
       return;
     }
 
-    // Always restart at intro for round steps
-    this.currentTemplateIndex = 0;
+    // Always restart at the first visible template for round steps
+    this.currentTemplateIndex = this.getFirstTemplateIndex(step);
 
     const histIdx = this.getHistoryIndex();
 
