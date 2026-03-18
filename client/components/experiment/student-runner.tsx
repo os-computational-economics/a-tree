@@ -330,11 +330,11 @@ export function StudentRunner({
             />
           </div>
           {/* Continue Button */}
-          <div className="flex justify-end px-6 py-4 border-t border-divider shrink-0">
+          <div className="flex justify-end px-6 py-2 border-t border-divider shrink-0">
             <Button
               color="primary"
-              size="lg"
-              endContent={<ChevronRight className="w-4 h-4" />}
+              size="sm"
+              endContent={<ChevronRight className="w-3.5 h-3.5" />}
               isDisabled={!allInputsValid}
               onPress={goNext}
             >
