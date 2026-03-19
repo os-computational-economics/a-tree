@@ -6,11 +6,11 @@ import NextLink from "next/link";
 import clsx from "clsx";
 import { useTranslations } from "next-intl";
 import {
-  BotMessageSquare,
   Shield,
   LogOut,
   User as UserIcon,
   FlaskConical,
+  TreePalm,
 } from "lucide-react";
 import { Avatar } from "@heroui/avatar";
 import { Tooltip } from "@heroui/tooltip";
@@ -32,12 +32,6 @@ export const PrimarySidebar = () => {
 
   const navItems = [
     {
-      label: t("agent"),
-      href: "/chat",
-      icon: <BotMessageSquare size={20} />,
-      isActive: (path: string) => path.startsWith("/chat") || path === "/",
-    },
-    {
       label: t("experiments"),
       href: "/experiments",
       icon: <FlaskConical size={20} />,
@@ -52,9 +46,9 @@ export const PrimarySidebar = () => {
     >
       {/* Logo */}
       <div className="mb-8">
-        <div className="bg-primary/10 p-2 rounded-xl">
-          <BotMessageSquare className="text-primary" size={24} />
-        </div>
+        <NextLink href="/" className="bg-primary/10 p-2 rounded-xl block">
+          <TreePalm className="text-primary" size={24} />
+        </NextLink>
       </div>
 
       {/* Navigation Items */}

@@ -494,6 +494,7 @@
     "memberSince": "Member Since",
     "testProtectedApi": "Test Protected API",
     "goToAgent": "Go to agent",
+    "goToExperiment": "Go to experiment",
     "apiResponse": "Response from /api/test/protected:"
   },
   "language": {

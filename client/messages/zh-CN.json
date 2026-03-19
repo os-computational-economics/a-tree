@@ -494,6 +494,7 @@
     "memberSince": "注册时间",
     "testProtectedApi": "测试受保护的 API",
     "goToAgent": "前往助手",
+    "goToExperiment": "前往实验",
     "apiResponse": "/api/test/protected 的响应："
   },
   "language": {

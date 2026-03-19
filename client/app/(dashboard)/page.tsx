@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Button } from "@heroui/button";
@@ -13,29 +12,6 @@ export default function Home() {
   const router = useRouter();
   const t = useTranslations();
   const { user, loading, error, logout, loggingOut } = useAuth();
-  const [testResult, setTestResult] = useState<any>(null);
-  const [testLoading, setTestLoading] = useState(false);
-
-  const handleTestProtectedAPI = async () => {
-    setTestLoading(true);
-    setTestResult(null);
-
-    try {
-      const data = await fetch("/api/test/protected", {
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
-      setTestResult(await data.json());
-    } catch (err) {
-      setTestResult({
-        error:
-          err instanceof Error ? err.message : "Failed to fetch protected data",
-      });
-    } finally {
-      setTestLoading(false);
-    }
-  };
 
   if (loading) {
     return (
@@ -138,37 +114,15 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="space-y-4">
-            <div className="flex justify-center gap-4 pt-4">
-              <Button
-                color="primary"
-                variant="flat"
-                size="lg"
-                onPress={handleTestProtectedAPI}
-                isLoading={testLoading}
-              >
-                {t("dashboard.testProtectedApi")}
-              </Button>
-              <Button
-                color="secondary"
-                variant="flat"
-                size="lg"
-                onPress={() => router.push("/chat")}
-              >
-                {t("dashboard.goToAgent")}
-              </Button>
-            </div>
-
-            {testResult && (
-              <div className="p-4 rounded-lg bg-gray-100 dark:bg-gray-800">
-                <p className="text-xs text-gray-500 dark:text-gray-400 mb-2 font-mono">
-                  {t("dashboard.apiResponse")}
-                </p>
-                <pre className="text-sm overflow-x-auto">
-                  {JSON.stringify(testResult, null, 2)}
-                </pre>
-              </div>
-            )}
+          <div className="flex justify-center gap-4 pt-4">
+            <Button
+              color="secondary"
+              variant="flat"
+              size="lg"
+              onPress={() => router.push("/experiments")}
+            >
+              {t("dashboard.goToExperiment")}
+            </Button>
           </div>
 
           <div className="flex justify-center pt-4 border-t border-gray-200 dark:border-gray-700 mt-6">
