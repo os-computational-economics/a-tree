@@ -7,7 +7,7 @@ import { Card, CardBody } from "@heroui/card";
 import { Button } from "@heroui/button";
 import { Textarea } from "@heroui/input";
 import { Popover, PopoverTrigger, PopoverContent } from "@heroui/popover";
-import { Bot, Send, Mic, Square } from "lucide-react";
+import { Bot, Send, Mic, Square, Play, Pause, Eye, EyeOff } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import ReactMarkdown from "react-markdown";
 import { siteConfig } from "@/config/site";
@@ -21,6 +21,181 @@ interface ExperimentChatPanelProps {
   blockLabel?: string;
   initialMessages: ChatLogEntry[];
   onMessagesChange: (blockId: string, messages: ChatLogEntry[]) => void;
+  responseMode?: "text" | "voice";
+}
+
+function VoiceMessageBubble({
+  trialId,
+  blockId,
+  msg,
+  autoPlay,
+  activeTimestamp,
+  onPlayStart,
+}: {
+  trialId: string;
+  blockId: string;
+  msg: ChatLogEntry;
+  autoPlay: boolean;
+  activeTimestamp: number | null;
+  onPlayStart: (timestamp: number) => void;
+}) {
+  const t = useTranslations("experimentRunner");
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [showText, setShowText] = useState(false);
+  const [isLoadingAudio, setIsLoadingAudio] = useState(false);
+  const [audioBlobUrl, setAudioBlobUrl] = useState<string | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const hasAutoPlayed = useRef(false);
+  const audioBlobUrlRef = useRef<string | null>(null);
+
+  // Stop playback when another message becomes active
+  useEffect(() => {
+    if (activeTimestamp !== null && activeTimestamp !== msg.timestamp && isPlaying && audioRef.current) {
+      audioRef.current.pause();
+      setIsPlaying(false);
+    }
+  }, [activeTimestamp, msg.timestamp, isPlaying]);
+
+  const fetchAudio = useCallback(async (): Promise<string | null> => {
+    if (audioBlobUrlRef.current) return audioBlobUrlRef.current;
+    setIsLoadingAudio(true);
+    try {
+      const res = await fetch(`/api/experiments/trials/${trialId}/chat/tts`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          blockId,
+          timestamp: msg.timestamp,
+          text: msg.content,
+        }),
+      });
+      if (!res.ok) return null;
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      audioBlobUrlRef.current = url;
+      setAudioBlobUrl(url);
+      return url;
+    } catch (e) {
+      console.error("Failed to fetch TTS audio:", e);
+      return null;
+    } finally {
+      setIsLoadingAudio(false);
+    }
+  }, [trialId, blockId, msg.timestamp, msg.content]);
+
+  const playAudio = useCallback(async (url?: string | null) => {
+    const blobUrl = url ?? (await fetchAudio());
+    if (!blobUrl) return;
+
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+    }
+
+    onPlayStart(msg.timestamp);
+    const audio = new Audio(blobUrl);
+    audioRef.current = audio;
+    setIsPlaying(true);
+    audio.onended = () => setIsPlaying(false);
+    audio.onpause = () => setIsPlaying(false);
+    audio.onerror = () => setIsPlaying(false);
+    try {
+      await audio.play();
+    } catch {
+      setIsPlaying(false);
+    }
+  }, [fetchAudio, onPlayStart, msg.timestamp]);
+
+  const togglePlay = useCallback(() => {
+    if (isPlaying && audioRef.current) {
+      audioRef.current.pause();
+      setIsPlaying(false);
+    } else {
+      playAudio();
+    }
+  }, [isPlaying, playAudio]);
+
+  useEffect(() => {
+    if (autoPlay && !hasAutoPlayed.current) {
+      hasAutoPlayed.current = true;
+      fetchAudio().then((url) => {
+        if (url) playAudio(url);
+      });
+    }
+  }, [autoPlay]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+      if (audioBlobUrlRef.current) URL.revokeObjectURL(audioBlobUrlRef.current);
+    };
+  }, []);
+
+  return (
+    <div className="flex flex-col gap-1 max-w-full">
+      <Card className="shadow-none bg-default-100 dark:bg-default-50/10">
+        <CardBody className="p-3">
+          <div className="flex items-center gap-2">
+            <Button
+              isIconOnly
+              size="sm"
+              variant="flat"
+              color="primary"
+              onPress={togglePlay}
+              isLoading={isLoadingAudio}
+              aria-label={isPlaying ? t("pause") : t("replay")}
+            >
+              {isPlaying ? <Pause size={16} /> : <Play size={16} />}
+            </Button>
+            <div className="flex-1 flex items-center gap-1.5">
+              {isLoadingAudio ? (
+                <span className="text-tiny text-default-400">{t("generatingAudio")}</span>
+              ) : (
+                <div className="flex gap-[3px] items-center h-6">
+                  {Array.from({ length: 24 }).map((_, i) => (
+                    <div
+                      key={i}
+                      className={`w-[3px] rounded-full transition-all ${isPlaying ? "bg-primary animate-pulse" : "bg-default-300"}`}
+                      style={{ height: `${Math.max(4, Math.sin(i * 0.7) * 12 + 12)}px` }}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+            <Button
+              isIconOnly
+              size="sm"
+              variant="light"
+              onPress={() => setShowText((v) => !v)}
+              aria-label={showText ? t("hideText") : t("showText")}
+            >
+              {showText ? <EyeOff size={16} /> : <Eye size={16} />}
+            </Button>
+          </div>
+          <AnimatePresence>
+            {showText && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                className="overflow-hidden"
+              >
+                <div className="pt-2 mt-2 border-t border-divider">
+                  <div className="prose dark:prose-invert prose-sm max-w-none">
+                    <ReactMarkdown>{msg.content}</ReactMarkdown>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </CardBody>
+      </Card>
+    </div>
+  );
 }
 
 export function ExperimentChatPanel({
@@ -29,12 +204,20 @@ export function ExperimentChatPanel({
   blockLabel,
   initialMessages,
   onMessagesChange,
+  responseMode,
 }: ExperimentChatPanelProps) {
   const t = useTranslations("experimentRunner");
   const [messages, setMessages] = useState<ChatLogEntry[]>(initialMessages);
   const [input, setInput] = useState("");
   const [isSending, setIsSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const isVoice = responseMode === "voice";
+  const [latestVoiceTimestamp, setLatestVoiceTimestamp] = useState<number | null>(null);
+  const [activePlayingTimestamp, setActivePlayingTimestamp] = useState<number | null>(null);
+
+  const handlePlayStart = useCallback((timestamp: number) => {
+    setActivePlayingTimestamp(timestamp);
+  }, []);
 
   const handleTranscriptionComplete = useCallback((text: string) => {
     setInput((prev) => (prev ? `${prev} ${text}` : text));
@@ -79,6 +262,8 @@ export function ExperimentChatPanel({
     setIsSending(true);
 
     try {
+      const tempTimestamp = Date.now();
+      let assistantTimestamp = tempTimestamp;
       const res = await fetch(`/api/experiments/trials/${trialId}/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -98,7 +283,6 @@ export function ExperimentChatPanel({
       let buffer = "";
       let isFirstChunk = true;
       const contentParts: MessageContentPart[] = [];
-      const assistantTimestamp = Date.now();
 
       while (true) {
         const { done, value } = await reader.read();
@@ -124,6 +308,18 @@ export function ExperimentChatPanel({
               continue;
             }
 
+            if (event.type === "assistant_timestamp") {
+              assistantTimestamp = event.timestamp;
+              setMessages((prev) =>
+                prev.map((m) =>
+                  m.role === "assistant" && m.timestamp === tempTimestamp
+                    ? { ...m, timestamp: assistantTimestamp }
+                    : m,
+                ),
+              );
+              continue;
+            }
+
             if (isFirstChunk) {
               isFirstChunk = false;
             }
@@ -146,12 +342,12 @@ export function ExperimentChatPanel({
             const assistantEntry: ChatLogEntry = {
               role: "assistant",
               content: assistantText,
-              timestamp: assistantTimestamp,
+              timestamp: tempTimestamp,
             };
 
             setMessages((prev) => {
               const withoutStreaming = prev.filter(
-                (m) => !(m.role === "assistant" && m.timestamp === assistantTimestamp),
+                (m) => !(m.role === "assistant" && m.timestamp === tempTimestamp),
               );
               const updated = [...withoutStreaming, assistantEntry];
               return updated;
@@ -162,11 +358,27 @@ export function ExperimentChatPanel({
         }
       }
 
-      // Final save with the completed messages
+      // Final save with the completed messages (using the server-authoritative timestamp)
+      const assistantText = contentParts
+        .filter((p) => p.type === "text")
+        .map((p) => p.text)
+        .join("\n");
+      const finalAssistantEntry: ChatLogEntry = {
+        role: "assistant",
+        content: assistantText,
+        timestamp: assistantTimestamp,
+      };
       setMessages((prev) => {
-        onMessagesChange(blockId, prev);
-        return prev;
+        const withoutStreaming = prev.filter(
+          (m) => !(m.role === "assistant" && (m.timestamp === tempTimestamp || m.timestamp === assistantTimestamp)),
+        );
+        return [...withoutStreaming, finalAssistantEntry];
       });
+      onMessagesChange(blockId, [...updatedMessages, finalAssistantEntry]);
+
+      if (isVoice) {
+        setLatestVoiceTimestamp(assistantTimestamp);
+      }
     } catch (error) {
       console.error("Error sending experiment chat message:", error);
     } finally {
@@ -194,6 +406,9 @@ export function ExperimentChatPanel({
 
         {messages.map((msg, idx) => {
           const isUser = msg.role === "user";
+          const isVoiceMessage = isVoice && !isUser;
+          const shouldAutoPlay = isVoiceMessage && msg.timestamp === latestVoiceTimestamp;
+
           return (
             <div
               key={`${msg.timestamp}-${idx}`}
@@ -204,27 +419,38 @@ export function ExperimentChatPanel({
                   <Bot size={16} className="text-primary" />
                 </div>
               )}
-              <div className={`flex flex-col gap-1 ${isUser ? "max-w-[80%]" : "max-w-full"}`}>
-                <Card
-                  className={`shadow-none ${
-                    isUser
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-default-100 dark:bg-default-50/10"
-                  }`}
-                >
-                  <CardBody className="p-3 overflow-x-auto">
-                    <div
-                      className={`prose dark:prose-invert prose-sm max-w-none ${
-                        isUser
-                          ? "prose-headings:text-primary-foreground prose-p:text-primary-foreground prose-strong:text-primary-foreground prose-code:text-primary-foreground"
-                          : ""
-                      }`}
-                    >
-                      <ReactMarkdown>{msg.content}</ReactMarkdown>
-                    </div>
-                  </CardBody>
-                </Card>
-              </div>
+              {isVoiceMessage ? (
+                <VoiceMessageBubble
+                  trialId={trialId}
+                  blockId={blockId}
+                  msg={msg}
+                  autoPlay={shouldAutoPlay}
+                  activeTimestamp={activePlayingTimestamp}
+                  onPlayStart={handlePlayStart}
+                />
+              ) : (
+                <div className={`flex flex-col gap-1 ${isUser ? "max-w-[80%]" : "max-w-full"}`}>
+                  <Card
+                    className={`shadow-none ${
+                      isUser
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-default-100 dark:bg-default-50/10"
+                    }`}
+                  >
+                    <CardBody className="p-3 overflow-x-auto">
+                      <div
+                        className={`prose dark:prose-invert prose-sm max-w-none ${
+                          isUser
+                            ? "prose-headings:text-primary-foreground prose-p:text-primary-foreground prose-strong:text-primary-foreground prose-code:text-primary-foreground"
+                            : ""
+                        }`}
+                      >
+                        <ReactMarkdown>{msg.content}</ReactMarkdown>
+                      </div>
+                    </CardBody>
+                  </Card>
+                </div>
+              )}
             </div>
           );
         })}

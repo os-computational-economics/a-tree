@@ -77,6 +77,9 @@ export function flattenConfig(config: ExperimentConfig): FlatStepConfig[] {
         blockId: block.id,
         blockLabel: block.label,
         systemPromptTemplate: block.systemPromptTemplate,
+        responseMode: block.responseMode,
+        ttsVoice: block.ttsVoice,
+        ttsInstructions: block.ttsInstructions,
       });
       continue;
     }

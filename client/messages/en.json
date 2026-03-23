@@ -338,6 +338,11 @@
       "staticTitle": "Title",
       "staticBody": "Body",
       "systemPromptTemplate": "System Prompt Template",
+      "responseMode": "Response Mode",
+      "responseModeText": "Text Response",
+      "responseModeVoice": "Voice Response",
+      "ttsVoice": "Voice",
+      "ttsInstructions": "Voice Instructions",
       "insertAggregation": "Insert aggregation:",
       "historyNote": "Use agg({{param}}) syntax. Aggregations: min, max, mean, mode, sum (all rows), latest (previous row). History params cannot reference other history params.",
       "insert": "Insert:",
@@ -554,6 +559,11 @@
     "survey": "Survey",
     "surveyRequired": "Please answer all questions before continuing.",
     "surveySimPlaceholder": "Survey interaction is not available during simulation.",
-    "surveySimDesc": "Students will see {count} survey questions here."
+    "surveySimDesc": "Students will see {count} survey questions here.",
+    "replay": "Replay",
+    "pause": "Pause",
+    "showText": "Show text",
+    "hideText": "Hide text",
+    "generatingAudio": "Loading..."
   }
 }

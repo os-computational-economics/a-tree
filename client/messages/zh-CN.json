@@ -338,6 +338,11 @@
       "staticTitle": "标题",
       "staticBody": "内容",
       "systemPromptTemplate": "系统提示模板",
+      "responseMode": "响应模式",
+      "responseModeText": "文本回复",
+      "responseModeVoice": "语音回复",
+      "ttsVoice": "语音角色",
+      "ttsInstructions": "语音指令",
       "insertAggregation": "插入聚合函数：",
       "historyNote": "使用 agg({{param}}) 语法。聚合函数：min、max、mean、mode、sum（全部行），latest（上一行）。历史参数不能引用其他历史参数。",
       "insert": "插入：",
@@ -554,6 +559,11 @@
     "survey": "问卷",
     "surveyRequired": "请回答所有问题后再继续。",
     "surveySimPlaceholder": "模拟期间无法进行问卷互动。",
-    "surveySimDesc": "学生将在此处看到 {count} 个问卷问题。"
+    "surveySimDesc": "学生将在此处看到 {count} 个问卷问题。",
+    "replay": "重播",
+    "pause": "暂停",
+    "showText": "显示文本",
+    "hideText": "隐藏文本",
+    "generatingAudio": "加载中..."
   }
 }

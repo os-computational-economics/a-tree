@@ -133,6 +133,28 @@ export async function POST(
       systemPrompt,
     );
 
+    const serverTimestamp = Date.now();
+
+    // Wrap the agent stream to append a server-generated timestamp as the final event
+    const encoder = new TextEncoder();
+    const wrappedStream = new ReadableStream({
+      async start(controller) {
+        const reader = agentStream.getReader();
+        try {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            controller.enqueue(value);
+          }
+          controller.enqueue(
+            encoder.encode(JSON.stringify({ type: "assistant_timestamp", timestamp: serverTimestamp }) + "\n"),
+          );
+        } finally {
+          controller.close();
+        }
+      },
+    });
+
     // Save chat logs in the background after the response completes
     waitUntil(
       completion
@@ -150,7 +172,7 @@ export async function POST(
           const newEntry: ChatLogEntry = {
             role: "assistant",
             content: assistantText,
-            timestamp: Date.now(),
+            timestamp: serverTimestamp,
           };
 
           const userEntry: ChatLogEntry = {
@@ -176,7 +198,7 @@ export async function POST(
         }),
     );
 
-    return new NextResponse(agentStream, {
+    return new NextResponse(wrappedStream, {
       headers: { "Content-Type": "text/plain; charset=utf-8" },
     });
   } catch (error) {

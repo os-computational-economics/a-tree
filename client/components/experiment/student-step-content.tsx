@@ -133,6 +133,7 @@ export function StudentStepContent({
           blockLabel={(currentStep as FlatAiChatBlockConfig).blockLabel}
           initialMessages={chatMessages || []}
           onMessagesChange={onChatMessagesChange}
+          responseMode={(currentStep as FlatAiChatBlockConfig).responseMode}
         />
       )}
 
