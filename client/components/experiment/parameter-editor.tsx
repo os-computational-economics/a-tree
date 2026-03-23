@@ -1124,6 +1124,21 @@ export function ParameterEditor({ config, onChange }: ParameterEditorProps) {
                           />
                         </>
                       )}
+                      <Select
+                        label={t("chatInitiator")}
+                        size="sm"
+                        selectedKeys={[block.initiator || "user"]}
+                        onSelectionChange={(keys) => {
+                          const init = Array.from(keys)[0] as "user" | "ai";
+                          const blocks = [...config.blocks];
+                          blocks[bi] = { ...blocks[bi], initiator: init } as AiChatBlockConfig;
+                          onChange({ ...config, blocks });
+                        }}
+                        className="max-w-xs"
+                      >
+                        <SelectItem key="user">{t("chatInitiatorUser")}</SelectItem>
+                        <SelectItem key="ai">{t("chatInitiatorAi")}</SelectItem>
+                      </Select>
                       <Textarea
                         label={t("systemPromptTemplate")}
                         value={block.systemPromptTemplate}

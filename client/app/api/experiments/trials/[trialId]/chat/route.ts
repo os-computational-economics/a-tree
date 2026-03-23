@@ -52,13 +52,14 @@ export async function POST(
     }
 
     const body = await request.json();
-    const { blockId, message, chatHistory } = body as {
+    const { blockId, message, chatHistory, aiInitiate } = body as {
       blockId: string;
       message: string;
       chatHistory: ChatLogEntry[];
+      aiInitiate?: boolean;
     };
 
-    if (!blockId || !message) {
+    if (!blockId || (!message && !aiInitiate)) {
       return NextResponse.json(
         { error: "blockId and message are required" },
         { status: 400 },
@@ -116,7 +117,7 @@ export async function POST(
 
     const userMessage: Message = {
       role: "user",
-      content: message,
+      content: aiInitiate ? "Start the conversation." : message,
       createdAt: Date.now(),
     };
 
@@ -183,9 +184,10 @@ export async function POST(
 
           const existingLogs = (trial.chatLogs as Record<string, ChatLogEntry[]>) || {};
           const blockLogs = existingLogs[blockId] || [];
+          const newEntries = aiInitiate ? [newEntry] : [userEntry, newEntry];
           const updatedLogs = {
             ...existingLogs,
-            [blockId]: [...blockLogs, userEntry, newEntry],
+            [blockId]: [...blockLogs, ...newEntries],
           };
 
           await db

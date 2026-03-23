@@ -22,6 +22,7 @@ interface ExperimentChatPanelProps {
   initialMessages: ChatLogEntry[];
   onMessagesChange: (blockId: string, messages: ChatLogEntry[]) => void;
   responseMode?: "text" | "voice";
+  initiator?: "user" | "ai";
 }
 
 function VoiceMessageBubble({
@@ -205,6 +206,7 @@ export function ExperimentChatPanel({
   initialMessages,
   onMessagesChange,
   responseMode,
+  initiator,
 }: ExperimentChatPanelProps) {
   const t = useTranslations("experimentRunner");
   const [messages, setMessages] = useState<ChatLogEntry[]>(initialMessages);
@@ -244,6 +246,99 @@ export function ExperimentChatPanel({
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  const hasInitiated = useRef(false);
+
+  useEffect(() => {
+    if (initiator !== "ai" || initialMessages.length > 0 || hasInitiated.current) return;
+    hasInitiated.current = true;
+
+    (async () => {
+      setIsSending(true);
+      try {
+        const res = await fetch(`/api/experiments/trials/${trialId}/chat`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            blockId,
+            message: "",
+            chatHistory: [],
+            aiInitiate: true,
+          }),
+        });
+
+        if (!res.ok || !res.body) throw new Error("Failed to initiate AI chat");
+
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+        const contentParts: MessageContentPart[] = [];
+        const tempTimestamp = Date.now();
+        let assistantTimestamp = tempTimestamp;
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop() || "";
+
+          for (const line of lines) {
+            if (!line.trim()) continue;
+            try {
+              const event = JSON.parse(line);
+              if (event.type === "invalidate") { contentParts.length = 0; continue; }
+              if (event.type === "retry_exhausted") continue;
+              if (event.type === "assistant_timestamp") {
+                assistantTimestamp = event.timestamp;
+                setMessages((prev) =>
+                  prev.map((m) =>
+                    m.role === "assistant" && m.timestamp === tempTimestamp
+                      ? { ...m, timestamp: assistantTimestamp }
+                      : m,
+                  ),
+                );
+                continue;
+              }
+              if (event.type === "text") {
+                if (contentParts.length === 0 || contentParts[0].type !== "text") {
+                  contentParts.unshift({ type: "text", text: event.content });
+                } else {
+                  contentParts[0] = { type: "text", text: event.content };
+                }
+              }
+
+              const text = contentParts.filter((p) => p.type === "text").map((p) => p.text).join("\n");
+              const entry: ChatLogEntry = { role: "assistant", content: text, timestamp: tempTimestamp };
+              setMessages((prev) => {
+                const without = prev.filter((m) => !(m.role === "assistant" && m.timestamp === tempTimestamp));
+                return [...without, entry];
+              });
+            } catch { /* parse error */ }
+          }
+        }
+
+        const finalText = contentParts.filter((p) => p.type === "text").map((p) => p.text).join("\n");
+        const finalEntry: ChatLogEntry = { role: "assistant", content: finalText, timestamp: assistantTimestamp };
+        setMessages((prev) => {
+          const without = prev.filter(
+            (m) => !(m.role === "assistant" && (m.timestamp === tempTimestamp || m.timestamp === assistantTimestamp)),
+          );
+          return [...without, finalEntry];
+        });
+        onMessagesChange(blockId, [finalEntry]);
+
+        if (isVoice) {
+          setLatestVoiceTimestamp(assistantTimestamp);
+        }
+      } catch (error) {
+        console.error("Error initiating AI chat:", error);
+      } finally {
+        setIsSending(false);
+      }
+    })();
+  }, [blockId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSend = async () => {
     if (!input.trim() || isSending || isRecording || isTranscribing) return;

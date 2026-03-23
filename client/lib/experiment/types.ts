@@ -65,6 +65,7 @@ export interface AiChatBlockConfig {
   responseMode?: "text" | "voice";
   ttsVoice?: TtsVoice;
   ttsInstructions?: string;
+  initiator?: "user" | "ai";
 }
 
 export interface SurveyQuestion {
@@ -154,6 +155,7 @@ export interface FlatAiChatBlockConfig {
   responseMode?: "text" | "voice";
   ttsVoice?: TtsVoice;
   ttsInstructions?: string;
+  initiator?: "user" | "ai";
 }
 
 export interface FlatSurveyBlockConfig {

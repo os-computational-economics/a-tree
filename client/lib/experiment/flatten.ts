@@ -80,6 +80,7 @@ export function flattenConfig(config: ExperimentConfig): FlatStepConfig[] {
         responseMode: block.responseMode,
         ttsVoice: block.ttsVoice,
         ttsInstructions: block.ttsInstructions,
+        initiator: block.initiator,
       });
       continue;
     }

@@ -134,6 +134,7 @@ export function StudentStepContent({
           initialMessages={chatMessages || []}
           onMessagesChange={onChatMessagesChange}
           responseMode={(currentStep as FlatAiChatBlockConfig).responseMode}
+          initiator={(currentStep as FlatAiChatBlockConfig).initiator}
         />
       )}
 
