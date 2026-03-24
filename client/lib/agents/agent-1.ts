@@ -298,7 +298,7 @@ export class Agent1 implements Agent {
 
     // Call LLM with stream
     const llmStream = await client.chat.completions.create({
-      model: "gpt-4.1",
+      model: "gpt-5.4",
       messages: prepared.messages as any,
       stream: true,
     });

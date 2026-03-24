@@ -14,7 +14,7 @@ export class OpenAIProvider implements LLMProvider {
       apiKey: config.apiKey || process.env.LLM_API_KEY,
       baseURL: config.baseURL || process.env.LLM_BASE_URL,
     });
-    this.defaultModel = config.model || process.env.LLM_MODEL || "gpt-5-mini";
+    this.defaultModel = config.model || process.env.LLM_MODEL || "gpt-5.4";
   }
 
   async *chat(
