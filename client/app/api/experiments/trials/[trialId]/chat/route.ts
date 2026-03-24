@@ -1,19 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
+import OpenAI from "openai";
 import { getAccessToken } from "@/lib/auth/cookies";
 import { verifyAccessToken } from "@/lib/auth/jwt";
 import { db } from "@/lib/db";
 import { experimentTrials, experiments } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
-import { agent1 } from "@/lib/agents/agent-1";
-import { Message } from "@/lib/llm/types";
 import type { ChatLogEntry } from "@/lib/experiment/types";
 import { waitUntil } from "@vercel/functions";
+
+const openai = new OpenAI({
+  apiKey: process.env.LLM_API_KEY,
+});
 
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ trialId: string }> },
 ) {
-  const requestStartTime = Date.now();
   try {
     const { trialId } = await params;
 
@@ -74,8 +76,6 @@ export async function POST(
       );
     }
 
-    // Render the system prompt template by replacing {{param}} placeholders
-    // with resolved values from the current trial's history table
     let renderedPrompt = block.systemPromptTemplate;
     const allValues: Record<string, string | number | boolean> = {};
     if (trial.historyTable && Array.isArray(trial.historyTable)) {
@@ -92,94 +92,77 @@ export async function POST(
       },
     );
 
-    // Build the full system prompt: agent format instructions + experiment context
     const systemPrompt =
       `You are a helpful AI assistant within an experiment.\n\n` +
-      `--- Experiment Context ---\n${renderedPrompt}\n--- End Context ---\n\n` +
-      `Thinking Process:\n` +
-      `Before responding, you MUST provide a thinking block wrapped in <think>...</think> tags. This block should contain:\n` +
-      `1. Your analysis of what the user is asking\n` +
-      `2. Key points to address in your response\n` +
-      `3. Any relevant context or considerations\n\n` +
-      `Response Generation:\n` +
-      `After the thinking process, generate your response wrapped in <TEXT>...</TEXT> tags.\n\n` +
-      `Output Format:\n` +
-      `1. Start with <think>...</think> containing your internal analysis.\n` +
-      `2. Wrap your response in <TEXT>...</TEXT> tags.\n` +
-      `3. Do NOT output markdown code blocks around the tags. Just the raw tags.`;
+      `--- Experiment Context ---\n${renderedPrompt}\n--- End Context ---`;
 
-    // Convert chatHistory into Message[] for the agent
-    const history: Message[] = (chatHistory || []).map((entry: ChatLogEntry) => ({
-      role: entry.role as "user" | "assistant",
-      content: entry.content,
-      createdAt: entry.timestamp,
-    }));
+    const llmMessages: { role: "system" | "user" | "assistant"; content: string }[] = [
+      { role: "system", content: systemPrompt },
+    ];
 
-    const userMessage: Message = {
-      role: "user",
-      content: aiInitiate ? "Start the conversation." : message,
-      createdAt: Date.now(),
-    };
+    for (const entry of chatHistory || []) {
+      llmMessages.push({
+        role: entry.role as "user" | "assistant",
+        content: entry.content,
+      });
+    }
 
-    const isAdmin = payload.roles?.includes("admin") ?? false;
-
-    const { stream: agentStream, completion } = await agent1.processRequest(
-      history,
-      userMessage,
-      payload.userId,
-      isAdmin,
-      requestStartTime,
-      false,
-      [],
-      systemPrompt,
-    );
+    if (!aiInitiate) {
+      llmMessages.push({ role: "user", content: message });
+    } else {
+      llmMessages.push({ role: "user", content: "Start the conversation." });
+    }
 
     const serverTimestamp = Date.now();
 
-    // Wrap the agent stream to append a server-generated timestamp as the final event
+    const llmStream = await openai.chat.completions.create({
+      model: "gpt-5.4",
+      messages: llmMessages,
+      stream: true,
+    });
+
     const encoder = new TextEncoder();
-    const wrappedStream = new ReadableStream({
+    let fullText = "";
+    let streamResolve: () => void;
+    const streamDone = new Promise<void>((r) => { streamResolve = r; });
+
+    const stream = new ReadableStream({
       async start(controller) {
-        const reader = agentStream.getReader();
         try {
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            controller.enqueue(value);
+          for await (const chunk of llmStream) {
+            const delta = chunk.choices[0]?.delta?.content || "";
+            if (delta) {
+              fullText += delta;
+              controller.enqueue(
+                encoder.encode(JSON.stringify({ type: "text", content: fullText }) + "\n"),
+              );
+            }
           }
           controller.enqueue(
             encoder.encode(JSON.stringify({ type: "assistant_timestamp", timestamp: serverTimestamp }) + "\n"),
           );
+        } catch (err) {
+          console.error("LLM stream error:", err);
         } finally {
+          streamResolve();
           controller.close();
         }
       },
     });
 
-    // Save chat logs in the background after the response completes
     waitUntil(
-      completion
-        .then(async (assistantMessage) => {
-          let assistantText = "";
-          if (typeof assistantMessage.content === "string") {
-            assistantText = assistantMessage.content;
-          } else if (Array.isArray(assistantMessage.content)) {
-            assistantText = assistantMessage.content
-              .filter((p) => p.type === "text")
-              .map((p) => p.text)
-              .join("\n");
-          }
-
+      streamDone.then(async () => {
+        try {
           const newEntry: ChatLogEntry = {
             role: "assistant",
-            content: assistantText,
+            content: fullText,
             timestamp: serverTimestamp,
           };
 
           const userEntry: ChatLogEntry = {
             role: "user",
             content: message,
-            timestamp: userMessage.createdAt!,
+            timestamp: Date.now(),
           };
 
           const existingLogs = (trial.chatLogs as Record<string, ChatLogEntry[]>) || {};
@@ -194,13 +177,13 @@ export async function POST(
             .update(experimentTrials)
             .set({ chatLogs: updatedLogs, updatedAt: new Date() })
             .where(eq(experimentTrials.id, trialId));
-        })
-        .catch((err) => {
+        } catch (err) {
           console.error("Failed to save experiment chat log:", err);
-        }),
+        }
+      }),
     );
 
-    return new NextResponse(wrappedStream, {
+    return new NextResponse(stream, {
       headers: { "Content-Type": "text/plain; charset=utf-8" },
     });
   } catch (error) {
