@@ -159,6 +159,38 @@ export function StudentStepContent({
                     onChange={(e) => onSurveyAnswerChange?.(q.id, e.target.value)}
                     placeholder={t("typeMessage")}
                   />
+                ) : q.questionType === "likert_scale" ? (
+                  <div className="grid gap-1" style={{ gridTemplateColumns: `repeat(${(q.scaleLabels || []).length}, minmax(0, 1fr))` }}>
+                    {(q.scaleLabels || []).map((label: string, si: number) => (
+                        <label
+                          key={si}
+                          className={`flex flex-col items-center gap-1.5 p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                            surveyAnswers?.[q.id] === label
+                              ? "border-primary bg-primary/10"
+                              : "border-default-200 hover:border-default-300 hover:bg-default-50"
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name={`survey-${q.id}`}
+                            value={label}
+                            checked={surveyAnswers?.[q.id] === label}
+                            onChange={() => onSurveyAnswerChange?.(q.id, label)}
+                            className="sr-only"
+                          />
+                          <span className={`text-lg font-semibold ${
+                            surveyAnswers?.[q.id] === label ? "text-primary" : "text-default-500"
+                          }`}>
+                            {si + 1}
+                          </span>
+                          <span className={`text-xs text-center leading-tight ${
+                            surveyAnswers?.[q.id] === label ? "text-primary font-medium" : "text-default-400"
+                          }`}>
+                            {label}
+                          </span>
+                        </label>
+                      ))}
+                  </div>
                 ) : (
                   <div className="space-y-1">
                     {(q.options || []).map((opt: string, oi: number) => (

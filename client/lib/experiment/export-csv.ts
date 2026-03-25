@@ -8,7 +8,8 @@ interface TrialForExport {
   surveyResponses?: Record<string, Record<string, string>>;
 }
 
-type QuestionMap = Record<string, Record<string, string>>;
+type QuestionInfo = { text: string; questionType: string };
+type QuestionMap = Record<string, Record<string, QuestionInfo>>;
 
 /**
  * Escapes a CSV cell value: wraps in quotes if it contains comma, quote, or newline.
@@ -74,7 +75,7 @@ export function buildQuestionMap(config: ExperimentConfig): QuestionMap {
       const surveyBlock = block as SurveyBlockConfig;
       map[surveyBlock.id] = {};
       for (const q of surveyBlock.questions) {
-        map[surveyBlock.id][q.id] = q.text;
+        map[surveyBlock.id][q.id] = { text: q.text, questionType: q.questionType };
       }
     }
   }
@@ -85,18 +86,20 @@ export function buildQuestionMap(config: ExperimentConfig): QuestionMap {
  * Builds a CSV string from filtered trials' survey responses.
  *
  * Each CSV row represents one answer from one trial.
- * Columns: trial_id, trial_code, block_id, question_id, question_text, answer
+ * Columns: trial_id, trial_code, block_id, question_id, question_type, question_text, answer
  */
 export function buildSurveyResponsesCsv(trials: TrialForExport[], questionMap?: QuestionMap): string {
-  const headers = ["trial_id", "trial_code", "block_id", "question_id", "question_text", "answer"];
+  const headers = ["trial_id", "trial_code", "block_id", "question_id", "question_type", "question_text", "answer"];
   const lines: string[] = [headers.map(escapeCsvCell).join(",")];
 
   for (const trial of trials) {
     if (!trial.surveyResponses) continue;
     for (const [blockId, answers] of Object.entries(trial.surveyResponses)) {
       for (const [questionId, answer] of Object.entries(answers)) {
-        const questionText = questionMap?.[blockId]?.[questionId] ?? "";
-        const cells = [trial.id, trial.trialCode, blockId, questionId, questionText, answer];
+        const info = questionMap?.[blockId]?.[questionId];
+        const questionText = info?.text ?? "";
+        const questionType = info?.questionType ?? "";
+        const cells = [trial.id, trial.trialCode, blockId, questionId, questionType, questionText, answer];
         lines.push(cells.map(escapeCsvCell).join(","));
       }
     }

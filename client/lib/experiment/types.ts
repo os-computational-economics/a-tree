@@ -68,11 +68,23 @@ export interface AiChatBlockConfig {
   initiator?: "user" | "ai";
 }
 
+export const LIKERT_SCALE_PRESETS = {
+  agreement_5: ["Strongly Disagree", "Disagree", "Neutral", "Agree", "Strongly Agree"],
+  agreement_7: ["Strongly Disagree", "Disagree", "Somewhat Disagree", "Neutral", "Somewhat Agree", "Agree", "Strongly Agree"],
+  satisfaction_5: ["Very Dissatisfied", "Dissatisfied", "Neutral", "Satisfied", "Very Satisfied"],
+  frequency_5: ["Never", "Rarely", "Sometimes", "Often", "Always"],
+  likelihood_5: ["Very Unlikely", "Unlikely", "Neutral", "Likely", "Very Likely"],
+} as const;
+
+export type LikertPresetKey = keyof typeof LIKERT_SCALE_PRESETS;
+
 export interface SurveyQuestion {
   id: string;
   text: string;
-  questionType: "text" | "multiple_choice";
+  questionType: "text" | "multiple_choice" | "likert_scale";
   options?: string[];
+  scalePoints?: number;
+  scaleLabels?: string[];
 }
 
 export interface SurveyBlockConfig {

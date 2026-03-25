@@ -32,7 +32,7 @@ import type {
   SurveyQuestion,
   TtsVoice,
 } from "@/lib/experiment/types";
-import { isStaticBlock, isInformationBlock, isAiChatBlock, isSurveyBlock, isNumericParam, TTS_VOICES } from "@/lib/experiment/types";
+import { isStaticBlock, isInformationBlock, isAiChatBlock, isSurveyBlock, isNumericParam, TTS_VOICES, LIKERT_SCALE_PRESETS, type LikertPresetKey } from "@/lib/experiment/types";
 
 interface ParameterEditorProps {
   config: ExperimentConfig;
@@ -1201,8 +1201,8 @@ export function ParameterEditor({ config, onChange }: ParameterEditorProps) {
                           <div className="space-y-2">
                             <div className="flex items-center gap-2">
                               <span className="text-sm font-semibold">Q{qi + 1}</span>
-                              <Chip size="sm" variant="flat" color={q.questionType === "text" ? "primary" : "secondary"}>
-                                {q.questionType === "text" ? t("textQuestion") : t("multipleChoiceQuestion")}
+                              <Chip size="sm" variant="flat" color={q.questionType === "text" ? "primary" : q.questionType === "likert_scale" ? "warning" : "secondary"}>
+                                {q.questionType === "text" ? t("textQuestion") : q.questionType === "likert_scale" ? t("likertScaleQuestion") : t("multipleChoiceQuestion")}
                               </Chip>
                               <div className="flex-1" />
                               <Button
@@ -1238,14 +1238,19 @@ export function ParameterEditor({ config, onChange }: ParameterEditorProps) {
                               size="sm"
                               selectedKeys={new Set([q.questionType])}
                               onSelectionChange={(keys) => {
-                                const type = Array.from(keys)[0] as "text" | "multiple_choice";
+                                const type = Array.from(keys)[0] as "text" | "multiple_choice" | "likert_scale";
                                 const blocks = [...config.blocks];
                                 const b = blocks[bi] as SurveyBlockConfig;
                                 const questions = [...b.questions];
                                 if (type === "multiple_choice") {
-                                  questions[qi] = { ...questions[qi], questionType: type, options: questions[qi].options || [""] };
-                                } else {
+                                  const { scalePoints: _sp, scaleLabels: _sl, ...rest } = questions[qi];
+                                  questions[qi] = { ...rest, questionType: type, options: questions[qi].options || [""] };
+                                } else if (type === "likert_scale") {
                                   const { options: _, ...rest } = questions[qi];
+                                  const defaultLabels = [...LIKERT_SCALE_PRESETS.agreement_5];
+                                  questions[qi] = { ...rest, questionType: type, scalePoints: 5, scaleLabels: defaultLabels };
+                                } else {
+                                  const { options: _o, scalePoints: _sp, scaleLabels: _sl, ...rest } = questions[qi];
                                   questions[qi] = { ...rest, questionType: type };
                                 }
                                 blocks[bi] = { ...b, questions };
@@ -1254,6 +1259,7 @@ export function ParameterEditor({ config, onChange }: ParameterEditorProps) {
                             >
                               <SelectItem key="text">{t("textQuestion")}</SelectItem>
                               <SelectItem key="multiple_choice">{t("multipleChoiceQuestion")}</SelectItem>
+                              <SelectItem key="likert_scale">{t("likertScaleQuestion")}</SelectItem>
                             </Select>
                             {q.questionType === "multiple_choice" && q.options && (
                               <div className="space-y-2 pl-4">
@@ -1303,6 +1309,87 @@ export function ParameterEditor({ config, onChange }: ParameterEditorProps) {
                                     const b = blocks[bi] as SurveyBlockConfig;
                                     const questions = [...b.questions];
                                     questions[qi] = { ...questions[qi], options: [...(questions[qi].options || []), ""] };
+                                    blocks[bi] = { ...b, questions };
+                                    onChange({ ...config, blocks });
+                                  }}
+                                >
+                                  {t("addOption")}
+                                </Button>
+                              </div>
+                            )}
+                            {q.questionType === "likert_scale" && q.scaleLabels && (
+                              <div className="space-y-2 pl-4">
+                                <Select
+                                  label={t("scalePreset")}
+                                  size="sm"
+                                  selectedKeys={new Set(["custom"])}
+                                  onSelectionChange={(keys) => {
+                                    const preset = Array.from(keys)[0] as string;
+                                    if (preset === "custom" || !preset) return;
+                                    const presetLabels = [...LIKERT_SCALE_PRESETS[preset as LikertPresetKey]];
+                                    const blocks = [...config.blocks];
+                                    const b = blocks[bi] as SurveyBlockConfig;
+                                    const questions = [...b.questions];
+                                    questions[qi] = { ...questions[qi], scalePoints: presetLabels.length, scaleLabels: presetLabels };
+                                    blocks[bi] = { ...b, questions };
+                                    onChange({ ...config, blocks });
+                                  }}
+                                >
+                                  <SelectItem key="custom">{t("presetCustom")}</SelectItem>
+                                  <SelectItem key="agreement_5">{t("presetAgreement5")}</SelectItem>
+                                  <SelectItem key="agreement_7">{t("presetAgreement7")}</SelectItem>
+                                  <SelectItem key="satisfaction_5">{t("presetSatisfaction5")}</SelectItem>
+                                  <SelectItem key="frequency_5">{t("presetFrequency5")}</SelectItem>
+                                  <SelectItem key="likelihood_5">{t("presetLikelihood5")}</SelectItem>
+                                </Select>
+                                {q.scaleLabels.map((label: string, li: number) => (
+                                  <div key={li} className="flex items-center gap-2">
+                                    <Chip size="sm" variant="flat" className="min-w-[24px] justify-center">{li + 1}</Chip>
+                                    <Input
+                                      size="sm"
+                                      value={label}
+                                      onValueChange={(v) => {
+                                        const blocks = [...config.blocks];
+                                        const b = blocks[bi] as SurveyBlockConfig;
+                                        const questions = [...b.questions];
+                                        const scaleLabels = [...(questions[qi].scaleLabels || [])];
+                                        scaleLabels[li] = v;
+                                        questions[qi] = { ...questions[qi], scaleLabels };
+                                        blocks[bi] = { ...b, questions };
+                                        onChange({ ...config, blocks });
+                                      }}
+                                      placeholder={t("scaleLabelN", { n: li + 1 })}
+                                    />
+                                    <Button
+                                      isIconOnly
+                                      size="sm"
+                                      variant="light"
+                                      color="danger"
+                                      onPress={() => {
+                                        const blocks = [...config.blocks];
+                                        const b = blocks[bi] as SurveyBlockConfig;
+                                        const questions = [...b.questions];
+                                        const scaleLabels = (questions[qi].scaleLabels || []).filter((_: string, i: number) => i !== li);
+                                        questions[qi] = { ...questions[qi], scalePoints: scaleLabels.length, scaleLabels };
+                                        blocks[bi] = { ...b, questions };
+                                        onChange({ ...config, blocks });
+                                      }}
+                                      isDisabled={(q.scaleLabels?.length || 0) <= 2}
+                                    >
+                                      <Trash2 className="w-3 h-3" />
+                                    </Button>
+                                  </div>
+                                ))}
+                                <Button
+                                  size="sm"
+                                  variant="flat"
+                                  startContent={<Plus className="w-3 h-3" />}
+                                  onPress={() => {
+                                    const blocks = [...config.blocks];
+                                    const b = blocks[bi] as SurveyBlockConfig;
+                                    const questions = [...b.questions];
+                                    const scaleLabels = [...(questions[qi].scaleLabels || []), ""];
+                                    questions[qi] = { ...questions[qi], scalePoints: scaleLabels.length, scaleLabels };
                                     blocks[bi] = { ...b, questions };
                                     onChange({ ...config, blocks });
                                   }}
