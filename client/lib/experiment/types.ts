@@ -84,12 +84,15 @@ export interface SurveyBlockConfig {
 
 export type BlockConfig = RoundBlockConfig | StaticBlockConfig | InformationBlockConfig | AiChatBlockConfig | SurveyBlockConfig;
 
+export type RoundProgressTrigger = "after_intro" | "after_decision" | "after_result";
+
 export interface ExperimentConfig {
   params: Record<string, ParamDefinition>;
   introTemplate: string;
   decisionTemplate: string;
   resultTemplate: string;
   gameGuide?: string;
+  roundProgressTrigger?: RoundProgressTrigger;
   blocks: BlockConfig[];
 }
 

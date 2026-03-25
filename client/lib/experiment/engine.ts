@@ -6,6 +6,7 @@ import type {
   ParamDefinition,
   ParamValue,
   ResolvedParam,
+  RoundProgressTrigger,
   TemplateKind,
 } from "./types";
 import { TEMPLATE_KINDS, isFlatRoundStep } from "./types";
@@ -26,6 +27,7 @@ export class GameEngine {
   /** Snapshot of resolved params from the most recent round step, persists across non-round steps */
   private lastRoundResolvedParams: Record<string, ResolvedParam>;
   private lastRoundStudentInputs: Record<string, string | number>;
+  private roundProgressTrigger: RoundProgressTrigger;
 
   /**
    * Returns the first non-empty template index for a round step.
@@ -59,6 +61,7 @@ export class GameEngine {
     this.stepToHistoryIndex = new Map();
     this.lastRoundResolvedParams = {};
     this.lastRoundStudentInputs = {};
+    this.roundProgressTrigger = config.roundProgressTrigger || "after_result";
 
     let histIdx = 0;
     for (let i = 0; i < this.flatConfig.length; i++) {
@@ -328,10 +331,21 @@ export class GameEngine {
   }
 
   getCompletedGameRounds(): number {
+    const triggerTemplateIndex =
+      this.roundProgressTrigger === "after_intro" ? 0
+        : this.roundProgressTrigger === "after_decision" ? 1
+          : 2;
+
     let count = 0;
     for (let i = 0; i < this.currentStepIndex; i++) {
       if (isFlatRoundStep(this.flatConfig[i])) count++;
     }
+
+    const currentStep = this.flatConfig[this.currentStepIndex];
+    if (currentStep && isFlatRoundStep(currentStep) && this.currentTemplateIndex > triggerTemplateIndex) {
+      count++;
+    }
+
     return count;
   }
 

@@ -22,7 +22,7 @@ import {
 } from "@heroui/modal";
 import { useDisclosure } from "@heroui/modal";
 import { ArrowLeft, Save, Trash2, Circle, FlaskConical } from "lucide-react";
-import type { ExperimentConfig } from "@/lib/experiment/types";
+import type { ExperimentConfig, RoundProgressTrigger } from "@/lib/experiment/types";
 import type { Experiment } from "@/lib/db/schema";
 import { ParameterEditor } from "../../../../../components/experiment/parameter-editor";
 import { TemplateEditor } from "../../../../../components/experiment/template-editor";
@@ -209,6 +209,19 @@ export default function ExperimentDetailPage({
             onValueChange={setDescription}
             placeholder={t("descriptionPlaceholder")}
           />
+          <Select
+            label={t("roundProgressTriggerLabel")}
+            description={t("roundProgressTriggerDesc")}
+            selectedKeys={[config.roundProgressTrigger || "after_result"]}
+            onSelectionChange={(keys) => {
+              const val = Array.from(keys)[0] as RoundProgressTrigger;
+              if (val) setConfig({ ...config, roundProgressTrigger: val });
+            }}
+          >
+            <SelectItem key="after_intro">{t("roundProgressAfterIntro")}</SelectItem>
+            <SelectItem key="after_decision">{t("roundProgressAfterDecision")}</SelectItem>
+            <SelectItem key="after_result">{t("roundProgressAfterResult")}</SelectItem>
+          </Select>
         </CardBody>
       </Card>
 
