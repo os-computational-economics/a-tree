@@ -109,6 +109,12 @@ export function StudentRunner({
 
   const handleLocalChange = useCallback((paramId: string, localValue: string) => {
     setPendingLocalValues((prev) => ({ ...prev, [paramId]: localValue }));
+    setValidationErrors((prev) => {
+      if (!prev.has(paramId)) return prev;
+      const next = new Set(prev);
+      next.delete(paramId);
+      return next;
+    });
   }, []);
 
   useEffect(() => {
