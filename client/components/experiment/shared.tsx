@@ -81,6 +81,7 @@ export function StudentInputField({
   value,
   onCommit,
   onReset,
+  onLocalChange,
   isLocked,
   isConfirmed,
   isInvalid,
@@ -92,6 +93,7 @@ export function StudentInputField({
   value: string | number;
   onCommit: (paramId: string, value: string | number) => void;
   onReset: (paramId: string) => void;
+  onLocalChange?: (paramId: string, localValue: string) => void;
   isLocked: boolean;
   isConfirmed: boolean;
   isInvalid?: boolean;
@@ -103,6 +105,11 @@ export function StudentInputField({
   useEffect(() => {
     setLocalValue(String(value ?? ""));
   }, [value]);
+
+  const handleLocalChange = (v: string) => {
+    setLocalValue(v);
+    onLocalChange?.(paramId, v);
+  };
 
   if (isLocked) {
     const hasValue = value !== "" && value !== undefined && value !== null;
@@ -127,8 +134,6 @@ export function StudentInputField({
     );
   }
 
-  const hasInput = localValue !== "";
-
   return (
     <span className="inline-flex items-center gap-1">
       <Input
@@ -137,23 +142,11 @@ export function StudentInputField({
         placeholder={placeholder}
         type={inputType === "number" ? "number" : "text"}
         value={localValue}
-        onValueChange={setLocalValue}
+        onValueChange={handleLocalChange}
         isInvalid={isInvalid}
         errorMessage={isInvalid ? (validationHint || t("invalidValue")) : undefined}
         autoFocus
       />
-      <Button
-        size="sm"
-        color="success"
-        variant="flat"
-        isDisabled={!hasInput}
-        onPress={() => {
-          const committed = inputType === "number" ? Number(localValue) || 0 : localValue;
-          onCommit(paramId, committed);
-        }}
-      >
-        {t("confirm")}
-      </Button>
     </span>
   );
 }
@@ -166,6 +159,7 @@ export function TemplateSegmentsRenderer({
   confirmedInputs,
   onStudentInput,
   onResetInput,
+  onLocalChange,
   validationErrors,
   disabled,
 }: {
@@ -176,6 +170,7 @@ export function TemplateSegmentsRenderer({
   confirmedInputs: ReadonlySet<string>;
   onStudentInput: (id: string, v: string | number) => void;
   onResetInput: (id: string) => void;
+  onLocalChange?: (paramId: string, localValue: string) => void;
   validationErrors?: Set<string>;
   disabled?: boolean;
 }) {
@@ -212,6 +207,7 @@ export function TemplateSegmentsRenderer({
                 value={studentInputs[seg.paramId] ?? ""}
                 onCommit={onStudentInput}
                 onReset={onResetInput}
+                onLocalChange={onLocalChange}
                 isLocked={disabled || !editingInputs.has(seg.paramId)}
                 isConfirmed={disabled || confirmedInputs.has(seg.paramId)}
                 isInvalid={validationErrors?.has(seg.paramId)}

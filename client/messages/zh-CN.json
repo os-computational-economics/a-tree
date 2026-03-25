@@ -538,6 +538,7 @@
     "saving": "保存中...",
     "gameGuide": "游戏指南",
     "continue": "继续",
+    "confirmAndContinue": "确认并继续",
     "finish": "完成",
     "exitTitle": "退出实验？",
     "exitDescription": "您的进度已保存至上一轮。返回后，您需要重新完成当前轮次。",

@@ -37,6 +37,7 @@ interface StudentStepContentProps {
   validationErrors: Set<string>;
   onStudentInput: (id: string, v: string | number) => void;
   onResetInput: (id: string) => void;
+  onLocalChange?: (paramId: string, localValue: string) => void;
   historyTable: HistoryRow[];
   trialId?: string;
   chatMessages?: ChatLogEntry[];
@@ -56,6 +57,7 @@ export function StudentStepContent({
   validationErrors,
   onStudentInput,
   onResetInput,
+  onLocalChange,
   historyTable,
   trialId,
   chatMessages,
@@ -218,6 +220,7 @@ export function StudentStepContent({
                 confirmedInputs={confirmedInputs}
                 onStudentInput={onStudentInput}
                 onResetInput={onResetInput}
+                onLocalChange={onLocalChange}
                 validationErrors={!isFuture ? validationErrors : undefined}
                 disabled={!isActive}
               />

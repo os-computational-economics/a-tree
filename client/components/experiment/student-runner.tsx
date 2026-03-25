@@ -59,6 +59,7 @@ export function StudentRunner({
   const [validationErrors, setValidationErrors] = useState<Set<string>>(new Set());
   const [editingInputs, setEditingInputs] = useState<Set<string>>(new Set());
   const [confirmedInputs, setConfirmedInputs] = useState<Set<string>>(new Set());
+  const [pendingLocalValues, setPendingLocalValues] = useState<Record<string, string>>({});
   const [isCompleted, setIsCompleted] = useState(initialStatus === "completed");
   const [saving, setSaving] = useState(false);
   const [chatLogs, setChatLogs] = useState<Record<string, ChatLogEntry[]>>(initialChatLogs || {});
@@ -104,6 +105,10 @@ export function StudentRunner({
       ...prev,
       [blockId]: { ...(prev[blockId] || {}), [questionId]: answer },
     }));
+  }, []);
+
+  const handleLocalChange = useCallback((paramId: string, localValue: string) => {
+    setPendingLocalValues((prev) => ({ ...prev, [paramId]: localValue }));
   }, []);
 
   useEffect(() => {
@@ -181,7 +186,10 @@ export function StudentRunner({
     return ids;
   })();
 
-  const allInputsValid = (() => {
+  const hasUnconfirmedInputs = studentInputParamIds.length > 0 &&
+    !studentInputParamIds.every((id) => confirmedInputs.has(id));
+
+  const allInputsReady = (() => {
     if (isStaticStep || isInformationStep || isAiChatStep) return true;
     if (isSurveyStep) {
       const surveyStep = currentStep as FlatSurveyBlockConfig;
@@ -190,7 +198,9 @@ export function StudentRunner({
     }
     if (studentInputParamIds.length === 0) return true;
     if (validationErrors.size > 0) return false;
-    return studentInputParamIds.every((id) => confirmedInputs.has(id));
+    return studentInputParamIds.every((id) =>
+      confirmedInputs.has(id) || (pendingLocalValues[id] ?? "") !== "",
+    );
   })();
 
   const handleStudentInput = (id: string, v: string | number) => {
@@ -266,6 +276,62 @@ export function StudentRunner({
   };
 
   const goNext = async () => {
+    if (hasUnconfirmedInputs) {
+      const newErrors = new Set<string>();
+      const newStudentInputs = { ...studentInputs };
+
+      for (const id of studentInputParamIds) {
+        if (confirmedInputs.has(id)) continue;
+        const raw = pendingLocalValues[id] ?? "";
+        if (raw === "") {
+          newErrors.add(id);
+          continue;
+        }
+        const def = resolvedParams?.[id]?.definition;
+        const inputType = def?.type === "student_input"
+          ? (def as { inputType?: string }).inputType || "text"
+          : "text";
+        const committed: string | number = inputType === "number" ? Number(raw) || 0 : raw;
+        if (def?.type === "student_input" && def.validation) {
+          const valid = runValidation(def.validation, committed, resolvedParams, newStudentInputs);
+          if (!valid) {
+            newErrors.add(id);
+            continue;
+          }
+        }
+        newStudentInputs[id] = committed;
+      }
+
+      if (newErrors.size > 0) {
+        setValidationErrors(newErrors);
+        return;
+      }
+
+      setValidationErrors(new Set());
+      setEditingInputs(new Set());
+      setConfirmedInputs(new Set(studentInputParamIds));
+      setStudentInputs(newStudentInputs);
+      engine.recalculate(newStudentInputs);
+      rerender();
+
+      if (engine.isFinished()) {
+        await saveProgress(true);
+        setFinalHistoryTable(engine.getHistoryTable());
+        setIsCompleted(true);
+        return;
+      }
+
+      engine.advance(newStudentInputs);
+      setStudentInputs(engine.getStudentInputs());
+      setValidationErrors(new Set());
+      setEditingInputs(new Set());
+      setConfirmedInputs(new Set());
+      setPendingLocalValues({});
+      rerender();
+      await saveProgress(false);
+      return;
+    }
+
     if (engine.isFinished()) {
       await saveProgress(true);
       setFinalHistoryTable(engine.getHistoryTable());
@@ -278,6 +344,7 @@ export function StudentRunner({
     setValidationErrors(new Set());
     setEditingInputs(new Set());
     setConfirmedInputs(new Set());
+    setPendingLocalValues({});
     rerender();
 
     await saveProgress(false);
@@ -322,6 +389,7 @@ export function StudentRunner({
               validationErrors={validationErrors}
               onStudentInput={handleStudentInput}
               onResetInput={handleResetInput}
+              onLocalChange={handleLocalChange}
               historyTable={historyTable}
               trialId={trialId}
               chatMessages={currentBlockId ? chatLogs[currentBlockId] : undefined}
@@ -336,10 +404,14 @@ export function StudentRunner({
               color="primary"
               size="sm"
               endContent={<ChevronRight className="w-3.5 h-3.5" />}
-              isDisabled={!allInputsValid}
+              isDisabled={!allInputsReady}
               onPress={goNext}
             >
-              {engine.isFinished() ? t("finish") : t("continue")}
+              {engine.isFinished()
+                ? t("finish")
+                : hasUnconfirmedInputs
+                  ? t("confirmAndContinue")
+                  : t("continue")}
             </Button>
           </div>
         </div>

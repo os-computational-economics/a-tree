@@ -538,6 +538,7 @@
     "saving": "Saving...",
     "gameGuide": "Game Guide",
     "continue": "Continue",
+    "confirmAndContinue": "Confirm and Continue",
     "finish": "Finish",
     "exitTitle": "Exit Experiment?",
     "exitDescription": "Your progress has been saved up to the previous round. When you come back, you will need to redo the current round.",
