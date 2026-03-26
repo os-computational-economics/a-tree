@@ -164,7 +164,7 @@ export function StudentStepContent({
                     {(q.scaleLabels || []).map((label: string, si: number) => (
                         <label
                           key={si}
-                          className={`flex flex-col items-center gap-1.5 p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                          className={`flex flex-col items-center gap-0.5 px-1 py-1.5 rounded-md border-2 cursor-pointer transition-all ${
                             surveyAnswers?.[q.id] === label
                               ? "border-primary bg-primary/10"
                               : "border-default-200 hover:border-default-300 hover:bg-default-50"
@@ -178,12 +178,12 @@ export function StudentStepContent({
                             onChange={() => onSurveyAnswerChange?.(q.id, label)}
                             className="sr-only"
                           />
-                          <span className={`text-lg font-semibold ${
+                          <span className={`text-xs font-semibold ${
                             surveyAnswers?.[q.id] === label ? "text-primary" : "text-default-500"
                           }`}>
                             {si + 1}
                           </span>
-                          <span className={`text-xs text-center leading-tight ${
+                          <span className={`text-[10px] text-center leading-tight ${
                             surveyAnswers?.[q.id] === label ? "text-primary font-medium" : "text-default-400"
                           }`}>
                             {label}
