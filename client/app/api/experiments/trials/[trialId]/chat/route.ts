@@ -92,6 +92,22 @@ export async function POST(
       },
     );
 
+    const surveyAnswerMap: Record<string, string> = {};
+    const aiChatBlockIndex = experiment.config.blocks.findIndex((b) => b.id === blockId);
+    for (let i = 0; i < aiChatBlockIndex; i++) {
+      const b = experiment.config.blocks[i];
+      if (b.type === "survey") {
+        const blockResponses = (trial.surveyResponses as Record<string, Record<string, string>>)?.[b.id] || {};
+        for (const q of b.questions) {
+          surveyAnswerMap[q.id] = blockResponses[q.id]?.trim() || "[No response provided]";
+        }
+      }
+    }
+    renderedPrompt = renderedPrompt.replace(
+      /\{\{survey:(\w+)\}\}/g,
+      (match, qId) => surveyAnswerMap[qId] ?? match,
+    );
+
     const systemPrompt =
       `You are a helpful AI assistant within an experiment.\n\n` +
       `--- Experiment Context ---\n${renderedPrompt}\n--- End Context ---`;

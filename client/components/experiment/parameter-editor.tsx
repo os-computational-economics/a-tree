@@ -1171,6 +1171,69 @@ export function ParameterEditor({ config, onChange }: ParameterEditorProps) {
                           </Chip>
                         ))}
                       </div>
+                      {(() => {
+                        const precedingSurveyQuestions: { questionId: string; questionText: string; blockLabel: string }[] = [];
+                        for (let i = 0; i < bi; i++) {
+                          const b = config.blocks[i];
+                          if (isSurveyBlock(b)) {
+                            for (const q of b.questions) {
+                              precedingSurveyQuestions.push({
+                                questionId: q.id,
+                                questionText: q.text,
+                                blockLabel: b.label || `Survey Block ${i + 1}`,
+                              });
+                            }
+                          }
+                        }
+                        const referencedIds = new Set(
+                          Array.from(block.systemPromptTemplate.matchAll(/\{\{survey:(\w+)\}\}/g)).map((m) => m[1]),
+                        );
+                        const legend = precedingSurveyQuestions.filter((q) => referencedIds.has(q.questionId));
+                        return (
+                          <>
+                            <div className="flex gap-2 flex-wrap items-center">
+                              <span className="text-tiny text-default-400">{t("insertSurveyAnswer")}</span>
+                              {precedingSurveyQuestions.length === 0 ? (
+                                <span className="text-tiny text-default-300">{t("noSurveyQuestions")}</span>
+                              ) : (
+                                <Select
+                                  size="sm"
+                                  placeholder={t("selectSurveyQuestion")}
+                                  className="max-w-xs"
+                                  selectedKeys={[]}
+                                  onSelectionChange={(keys) => {
+                                    const qId = Array.from(keys)[0] as string;
+                                    if (!qId) return;
+                                    const blocks = [...config.blocks];
+                                    const b = blocks[bi] as AiChatBlockConfig;
+                                    blocks[bi] = { ...b, systemPromptTemplate: b.systemPromptTemplate + `{{survey:${qId}}}` };
+                                    onChange({ ...config, blocks });
+                                  }}
+                                >
+                                  {precedingSurveyQuestions.map((q) => (
+                                    <SelectItem key={q.questionId} textValue={q.questionText}>
+                                      <div className="flex flex-col">
+                                        <span className="text-small">{q.questionText.length > 80 ? q.questionText.slice(0, 80) + "…" : q.questionText}</span>
+                                        <span className="text-tiny text-default-400">{q.blockLabel} · {q.questionId}</span>
+                                      </div>
+                                    </SelectItem>
+                                  ))}
+                                </Select>
+                              )}
+                            </div>
+                            {legend.length > 0 && (
+                              <div className="space-y-1">
+                                <span className="text-tiny text-default-400">{t("surveyRefLegend")}</span>
+                                {legend.map((q) => (
+                                  <div key={q.questionId} className="text-tiny text-default-500 font-mono pl-2">
+                                    {q.questionId}: &ldquo;{q.questionText}&rdquo;
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </>
+                        );
+                      })()}
                       <div className="flex gap-2">
                         <Button
                           size="sm"
