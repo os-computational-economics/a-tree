@@ -5,7 +5,7 @@ export type ParamDefinition =
   | { type: "norm"; mean: number; std: number; visualize?: boolean; visualizeMax?: number; displayOnStudentSide?: boolean }
   | { type: "unif"; min: number; max: number; visualize?: boolean; visualizeMax?: number; displayOnStudentSide?: boolean }
   | { type: "equation"; expression: string; visualize?: boolean; visualizeMax?: number; displayOnStudentSide?: boolean }
-  | { type: "student_input"; inputLabel?: string; inputType?: "number" | "text"; validation?: string; visualize?: boolean; visualizeMax?: number; displayOnStudentSide?: boolean }
+  | { type: "student_input"; inputLabel?: string; inputType?: "number" | "text" | "multiple_choice" | "slider"; options?: string[]; sliderMin?: number; sliderMax?: number; sliderStep?: number; validation?: string; visualize?: boolean; visualizeMax?: number; displayOnStudentSide?: boolean }
   | { type: "history"; expression: string; visualize?: boolean; visualizeMax?: number; displayOnStudentSide?: boolean };
 
 export type TemplateKind = "intro" | "decision" | "result";
@@ -120,7 +120,7 @@ export interface ResolvedParam {
 export type TemplateSegment =
   | { type: "text"; content: string }
   | { type: "value"; paramId: string; value: number | string | boolean; source: ParamSource }
-  | { type: "input"; paramId: string; inputLabel?: string; inputType?: "number" | "text"; validation?: string };
+  | { type: "input"; paramId: string; inputLabel?: string; inputType?: "number" | "text" | "multiple_choice" | "slider"; options?: string[]; sliderMin?: number; sliderMax?: number; sliderStep?: number; validation?: string };
 
 export type ParamValue = number | string | boolean | null;
 
@@ -232,6 +232,6 @@ export function isFlatRoundStep(step: FlatStepConfig): step is FlatRoundConfig {
 
 export function isNumericParam(def: ParamDefinition): boolean {
   if (def.type === "constant") return def.dataType === "number";
-  if (def.type === "student_input") return def.inputType === "number";
+  if (def.type === "student_input") return def.inputType === "number" || def.inputType === "slider";
   return def.type === "norm" || def.type === "unif" || def.type === "equation" || def.type === "history";
 }

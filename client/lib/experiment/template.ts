@@ -92,6 +92,10 @@ export function renderTemplate(
           paramId,
           inputLabel: resolved.definition.inputLabel,
           inputType: resolved.definition.inputType,
+          options: resolved.definition.options,
+          sliderMin: resolved.definition.sliderMin,
+          sliderMax: resolved.definition.sliderMax,
+          sliderStep: resolved.definition.sliderStep,
           validation: resolved.definition.validation,
         });
       }

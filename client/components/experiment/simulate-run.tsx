@@ -8,6 +8,8 @@ import { Chip } from "@heroui/chip";
 import { Input } from "@heroui/input";
 import { Tabs, Tab } from "@heroui/tabs";
 import { Progress } from "@heroui/progress";
+import { Slider } from "@heroui/slider";
+import { RadioGroup, Radio } from "@heroui/radio";
 import {
   Table,
   TableHeader,
@@ -280,6 +282,10 @@ function StudentInputField({
   isConfirmed,
   isInvalid,
   validationHint,
+  options,
+  sliderMin,
+  sliderMax,
+  sliderStep,
 }: {
   paramId: string;
   placeholder: string;
@@ -291,6 +297,10 @@ function StudentInputField({
   isConfirmed: boolean;
   isInvalid?: boolean;
   validationHint?: string;
+  options?: string[];
+  sliderMin?: number;
+  sliderMax?: number;
+  sliderStep?: number;
 }) {
   const t = useTranslations("admin.experiments");
   const [localValue, setLocalValue] = useState(String(value ?? ""));
@@ -317,6 +327,61 @@ function StudentInputField({
           >
             <PenLine className="w-3.5 h-3.5" />
           </button>
+        )}
+      </span>
+    );
+  }
+
+  if (inputType === "multiple_choice" && options && options.length > 0) {
+    return (
+      <span className="inline-flex items-center mx-0.5">
+        <RadioGroup
+          orientation="horizontal"
+          value={String(value ?? "")}
+          onValueChange={(v) => onCommit(paramId, v)}
+          size="sm"
+        >
+          {options.map((opt) => (
+            <Radio key={opt} value={opt}>{opt}</Radio>
+          ))}
+        </RadioGroup>
+      </span>
+    );
+  }
+
+  if (inputType === "slider") {
+    const min = sliderMin ?? 0;
+    const max = sliderMax ?? 100;
+    const step = sliderStep ?? 1;
+    const localNum = Number(localValue) || min;
+    return (
+      <span className="inline-flex flex-col gap-1 min-w-[200px]">
+        <span className="inline-flex items-center gap-2">
+          <Slider
+            size="sm"
+            step={step}
+            minValue={min}
+            maxValue={max}
+            value={localNum}
+            onChange={(v) => {
+              const val = Array.isArray(v) ? v[0] : v;
+              setLocalValue(String(val));
+            }}
+            className="flex-1"
+            showTooltip
+          />
+          <span className="text-sm font-mono w-10 text-right">{localNum}</span>
+          <Button
+            size="sm"
+            color="success"
+            variant="flat"
+            onPress={() => onCommit(paramId, localNum)}
+          >
+            {t("confirm")}
+          </Button>
+        </span>
+        {isInvalid && (
+          <span className="text-tiny text-danger">{validationHint || t("invalidValue")}</span>
         )}
       </span>
     );
@@ -411,6 +476,10 @@ function TemplateSegmentsRenderer({
                 isConfirmed={confirmedInputs.has(seg.paramId)}
                 isInvalid={validationErrors?.has(seg.paramId)}
                 validationHint={validation ? `Required: ${validation}` : undefined}
+                options={seg.options}
+                sliderMin={seg.sliderMin}
+                sliderMax={seg.sliderMax}
+                sliderStep={seg.sliderStep}
               />
             </span>
           );

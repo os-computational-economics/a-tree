@@ -246,17 +246,99 @@ function ParamValueEditor({
             <Select
               label={t("inputType")}
               size="sm"
-              className="w-32"
+              className="w-48"
               selectedKeys={[definition.inputType || "text"]}
               onSelectionChange={(keys) => {
-                const v = Array.from(keys)[0] as "number" | "text";
-                if (v) onChange({ ...definition, inputType: v });
+                const v = Array.from(keys)[0] as "number" | "text" | "multiple_choice" | "slider";
+                if (v) {
+                  const updated = { ...definition, inputType: v };
+                  if (v === "multiple_choice" && !definition.options) {
+                    (updated as typeof definition & { options: string[] }).options = [""];
+                  }
+                  if (v === "slider") {
+                    if (definition.sliderMin == null) (updated as typeof definition & { sliderMin: number }).sliderMin = 0;
+                    if (definition.sliderMax == null) (updated as typeof definition & { sliderMax: number }).sliderMax = 100;
+                    if (definition.sliderStep == null) (updated as typeof definition & { sliderStep: number }).sliderStep = 1;
+                  }
+                  onChange(updated);
+                }
               }}
             >
               <SelectItem key="number">{t("inputNumber")}</SelectItem>
               <SelectItem key="text">{t("inputText")}</SelectItem>
+              <SelectItem key="multiple_choice">{t("inputMultipleChoice")}</SelectItem>
+              <SelectItem key="slider">{t("inputSlider")}</SelectItem>
             </Select>
           </div>
+          {definition.inputType === "multiple_choice" && (
+            <div className="space-y-2">
+              {(definition.options || []).map((opt, oi) => (
+                <div key={oi} className="flex gap-2 items-center">
+                  <Input
+                    size="sm"
+                    label={`${t("optionN")} ${oi + 1}`}
+                    value={opt}
+                    onValueChange={(v) => {
+                      const newOpts = [...(definition.options || [])];
+                      newOpts[oi] = v;
+                      onChange({ ...definition, options: newOpts });
+                    }}
+                  />
+                  <Button
+                    isIconOnly
+                    size="sm"
+                    variant="light"
+                    color="danger"
+                    onPress={() => {
+                      const newOpts = (definition.options || []).filter((_, i) => i !== oi);
+                      onChange({ ...definition, options: newOpts });
+                    }}
+                    isDisabled={(definition.options || []).length <= 1}
+                  >
+                    <Trash2 size={14} />
+                  </Button>
+                </div>
+              ))}
+              <Button
+                size="sm"
+                variant="flat"
+                startContent={<Plus size={14} />}
+                onPress={() =>
+                  onChange({ ...definition, options: [...(definition.options || []), ""] })
+                }
+              >
+                {t("addOption")}
+              </Button>
+            </div>
+          )}
+          {definition.inputType === "slider" && (
+            <div className="flex gap-2">
+              <Input
+                type="number"
+                label={t("sliderMin")}
+                size="sm"
+                className="w-24"
+                value={String(definition.sliderMin ?? 0)}
+                onValueChange={(v) => onChange({ ...definition, sliderMin: Number(v) || 0 })}
+              />
+              <Input
+                type="number"
+                label={t("sliderMax")}
+                size="sm"
+                className="w-24"
+                value={String(definition.sliderMax ?? 100)}
+                onValueChange={(v) => onChange({ ...definition, sliderMax: Number(v) || 100 })}
+              />
+              <Input
+                type="number"
+                label={t("sliderStep")}
+                size="sm"
+                className="w-24"
+                value={String(definition.sliderStep ?? 1)}
+                onValueChange={(v) => onChange({ ...definition, sliderStep: Number(v) || 1 })}
+              />
+            </div>
+          )}
           <Textarea
             label={t("validation")}
             size="sm"

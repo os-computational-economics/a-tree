@@ -297,7 +297,7 @@ export function StudentRunner({
         const inputType = def?.type === "student_input"
           ? (def as { inputType?: string }).inputType || "text"
           : "text";
-        const committed: string | number = inputType === "number" ? Number(raw) || 0 : raw;
+        const committed: string | number = (inputType === "number" || inputType === "slider") ? Number(raw) || 0 : raw;
         if (def?.type === "student_input" && def.validation) {
           const valid = runValidation(def.validation, committed, resolvedParams, newStudentInputs);
           if (!valid) {
