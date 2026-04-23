@@ -591,8 +591,7 @@
     "surveySimDesc": "学生将在此处看到 {count} 个问卷问题。",
     "replay": "重播",
     "pause": "暂停",
-    "showText": "显示文本",
-    "hideText": "隐藏文本",
+    "generatingResponse": "正在生成回复...",
     "generatingAudio": "加载中..."
   }
 }
