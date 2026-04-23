@@ -108,9 +108,23 @@ export async function POST(
       (match, qId) => surveyAnswerMap[qId] ?? match,
     );
 
+    const formattingInstruction =
+      `--- Response Formatting ---\n` +
+      `Format every response in Markdown so it is easy to scan:\n` +
+      `- Use short paragraphs separated by a blank line.\n` +
+      `- Whenever you present 2 or more items, steps, reasons, facts, options, or tips, use a Markdown list — bullets (\`-\`) for unordered items and numbered (\`1.\`, \`2.\`, \`3.\`) when order or ranking matters. If the user asks to "list" things or uses phrasing like "three things", "the steps", "reasons", etc., you MUST use a real Markdown list.\n` +
+      `- Do NOT substitute a bolded lead-in phrase followed by description for a list item (e.g. do not write "**First thing** description..." on separate lines; write "- **First thing**: description..." as real list items instead).\n` +
+      `- Use \`**bold**\` to highlight key terms inside sentences, and \`*italics*\` for light emphasis. Use bolding sparingly — it should not replace list syntax.\n` +
+      `- Use \`##\` section headers only when the response is long enough to benefit from sections (roughly 3+ paragraphs).\n` +
+      `- Use fenced code blocks for code or commands.\n` +
+      `- Always put a blank line before starting a list and after ending it.\n` +
+      `Prefer clarity and brevity over verbosity. Do not wrap the whole response in a code block or quote block.\n` +
+      `--- End Formatting ---`;
+
     const systemPrompt =
       `You are a helpful AI assistant within an experiment.\n\n` +
-      `--- Experiment Context ---\n${renderedPrompt}\n--- End Context ---`;
+      `--- Experiment Context ---\n${renderedPrompt}\n--- End Context ---\n\n` +
+      formattingInstruction;
 
     const llmMessages: { role: "system" | "user" | "assistant"; content: string }[] = [
       { role: "system", content: systemPrompt },

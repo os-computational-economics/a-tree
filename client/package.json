@@ -87,6 +87,8 @@
     "react-markdown": "^10.1.0",
     "react-redux": "^9.2.0",
     "react-simple-code-editor": "^0.14.1",
+    "remark-gfm": "^4.0.1",
+    "remove-markdown": "^0.6.3",
     "uuid": "^14.0.0"
   },
   "devDependencies": {
