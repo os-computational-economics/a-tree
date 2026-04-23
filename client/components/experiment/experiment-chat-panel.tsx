@@ -10,6 +10,7 @@ import { Popover, PopoverTrigger, PopoverContent } from "@heroui/popover";
 import { Bot, Send, Mic, Square, Play, Pause } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { siteConfig } from "@/config/site";
 import { useVoiceRecorder } from "@/components/chat/use-voice-recorder";
 import type { ChatLogEntry } from "@/lib/experiment/types";
@@ -180,7 +181,9 @@ function VoiceMessageBubble({
           {shouldShowText && (
             <div className="pt-2 mt-2 border-t border-divider">
               <div className="prose dark:prose-invert prose-sm max-w-none">
-                <ReactMarkdown>{msg.content}</ReactMarkdown>
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                  {msg.content}
+                </ReactMarkdown>
               </div>
             </div>
           )}
@@ -541,7 +544,9 @@ export function ExperimentChatPanel({
                             : ""
                         }`}
                       >
-                        <ReactMarkdown>{msg.content}</ReactMarkdown>
+                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                          {msg.content}
+                        </ReactMarkdown>
                       </div>
                     </CardBody>
                   </Card>
