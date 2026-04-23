@@ -87,7 +87,7 @@
     "react-markdown": "^10.1.0",
     "react-redux": "^9.2.0",
     "react-simple-code-editor": "^0.14.1",
-    "uuid": "^13.0.0"
+    "uuid": "^14.0.0"
   },
   "devDependencies": {
     "@next/eslint-plugin-next": "^16.2.2",
