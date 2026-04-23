@@ -591,8 +591,7 @@
     "surveySimDesc": "Students will see {count} survey questions here.",
     "replay": "Replay",
     "pause": "Pause",
-    "showText": "Show text",
-    "hideText": "Hide text",
+    "generatingResponse": "Generating response...",
     "generatingAudio": "Loading..."
   }
 }
