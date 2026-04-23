@@ -30,9 +30,8 @@ import type {
   AiChatBlockConfig,
   SurveyBlockConfig,
   SurveyQuestion,
-  TtsVoice,
 } from "@/lib/experiment/types";
-import { isStaticBlock, isInformationBlock, isAiChatBlock, isSurveyBlock, isNumericParam, TTS_VOICES, LIKERT_SCALE_PRESETS, type LikertPresetKey } from "@/lib/experiment/types";
+import { isStaticBlock, isInformationBlock, isAiChatBlock, isSurveyBlock, isNumericParam, LIKERT_SCALE_PRESETS, type LikertPresetKey } from "@/lib/experiment/types";
 
 interface ParameterEditorProps {
   config: ExperimentConfig;
@@ -1173,39 +1172,6 @@ export function ParameterEditor({ config, onChange }: ParameterEditorProps) {
                         <SelectItem key="text">{t("responseModeText")}</SelectItem>
                         <SelectItem key="voice">{t("responseModeVoice")}</SelectItem>
                       </Select>
-                      {block.responseMode === "voice" && (
-                        <>
-                          <Select
-                            label={t("ttsVoice")}
-                            size="sm"
-                            selectedKeys={[block.ttsVoice || "coral"]}
-                            onSelectionChange={(keys) => {
-                              const voice = Array.from(keys)[0] as TtsVoice;
-                              const blocks = [...config.blocks];
-                              blocks[bi] = { ...blocks[bi], ttsVoice: voice } as AiChatBlockConfig;
-                              onChange({ ...config, blocks });
-                            }}
-                            className="max-w-xs"
-                          >
-                            {TTS_VOICES.map((v) => (
-                              <SelectItem key={v}>{v.charAt(0).toUpperCase() + v.slice(1)}</SelectItem>
-                            ))}
-                          </Select>
-                          <Textarea
-                            label={t("ttsInstructions")}
-                            size="sm"
-                            value={block.ttsInstructions || ""}
-                            onValueChange={(v) => {
-                              const blocks = [...config.blocks];
-                              blocks[bi] = { ...blocks[bi], ttsInstructions: v || undefined } as AiChatBlockConfig;
-                              onChange({ ...config, blocks });
-                            }}
-                            placeholder="Speak in a cheerful and positive tone."
-                            minRows={2}
-                            maxRows={6}
-                          />
-                        </>
-                      )}
                       <Select
                         label={t("chatInitiator")}
                         size="sm"
