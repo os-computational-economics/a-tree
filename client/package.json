@@ -95,6 +95,7 @@
     "@next/eslint-plugin-next": "^16.2.2",
     "@react-types/shared": "3.33.1",
     "@tailwindcss/postcss": "4.2.2",
+    "@tailwindcss/typography": "^0.5.19",
     "@types/diff": "^7.0.2",
     "@types/jsoneditor": "^9.9.6",
     "@types/node": "24.12.0",
