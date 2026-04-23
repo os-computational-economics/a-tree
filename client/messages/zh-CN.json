@@ -346,8 +346,6 @@
       "responseMode": "响应模式",
       "responseModeText": "文本回复",
       "responseModeVoice": "语音回复",
-      "ttsVoice": "语音角色",
-      "ttsInstructions": "语音指令",
       "chatInitiator": "对话发起方",
       "chatInitiatorUser": "用户先发起",
       "chatInitiatorAi": "AI 先发起",
