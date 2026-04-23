@@ -12,6 +12,7 @@ import {
   ElevenLabsConfigError,
   ElevenLabsApiError,
 } from "@/lib/tts/elevenlabs";
+import { toSpeechText } from "@/lib/tts/text";
 
 export async function POST(
   request: NextRequest,
@@ -102,9 +103,16 @@ export async function POST(
       );
     }
 
-    // Generate TTS audio via ElevenLabs
+    const speechText = toSpeechText(text);
+    if (!speechText) {
+      return NextResponse.json(
+        { error: "No speakable text after formatting" },
+        { status: 400 },
+      );
+    }
+
     const ttsStart = Date.now();
-    const buffer = await generateSpeech(text);
+    const buffer = await generateSpeech(speechText);
     console.log(
       `[TTS] ElevenLabs TTS done in ${Date.now() - ttsStart}ms (${buffer.length} bytes) — saving to S3...`,
     );
