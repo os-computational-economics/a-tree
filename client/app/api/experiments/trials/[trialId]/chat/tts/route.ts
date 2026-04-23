@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import OpenAI from "openai";
 import { getAccessToken } from "@/lib/auth/cookies";
 import { verifyAccessToken } from "@/lib/auth/jwt";
 import { db } from "@/lib/db";
@@ -8,10 +7,11 @@ import { eq, and } from "drizzle-orm";
 import { saveExperimentAudio, getExperimentAudio } from "@/lib/storage/s3";
 import type { ChatLogEntry } from "@/lib/experiment/types";
 import { waitUntil } from "@vercel/functions";
-
-const openai = new OpenAI({
-  apiKey: process.env.LLM_API_KEY,
-});
+import {
+  generateSpeech,
+  ElevenLabsConfigError,
+  ElevenLabsApiError,
+} from "@/lib/tts/elevenlabs";
 
 export async function POST(
   request: NextRequest,
@@ -62,7 +62,9 @@ export async function POST(
     const cacheStart = Date.now();
     const cached = await getExperimentAudio(trialId, blockId, timestamp);
     if (cached) {
-      console.log(`[TTS] Cache HIT for ${blockId}/${timestamp} (${Date.now() - cacheStart}ms, ${cached.length} bytes)`);
+      console.log(
+        `[TTS] Cache HIT for ${blockId}/${timestamp} (${Date.now() - cacheStart}ms, ${cached.length} bytes)`,
+      );
       return new NextResponse(new Uint8Array(cached), {
         headers: {
           "Content-Type": "audio/mpeg",
@@ -70,7 +72,9 @@ export async function POST(
         },
       });
     }
-    console.log(`[TTS] Cache MISS for ${blockId}/${timestamp} — calling OpenAI TTS...`);
+    console.log(
+      `[TTS] Cache MISS for ${blockId}/${timestamp} — calling ElevenLabs TTS...`,
+    );
 
     // Cache miss: verify the block exists and has voice mode
     const [experiment] = await db
@@ -98,25 +102,26 @@ export async function POST(
       );
     }
 
-    // Generate TTS audio
+    // Generate TTS audio via ElevenLabs
     const ttsStart = Date.now();
-    const mp3 = await openai.audio.speech.create({
-      model: "gpt-4o-mini-tts",
-      voice: block.ttsVoice || "coral",
-      input: text,
-      ...(block.ttsInstructions ? { instructions: block.ttsInstructions } : {}),
-    });
-
-    const buffer = Buffer.from(await mp3.arrayBuffer());
-    console.log(`[TTS] OpenAI TTS done in ${Date.now() - ttsStart}ms (${buffer.length} bytes) — saving to S3...`);
+    const buffer = await generateSpeech(text);
+    console.log(
+      `[TTS] ElevenLabs TTS done in ${Date.now() - ttsStart}ms (${buffer.length} bytes) — saving to S3...`,
+    );
 
     // Save to S3 and update chatLogs in background
-    const audioKey = await saveExperimentAudio(trialId, blockId, timestamp, buffer);
+    const audioKey = await saveExperimentAudio(
+      trialId,
+      blockId,
+      timestamp,
+      buffer,
+    );
 
     waitUntil(
       (async () => {
         try {
-          const existingLogs = (trial.chatLogs as Record<string, ChatLogEntry[]>) || {};
+          const existingLogs =
+            (trial.chatLogs as Record<string, ChatLogEntry[]>) || {};
           const blockLogs = existingLogs[blockId] || [];
           const updatedBlockLogs = blockLogs.map((entry) =>
             entry.role === "assistant" && entry.timestamp === timestamp
@@ -142,6 +147,20 @@ export async function POST(
       },
     });
   } catch (error) {
+    if (error instanceof ElevenLabsConfigError) {
+      console.error("ElevenLabs configuration error:", error.message);
+      return NextResponse.json(
+        { error: "TTS is not configured on the server" },
+        { status: 500 },
+      );
+    }
+    if (error instanceof ElevenLabsApiError) {
+      console.error("ElevenLabs API error:", error.status, error.message);
+      return NextResponse.json(
+        { error: "Failed to generate audio" },
+        { status: 502 },
+      );
+    }
     console.error("Error in TTS generation:", error);
     return NextResponse.json(
       { error: "Failed to generate audio" },

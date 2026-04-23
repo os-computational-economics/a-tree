@@ -53,18 +53,12 @@ export interface InformationBlockConfig {
   body: string;
 }
 
-export type TtsVoice = "alloy" | "ash" | "ballad" | "coral" | "echo" | "sage" | "shimmer" | "verse" | "marin" | "cedar";
-
-export const TTS_VOICES: TtsVoice[] = ["alloy", "ash", "ballad", "coral", "echo", "sage", "shimmer", "verse", "marin", "cedar"];
-
 export interface AiChatBlockConfig {
   type: "ai_chat";
   id: string;
   label?: string;
   systemPromptTemplate: string;
   responseMode?: "text" | "voice";
-  ttsVoice?: TtsVoice;
-  ttsInstructions?: string;
   initiator?: "user" | "ai";
 }
 
@@ -168,8 +162,6 @@ export interface FlatAiChatBlockConfig {
   blockLabel?: string;
   systemPromptTemplate: string;
   responseMode?: "text" | "voice";
-  ttsVoice?: TtsVoice;
-  ttsInstructions?: string;
   initiator?: "user" | "ai";
 }
 

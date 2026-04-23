@@ -346,8 +346,6 @@
       "responseMode": "Response Mode",
       "responseModeText": "Text Response",
       "responseModeVoice": "Voice Response",
-      "ttsVoice": "Voice",
-      "ttsInstructions": "Voice Instructions",
       "chatInitiator": "Conversation Starter",
       "chatInitiatorUser": "User starts",
       "chatInitiatorAi": "AI starts",
