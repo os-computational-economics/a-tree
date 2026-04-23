@@ -970,6 +970,34 @@ export function ParameterEditor({ config, onChange }: ParameterEditorProps) {
     onChange({ ...config, blocks });
   };
 
+  const duplicateBlock = (idx: number) => {
+    const source = config.blocks[idx];
+    if (!source) return;
+
+    const newBlockId = `b_${crypto.randomUUID().slice(0, 8)}`;
+    const cloned: BlockConfig = structuredClone(source);
+    cloned.id = newBlockId;
+    if (cloned.label) {
+      cloned.label = `${cloned.label} (copy)`;
+    }
+    if (!isStaticBlock(cloned) && !isInformationBlock(cloned) && !isAiChatBlock(cloned) && !isSurveyBlock(cloned)) {
+      cloned.rounds = cloned.rounds.map((r) => ({
+        ...r,
+        id: `r_${crypto.randomUUID().slice(0, 8)}`,
+      }));
+    }
+    if (isSurveyBlock(cloned)) {
+      cloned.questions = cloned.questions.map((q) => ({
+        ...q,
+        id: `q_${crypto.randomUUID().slice(0, 8)}`,
+      }));
+    }
+
+    const blocks = [...config.blocks];
+    blocks.splice(idx + 1, 0, cloned);
+    onChange({ ...config, blocks });
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-2">
@@ -1023,6 +1051,17 @@ export function ParameterEditor({ config, onChange }: ParameterEditorProps) {
                         >
                           <ArrowDown className="w-3 h-3" />
                         </div>
+                      </div>
+                      <div
+                        role="button"
+                        tabIndex={0}
+                        className="w-6 h-6 min-w-0 inline-flex items-center justify-center rounded-md hover:bg-default-100 transition-colors cursor-pointer"
+                        onClick={(e) => { e.stopPropagation(); duplicateBlock(bi); }}
+                        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.stopPropagation(); e.preventDefault(); duplicateBlock(bi); } }}
+                        aria-label={t("duplicateBlock")}
+                        title={t("duplicateBlock")}
+                      >
+                        <Copy className="w-3.5 h-3.5" />
                       </div>
                       <span>{t("blockN", { n: bi + 1 })}</span>
                       {isStaticBlock(block) && (
