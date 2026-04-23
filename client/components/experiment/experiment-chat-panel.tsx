@@ -7,7 +7,7 @@ import { Card, CardBody } from "@heroui/card";
 import { Button } from "@heroui/button";
 import { Textarea } from "@heroui/input";
 import { Popover, PopoverTrigger, PopoverContent } from "@heroui/popover";
-import { Bot, Send, Mic, Square, Play, Pause, Eye, EyeOff } from "lucide-react";
+import { Bot, Send, Mic, Square, Play, Pause } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import ReactMarkdown from "react-markdown";
 import { siteConfig } from "@/config/site";
@@ -30,6 +30,7 @@ function VoiceMessageBubble({
   blockId,
   msg,
   autoPlay,
+  isStreaming,
   activeTimestamp,
   onPlayStart,
 }: {
@@ -37,17 +38,22 @@ function VoiceMessageBubble({
   blockId: string;
   msg: ChatLogEntry;
   autoPlay: boolean;
+  isStreaming: boolean;
   activeTimestamp: number | null;
   onPlayStart: (timestamp: number) => void;
 }) {
   const t = useTranslations("experimentRunner");
   const [isPlaying, setIsPlaying] = useState(false);
-  const [showText, setShowText] = useState(false);
   const [isLoadingAudio, setIsLoadingAudio] = useState(false);
   const [audioBlobUrl, setAudioBlobUrl] = useState<string | null>(null);
+  const [audioFetchAttempted, setAudioFetchAttempted] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const hasAutoPlayed = useRef(false);
   const audioBlobUrlRef = useRef<string | null>(null);
+
+  // Text is revealed only once audio is ready (or failed) for auto-play messages.
+  // Historical messages (autoPlay=false, not currently streaming) show text immediately.
+  const shouldShowText = !isStreaming && (!autoPlay || audioFetchAttempted);
 
   // Stop playback when another message becomes active
   useEffect(() => {
@@ -81,6 +87,7 @@ function VoiceMessageBubble({
       return null;
     } finally {
       setIsLoadingAudio(false);
+      setAudioFetchAttempted(true);
     }
   }, [trialId, blockId, msg.timestamp, msg.content]);
 
@@ -147,12 +154,15 @@ function VoiceMessageBubble({
               color="primary"
               onPress={togglePlay}
               isLoading={isLoadingAudio}
+              isDisabled={isStreaming}
               aria-label={isPlaying ? t("pause") : t("replay")}
             >
               {isPlaying ? <Pause size={16} /> : <Play size={16} />}
             </Button>
             <div className="flex-1 flex items-center gap-1.5">
-              {isLoadingAudio ? (
+              {isStreaming ? (
+                <span className="text-tiny text-default-400">{t("generatingResponse")}</span>
+              ) : isLoadingAudio ? (
                 <span className="text-tiny text-default-400">{t("generatingAudio")}</span>
               ) : (
                 <div className="flex gap-[3px] items-center h-6">
@@ -166,33 +176,14 @@ function VoiceMessageBubble({
                 </div>
               )}
             </div>
-            <Button
-              isIconOnly
-              size="sm"
-              variant="light"
-              onPress={() => setShowText((v) => !v)}
-              aria-label={showText ? t("hideText") : t("showText")}
-            >
-              {showText ? <EyeOff size={16} /> : <Eye size={16} />}
-            </Button>
           </div>
-          <AnimatePresence>
-            {showText && (
-              <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: "auto", opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                transition={{ duration: 0.2 }}
-                className="overflow-hidden"
-              >
-                <div className="pt-2 mt-2 border-t border-divider">
-                  <div className="prose dark:prose-invert prose-sm max-w-none">
-                    <ReactMarkdown>{msg.content}</ReactMarkdown>
-                  </div>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+          {shouldShowText && (
+            <div className="pt-2 mt-2 border-t border-divider">
+              <div className="prose dark:prose-invert prose-sm max-w-none">
+                <ReactMarkdown>{msg.content}</ReactMarkdown>
+              </div>
+            </div>
+          )}
         </CardBody>
       </Card>
     </div>
@@ -216,6 +207,7 @@ export function ExperimentChatPanel({
   const isVoice = responseMode === "voice";
   const [latestVoiceTimestamp, setLatestVoiceTimestamp] = useState<number | null>(null);
   const [activePlayingTimestamp, setActivePlayingTimestamp] = useState<number | null>(null);
+  const [streamingTimestamp, setStreamingTimestamp] = useState<number | null>(null);
 
   const handlePlayStart = useCallback((timestamp: number) => {
     setActivePlayingTimestamp(timestamp);
@@ -255,6 +247,8 @@ export function ExperimentChatPanel({
 
     (async () => {
       setIsSending(true);
+      const tempTimestamp = Date.now();
+      if (isVoice) setStreamingTimestamp(tempTimestamp);
       try {
         const res = await fetch(`/api/experiments/trials/${trialId}/chat`, {
           method: "POST",
@@ -273,7 +267,6 @@ export function ExperimentChatPanel({
         const decoder = new TextDecoder();
         let buffer = "";
         const contentParts: MessageContentPart[] = [];
-        const tempTimestamp = Date.now();
         let assistantTimestamp = tempTimestamp;
 
         while (true) {
@@ -292,6 +285,7 @@ export function ExperimentChatPanel({
               if (event.type === "retry_exhausted") continue;
               if (event.type === "assistant_timestamp") {
                 assistantTimestamp = event.timestamp;
+                if (isVoice) setStreamingTimestamp(assistantTimestamp);
                 setMessages((prev) =>
                   prev.map((m) =>
                     m.role === "assistant" && m.timestamp === tempTimestamp
@@ -330,10 +324,12 @@ export function ExperimentChatPanel({
         onMessagesChange(blockId, [finalEntry]);
 
         if (isVoice) {
+          setStreamingTimestamp(null);
           setLatestVoiceTimestamp(assistantTimestamp);
         }
       } catch (error) {
         console.error("Error initiating AI chat:", error);
+        if (isVoice) setStreamingTimestamp(null);
       } finally {
         setIsSending(false);
       }
@@ -356,8 +352,9 @@ export function ExperimentChatPanel({
     setInput("");
     setIsSending(true);
 
+    const tempTimestamp = Date.now();
+    if (isVoice) setStreamingTimestamp(tempTimestamp);
     try {
-      const tempTimestamp = Date.now();
       let assistantTimestamp = tempTimestamp;
       const res = await fetch(`/api/experiments/trials/${trialId}/chat`, {
         method: "POST",
@@ -405,6 +402,7 @@ export function ExperimentChatPanel({
 
             if (event.type === "assistant_timestamp") {
               assistantTimestamp = event.timestamp;
+              if (isVoice) setStreamingTimestamp(assistantTimestamp);
               setMessages((prev) =>
                 prev.map((m) =>
                   m.role === "assistant" && m.timestamp === tempTimestamp
@@ -472,10 +470,12 @@ export function ExperimentChatPanel({
       onMessagesChange(blockId, [...updatedMessages, finalAssistantEntry]);
 
       if (isVoice) {
+        setStreamingTimestamp(null);
         setLatestVoiceTimestamp(assistantTimestamp);
       }
     } catch (error) {
       console.error("Error sending experiment chat message:", error);
+      if (isVoice) setStreamingTimestamp(null);
     } finally {
       setIsSending(false);
     }
@@ -520,6 +520,7 @@ export function ExperimentChatPanel({
                   blockId={blockId}
                   msg={msg}
                   autoPlay={shouldAutoPlay}
+                  isStreaming={msg.timestamp === streamingTimestamp}
                   activeTimestamp={activePlayingTimestamp}
                   onPlayStart={handlePlayStart}
                 />
