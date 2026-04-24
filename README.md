@@ -135,4 +135,4 @@ uv run fastapi dev app.py
 
 ## License
 
-Internal / unspecified. See repository owner before redistributing.
+Internal / unspecified. See repository owner before redistributing
