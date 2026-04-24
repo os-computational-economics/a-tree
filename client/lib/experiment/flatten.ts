@@ -89,6 +89,7 @@ export function flattenConfig(config: ExperimentConfig): FlatStepConfig[] {
         blockIndex: bi,
         blockId: block.id,
         blockLabel: block.label,
+        introduction: block.introduction,
         questions: block.questions,
       });
       continue;

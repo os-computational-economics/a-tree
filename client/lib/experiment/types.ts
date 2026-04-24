@@ -85,6 +85,7 @@ export interface SurveyBlockConfig {
   type: "survey";
   id: string;
   label?: string;
+  introduction?: string;
   questions: SurveyQuestion[];
 }
 
@@ -170,6 +171,7 @@ export interface FlatSurveyBlockConfig {
   blockIndex: number;
   blockId: string;
   blockLabel?: string;
+  introduction?: string;
   questions: SurveyQuestion[];
 }
 

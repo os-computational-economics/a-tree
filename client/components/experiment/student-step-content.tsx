@@ -4,6 +4,8 @@ import { useMemo } from "react";
 import { Card, CardBody, CardHeader } from "@heroui/card";
 import { Chip } from "@heroui/chip";
 import { useTranslations } from "next-intl";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import type {
   FlatRoundConfig,
   FlatStaticBlockConfig,
@@ -149,6 +151,13 @@ export function StudentStepContent({
             </h4>
           </CardHeader>
           <CardBody className="gap-4">
+            {(currentStep as FlatSurveyBlockConfig).introduction && (
+              <div className="prose dark:prose-invert prose-sm max-w-none pb-2 border-b border-divider">
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                  {(currentStep as FlatSurveyBlockConfig).introduction ?? ""}
+                </ReactMarkdown>
+              </div>
+            )}
             {(currentStep as FlatSurveyBlockConfig).questions.map((q: SurveyQuestion) => (
               <div key={q.id} className="space-y-2">
                 <p className="text-sm font-medium">{q.text}</p>

@@ -1346,6 +1346,19 @@ export function ParameterEditor({ config, onChange }: ParameterEditorProps) {
                         }}
                         placeholder="e.g. Post-Experiment Survey"
                       />
+                      <Textarea
+                        label={t("surveyIntroduction")}
+                        description={t("surveyIntroductionDesc")}
+                        value={block.introduction || ""}
+                        onValueChange={(v) => {
+                          const blocks = [...config.blocks];
+                          blocks[bi] = { ...blocks[bi], introduction: v || undefined } as SurveyBlockConfig;
+                          onChange({ ...config, blocks });
+                        }}
+                        placeholder={t("surveyIntroductionPlaceholder")}
+                        minRows={2}
+                        maxRows={10}
+                      />
                       {block.questions.map((q: SurveyQuestion, qi: number) => (
                         <Card key={q.id} className="p-3">
                           <div className="space-y-2">
