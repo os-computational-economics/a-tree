@@ -512,6 +512,7 @@
       "viewDetails": "查看详情",
       "trialDetailModalTitle": "试验详情",
       "duplicateButton": "复制",
+      "duplicateBlock": "复制此区块",
       "duplicatedToast": "实验已复制",
       "failedToDuplicate": "复制实验失败",
       "deleteTrialsTitle": "删除试验",

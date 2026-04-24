@@ -512,6 +512,7 @@
       "viewDetails": "View Details",
       "trialDetailModalTitle": "Trial Details",
       "duplicateButton": "Duplicate",
+      "duplicateBlock": "Duplicate block",
       "duplicatedToast": "Experiment duplicated",
       "failedToDuplicate": "Failed to duplicate experiment",
       "deleteTrialsTitle": "Delete Trials",
