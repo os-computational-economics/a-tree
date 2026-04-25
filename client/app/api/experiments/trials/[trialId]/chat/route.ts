@@ -10,6 +10,7 @@ import { waitUntil } from "@vercel/functions";
 
 const openai = new OpenAI({
   apiKey: process.env.LLM_API_KEY,
+  //baseURL: process.env.LLM_BASE_URL,
 });
 
 export async function POST(
@@ -146,6 +147,7 @@ export async function POST(
     const serverTimestamp = Date.now();
 
     const llmStream = await openai.chat.completions.create({
+      //model: "/workspace/models/gemma-4-31B-it",
       model: "gpt-5.4",
       messages: llmMessages,
       stream: true,
