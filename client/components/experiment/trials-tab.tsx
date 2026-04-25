@@ -34,7 +34,7 @@ import {
   DropdownMenu,
   DropdownItem,
 } from "@heroui/dropdown";
-import { buildTrialsCsv, buildSurveyResponsesCsv, buildChatLogsCsv, buildQuestionMap, downloadCsv } from "@/lib/experiment/export-csv";
+import { buildTrialsCsv, buildSurveyResponsesCsv, buildChatLogsCsv, buildQuestionMap, buildBlockLabelMap, downloadCsv } from "@/lib/experiment/export-csv";
 
 interface TrialListItem {
   id: string;
@@ -499,7 +499,8 @@ export function TrialsTab({ experimentId }: TrialsTabProps) {
       return;
     }
     const questionMap = experimentConfig ? buildQuestionMap(experimentConfig) : undefined;
-    const csv = buildSurveyResponsesCsv(filtered, questionMap);
+    const blockLabelMap = experimentConfig ? buildBlockLabelMap(experimentConfig) : undefined;
+    const csv = buildSurveyResponsesCsv(filtered, questionMap, blockLabelMap);
     const timestamp = new Date().toISOString().slice(0, 10);
     downloadCsv(csv, `survey-responses-${timestamp}.csv`);
     addToast({ title: t("exportedSurveyResponses", { count: filtered.length }), color: "success" });
@@ -510,11 +511,12 @@ export function TrialsTab({ experimentId }: TrialsTabProps) {
       addToast({ title: t("noTrialsToExport"), color: "warning" });
       return;
     }
-    const csv = buildChatLogsCsv(filtered);
+    const blockLabelMap = experimentConfig ? buildBlockLabelMap(experimentConfig) : undefined;
+    const csv = buildChatLogsCsv(filtered, blockLabelMap);
     const timestamp = new Date().toISOString().slice(0, 10);
     downloadCsv(csv, `chat-logs-${timestamp}.csv`);
     addToast({ title: t("exportedChatLogs", { count: filtered.length }), color: "success" });
-  }, [filtered]);
+  }, [filtered, experimentConfig]);
 
   const handleLookup = async () => {
     if (lookupCode.length !== 6) return;

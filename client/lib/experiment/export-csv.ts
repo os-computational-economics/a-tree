@@ -10,6 +10,7 @@ interface TrialForExport {
 
 type QuestionInfo = { text: string; questionType: string };
 type QuestionMap = Record<string, Record<string, QuestionInfo>>;
+export type BlockLabelMap = Record<string, string>;
 
 /**
  * Escapes a CSV cell value: wraps in quotes if it contains comma, quote, or newline.
@@ -83,13 +84,29 @@ export function buildQuestionMap(config: ExperimentConfig): QuestionMap {
 }
 
 /**
+ * Builds a mapping of blockId -> human-readable label from an experiment config.
+ * Falls back to an empty string when a block has no label set.
+ */
+export function buildBlockLabelMap(config: ExperimentConfig): BlockLabelMap {
+  const map: BlockLabelMap = {};
+  for (const block of config.blocks) {
+    map[block.id] = block.label ?? "";
+  }
+  return map;
+}
+
+/**
  * Builds a CSV string from filtered trials' survey responses.
  *
  * Each CSV row represents one answer from one trial.
- * Columns: trial_id, trial_code, block_id, question_id, question_type, question_text, answer
+ * Columns: trial_id, trial_code, block_id, block_label, question_id, question_type, question_text, answer
  */
-export function buildSurveyResponsesCsv(trials: TrialForExport[], questionMap?: QuestionMap): string {
-  const headers = ["trial_id", "trial_code", "block_id", "question_id", "question_type", "question_text", "answer"];
+export function buildSurveyResponsesCsv(
+  trials: TrialForExport[],
+  questionMap?: QuestionMap,
+  blockLabelMap?: BlockLabelMap,
+): string {
+  const headers = ["trial_id", "trial_code", "block_id", "block_label", "question_id", "question_type", "question_text", "answer"];
   const lines: string[] = [headers.map(escapeCsvCell).join(",")];
 
   for (const trial of trials) {
@@ -99,7 +116,8 @@ export function buildSurveyResponsesCsv(trials: TrialForExport[], questionMap?: 
         const info = questionMap?.[blockId]?.[questionId];
         const questionText = info?.text ?? "";
         const questionType = info?.questionType ?? "";
-        const cells = [trial.id, trial.trialCode, blockId, questionId, questionType, questionText, answer];
+        const blockLabel = blockLabelMap?.[blockId] ?? "";
+        const cells = [trial.id, trial.trialCode, blockId, blockLabel, questionId, questionType, questionText, answer];
         lines.push(cells.map(escapeCsvCell).join(","));
       }
     }
@@ -112,20 +130,22 @@ export function buildSurveyResponsesCsv(trials: TrialForExport[], questionMap?: 
  * Builds a CSV string from filtered trials' AI chat logs.
  *
  * Each CSV row represents one message from one trial.
- * Columns: trial_id, trial_code, block_id, role, content, timestamp
+ * Columns: trial_id, trial_code, block_id, block_label, role, content, timestamp
  */
-export function buildChatLogsCsv(trials: TrialForExport[]): string {
-  const headers = ["trial_id", "trial_code", "block_id", "role", "content", "timestamp"];
+export function buildChatLogsCsv(trials: TrialForExport[], blockLabelMap?: BlockLabelMap): string {
+  const headers = ["trial_id", "trial_code", "block_id", "block_label", "role", "content", "timestamp"];
   const lines: string[] = [headers.map(escapeCsvCell).join(",")];
 
   for (const trial of trials) {
     if (!trial.chatLogs) continue;
     for (const [blockId, entries] of Object.entries(trial.chatLogs)) {
       for (const entry of entries) {
+        const blockLabel = blockLabelMap?.[blockId] ?? "";
         const cells = [
           trial.id,
           trial.trialCode,
           blockId,
+          blockLabel,
           entry.role,
           entry.content,
           entry.timestamp ? new Date(entry.timestamp).toISOString() : "",
