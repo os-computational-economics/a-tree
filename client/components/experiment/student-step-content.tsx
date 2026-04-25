@@ -158,9 +158,10 @@ export function StudentStepContent({
                 </ReactMarkdown>
               </div>
             )}
-            {(currentStep as FlatSurveyBlockConfig).questions.map((q: SurveyQuestion) => (
-              <div key={q.id} className="space-y-2">
-                <p className="text-sm font-medium">{q.text}</p>
+            {(currentStep as FlatSurveyBlockConfig).questions.map((q: SurveyQuestion, qi: number) => (
+              <Card key={q.id} shadow="sm" className="border border-divider">
+                <CardBody className="px-4 py-3 gap-2">
+                  <p className="text-sm font-medium">{q.text}</p>
                 {q.questionType === "text" ? (
                   <textarea
                     className="w-full min-h-[80px] p-3 rounded-lg border border-default-200 bg-default-100 text-sm focus:outline-none focus:ring-2 focus:ring-primary resize-y"
@@ -169,36 +170,34 @@ export function StudentStepContent({
                     placeholder={t("typeMessage")}
                   />
                 ) : q.questionType === "likert_scale" ? (
-                  <div className="grid gap-1" style={{ gridTemplateColumns: `repeat(${(q.scaleLabels || []).length}, minmax(0, 1fr))` }}>
+                  <div className="relative flex items-start justify-between w-full pt-2 pb-5">
+                    <div className="absolute top-4 left-0 right-0 h-px bg-default-300" />
                     {(q.scaleLabels || []).map((label: string, si: number) => (
-                        <label
-                          key={si}
-                          className={`flex flex-col items-center gap-0.5 px-1 py-1.5 rounded-md border-2 cursor-pointer transition-all ${
-                            surveyAnswers?.[q.id] === label
-                              ? "border-primary bg-primary/10"
-                              : "border-default-200 hover:border-default-300 hover:bg-default-50"
-                          }`}
-                        >
-                          <input
-                            type="radio"
-                            name={`survey-${q.id}`}
-                            value={label}
-                            checked={surveyAnswers?.[q.id] === label}
-                            onChange={() => onSurveyAnswerChange?.(q.id, label)}
-                            className="sr-only"
-                          />
-                          <span className={`text-xs font-semibold ${
-                            surveyAnswers?.[q.id] === label ? "text-primary" : "text-default-500"
-                          }`}>
-                            {si + 1}
-                          </span>
-                          <span className={`text-[10px] text-center leading-tight ${
-                            surveyAnswers?.[q.id] === label ? "text-primary font-medium" : "text-default-400"
-                          }`}>
-                            {label}
-                          </span>
-                        </label>
-                      ))}
+                      <label
+                        key={si}
+                        className="relative flex flex-col items-center gap-2 cursor-pointer group"
+                        style={{ flex: 1 }}
+                      >
+                        <input
+                          type="radio"
+                          name={`survey-${q.id}`}
+                          value={label}
+                          checked={surveyAnswers?.[q.id] === label}
+                          onChange={() => onSurveyAnswerChange?.(q.id, label)}
+                          className="sr-only"
+                        />
+                        <div className={`w-5 h-5 rounded-full border-2 z-10 transition-all bg-background ${
+                          surveyAnswers?.[q.id] === label
+                            ? "bg-primary border-primary"
+                            : "border-default-400 group-hover:border-primary"
+                        }`} />
+                        <span className={`text-[11px] text-center leading-tight max-w-[60px] ${
+                          surveyAnswers?.[q.id] === label ? "text-primary font-semibold" : "text-default-500"
+                        }`}>
+                          {label}
+                        </span>
+                      </label>
+                    ))}
                   </div>
                 ) : (
                   <div className="space-y-1">
@@ -217,7 +216,8 @@ export function StudentStepContent({
                     ))}
                   </div>
                 )}
-              </div>
+                </CardBody>
+              </Card>
             ))}
           </CardBody>
         </Card>

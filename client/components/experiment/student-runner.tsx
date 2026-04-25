@@ -460,14 +460,16 @@ export function StudentRunner({
       {/* Floating Game Guide Button */}
       {config.gameGuide && (
         <>
-          <button
-            type="button"
-            className="fixed bottom-6 left-6 z-50 flex items-center gap-2 px-4 py-3 rounded-full bg-primary text-primary-foreground shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200"
-            onClick={onGuideOpen}
+          <Button
+            size="sm"
+            color="secondary"
+            variant="flat"
+            className="fixed bottom-2 left-4 z-50 shadow-md"
+            startContent={<BookOpen className="w-3.5 h-3.5" />}
+            onPress={onGuideOpen}
           >
-            <BookOpen className="w-5 h-5" />
-            <span className="text-sm font-medium">{t("gameGuide")}</span>
-          </button>
+            {t("gameGuide")}
+          </Button>
 
           <Modal isOpen={guideOpen} onOpenChange={onGuideOpenChange} size="3xl" scrollBehavior="inside">
             <ModalContent>
