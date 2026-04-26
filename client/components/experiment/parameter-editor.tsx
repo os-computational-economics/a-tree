@@ -107,7 +107,7 @@ function ParamValueEditor({
   switch (definition.type) {
     case "constant":
       return (
-        <div className="flex gap-2 flex-1">
+        <div className="flex gap-2 flex-1 min-w-0">
           <Select
             label={t("dataType")}
             size="sm"
@@ -158,7 +158,7 @@ function ParamValueEditor({
 
     case "norm":
       return (
-        <div className="flex gap-2 flex-1">
+        <div className="flex gap-2 flex-1 min-w-0">
           <Input
             label={t("mean")}
             size="sm"
@@ -178,7 +178,7 @@ function ParamValueEditor({
 
     case "unif":
       return (
-        <div className="flex gap-2 flex-1">
+        <div className="flex gap-2 flex-1 min-w-0">
           <Input
             label={t("min")}
             size="sm"
@@ -198,7 +198,7 @@ function ParamValueEditor({
 
     case "equation":
       return (
-        <div className="flex-1 space-y-2">
+        <div className="flex-1 min-w-0 space-y-2">
           <Textarea
             label={t("expression")}
             size="sm"
@@ -207,33 +207,12 @@ function ParamValueEditor({
             onValueChange={(v) => onChange({ ...definition, expression: v })}
             minRows={1}
           />
-          {allParamIds.length > 0 && (
-            <div className="flex gap-1 flex-wrap">
-              <span className="text-tiny text-default-400 self-center">{t("insert")}</span>
-              {allParamIds.map((id) => (
-                <Chip
-                  key={id}
-                  size="sm"
-                  variant="flat"
-                  className="cursor-pointer"
-                  onClick={() =>
-                    onChange({
-                      ...definition,
-                      expression: definition.expression + `{{${id}}}`,
-                    })
-                  }
-                >
-                  {`{{${id}}}`}
-                </Chip>
-              ))}
-            </div>
-          )}
         </div>
       );
 
     case "student_input":
       return (
-        <div className="flex-1 space-y-2">
+        <div className="flex-1 min-w-0 space-y-2">
           <div className="flex gap-2">
             <Input
               label={t("inputLabel")}
@@ -311,7 +290,7 @@ function ParamValueEditor({
             </div>
           )}
           {definition.inputType === "slider" && (
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <Input
                 type="number"
                 label={t("sliderMin")}
@@ -347,41 +326,6 @@ function ParamValueEditor({
             onValueChange={(v) => onChange({ ...definition, validation: v || undefined })}
             minRows={1}
           />
-          {allParamIds.length > 0 && (
-            <div className="flex gap-1 flex-wrap">
-              <span className="text-tiny text-default-400 self-center">{t("insert")}</span>
-              <Chip
-                size="sm"
-                variant="flat"
-                color="primary"
-                className="cursor-pointer"
-                onClick={() =>
-                  onChange({
-                    ...definition,
-                    validation: (definition.validation || "") + "{{this}}",
-                  })
-                }
-              >
-                {"{{this}}"}
-              </Chip>
-              {allParamIds.map((id) => (
-                <Chip
-                  key={id}
-                  size="sm"
-                  variant="flat"
-                  className="cursor-pointer"
-                  onClick={() =>
-                    onChange({
-                      ...definition,
-                      validation: (definition.validation || "") + `{{${id}}}`,
-                    })
-                  }
-                >
-                  {`{{${id}}}`}
-                </Chip>
-              ))}
-            </div>
-          )}
         </div>
       );
 
@@ -390,7 +334,7 @@ function ParamValueEditor({
         ? allParamIds.filter((id) => allParams[id]?.type !== "history")
         : allParamIds;
       return (
-        <div className="flex-1 space-y-2">
+        <div className="flex-1 min-w-0 space-y-2">
           <Textarea
             label={t("historyExpression")}
             size="sm"
@@ -399,38 +343,10 @@ function ParamValueEditor({
             onValueChange={(v) => onChange({ ...definition, expression: v })}
             minRows={1}
           />
-          <div className="space-y-1">
-            {nonHistoryParamIds.length > 0 && (
-              <div className="flex gap-1 flex-wrap">
-                <span className="text-tiny text-default-400 self-center">{t("insertAggregation")}</span>
-                {HISTORY_AGGREGATIONS.map((agg) => (
-                  <div key={agg.key} className="flex gap-0.5">
-                    {nonHistoryParamIds.map((id) => (
-                      <Chip
-                        key={`${agg.key}-${id}`}
-                        size="sm"
-                        variant="flat"
-                        color="success"
-                        className="cursor-pointer"
-                        onClick={() =>
-                          onChange({
-                            ...definition,
-                            expression: definition.expression + `${agg.key}({{${id}}})`,
-                          })
-                        }
-                      >
-                        {`${agg.key}({{${id}}})`}
-                      </Chip>
-                    ))}
-                  </div>
-                ))}
-              </div>
-            )}
-            <p className="text-tiny text-default-400">
-              Use agg({`{{param}}`}) syntax. Aggregations: min, max, mean, mode, sum (all rows), latest (previous row).
-              History params cannot reference other history params.
-            </p>
-          </div>
+          <p className="text-tiny text-default-400">
+            Use agg({`{{param}}`}) syntax. Aggregations: min, max, mean, mode, sum (all rows), latest (previous row).
+            History params cannot reference other history params.
+          </p>
         </div>
       );
     }
@@ -464,109 +380,141 @@ function ParamRow({
   const [reservedError, setReservedError] = useState(false);
 
   return (
-    <div className="flex items-start gap-2 p-3 rounded-lg bg-content2/50">
-      <div className="flex flex-col gap-1 min-w-[180px]">
-        <Input
-          label={t("nameLabel")}
-          size="sm"
-          value={nameInput}
-          onValueChange={(v) => {
-            setNameInput(v);
-            setDuplicateError(false);
-            setReservedError(false);
-          }}
-          onBlur={() => {
-            const newSlug = slugify(nameInput);
-            if (!newSlug || newSlug === paramId) return;
-            if (RESERVED_NAMES.has(newSlug)) {
-              setReservedError(true);
-              setNameInput(
-                paramId.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
-              );
-              return;
-            }
-            const isDuplicate =
-              allParamIds.filter((id) => id !== paramId).includes(newSlug);
-            if (isDuplicate) {
-              setDuplicateError(true);
-              setNameInput(
-                paramId.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
-              );
-            } else {
+    <div className="flex flex-col gap-2 p-3 rounded-lg bg-content2/50">
+      {/* Row 1: name, type, delete */}
+      <div className="flex items-start gap-2">
+        <div className="flex flex-col gap-1 flex-1 min-w-0">
+          <Input
+            label={t("nameLabel")}
+            size="sm"
+            value={nameInput}
+            onValueChange={(v) => {
+              setNameInput(v);
               setDuplicateError(false);
               setReservedError(false);
-              onChangeId(paramId, newSlug, nameInput);
+            }}
+            onBlur={() => {
+              const newSlug = slugify(nameInput);
+              if (!newSlug || newSlug === paramId) return;
+              if (RESERVED_NAMES.has(newSlug)) {
+                setReservedError(true);
+                setNameInput(
+                  paramId.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
+                );
+                return;
+              }
+              const isDuplicate =
+                allParamIds.filter((id) => id !== paramId).includes(newSlug);
+              if (isDuplicate) {
+                setDuplicateError(true);
+                setNameInput(
+                  paramId.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
+                );
+              } else {
+                setDuplicateError(false);
+                setReservedError(false);
+                onChangeId(paramId, newSlug, nameInput);
+              }
+            }}
+            isInvalid={duplicateError || reservedError}
+            errorMessage={
+              reservedError
+                ? t("reservedNameError", { name: slugify(nameInput) })
+                : duplicateError
+                  ? t("duplicateParamError")
+                  : undefined
+            }
+          />
+          <Chip size="sm" variant="flat" color="secondary">
+            {paramId}
+          </Chip>
+          {inheritedFrom && (
+            <Chip size="sm" variant="dot" color="warning">
+              {t("inheritedFrom", { source: inheritedFrom })}
+            </Chip>
+          )}
+        </div>
+
+        <Select
+          label={t("typeLabel")}
+          size="sm"
+          className="w-40 shrink-0"
+          selectedKeys={[definition.type]}
+          onSelectionChange={(keys) => {
+            const newType = Array.from(keys)[0] as string;
+            if (newType && newType !== definition.type) {
+              onChangeDef(paramId, makeDefaultParam(newType));
             }
           }}
-          isInvalid={duplicateError || reservedError}
-          errorMessage={
-            reservedError
-              ? t("reservedNameError", { name: slugify(nameInput) })
-              : duplicateError
-                ? t("duplicateParamError")
-                : undefined
-          }
-        />
-        <Chip size="sm" variant="flat" color="secondary">
-          {paramId}
-        </Chip>
-        {inheritedFrom && (
-          <Chip size="sm" variant="dot" color="warning">
-            {t("inheritedFrom", { source: inheritedFrom })}
-          </Chip>
-        )}
+        >
+          {VALUE_TYPES.map((vt) => (
+            <SelectItem key={vt.key}>{t(vt.key === "norm" ? "normal" : vt.key === "unif" ? "uniform" : vt.key === "student_input" ? "studentInput" : vt.key as "constant" | "equation" | "history")}</SelectItem>
+          ))}
+        </Select>
+
+        <Button
+          isIconOnly
+          variant="light"
+          color="danger"
+          size="sm"
+          className="shrink-0 mt-1"
+          onPress={() => onRemove(paramId)}
+        >
+          <Trash2 className="w-4 h-4" />
+        </Button>
       </div>
 
-      <Select
-        label={t("typeLabel")}
-        size="sm"
-        className="w-40"
-        selectedKeys={[definition.type]}
-        onSelectionChange={(keys) => {
-          const newType = Array.from(keys)[0] as string;
-          if (newType && newType !== definition.type) {
-            onChangeDef(paramId, makeDefaultParam(newType));
-          }
-        }}
-      >
-        {VALUE_TYPES.map((vt) => (
-          <SelectItem key={vt.key}>{t(vt.key === "norm" ? "normal" : vt.key === "unif" ? "uniform" : vt.key === "student_input" ? "studentInput" : vt.key as "constant" | "equation" | "history")}</SelectItem>
-        ))}
-      </Select>
+      {/* Row 2: value editor + checkboxes */}
+      <div className="flex flex-wrap items-start gap-2">
+        <div className="flex-1 min-w-0">
+          <ParamValueEditor
+            definition={definition}
+            onChange={(def) => onChangeDef(paramId, def)}
+            allParamIds={allParamIds.filter((id) => id !== paramId)}
+            allParams={allParams}
+          />
+        </div>
 
-      <ParamValueEditor
-        definition={definition}
-        onChange={(def) => onChangeDef(paramId, def)}
-        allParamIds={allParamIds.filter((id) => id !== paramId)}
-        allParams={allParams}
-      />
-
-      {isNumericParam(definition) && (
-        <div className="flex flex-col gap-1 mt-2">
-          <Checkbox
-            size="sm"
-            isSelected={!!definition.visualize}
-            onValueChange={(checked) =>
-              onChangeDef(paramId, { ...definition, visualize: checked || undefined, visualizeMax: checked ? definition.visualizeMax : undefined })
-            }
-          >
-            <span className="text-xs">{t("visualize")}</span>
-          </Checkbox>
-          {definition.visualize && (
-            <Input
-              label={t("barMax")}
+        {isNumericParam(definition) && (
+          <div className="flex flex-col gap-1 shrink-0">
+            <Checkbox
               size="sm"
-              type="number"
-              className="w-24"
-              value={definition.visualizeMax != null ? String(definition.visualizeMax) : ""}
-              onValueChange={(v) =>
-                onChangeDef(paramId, { ...definition, visualizeMax: v ? Number(v) || undefined : undefined })
+              isSelected={!!definition.visualize}
+              onValueChange={(checked) =>
+                onChangeDef(paramId, { ...definition, visualize: checked || undefined, visualizeMax: checked ? definition.visualizeMax : undefined })
               }
-              placeholder="Auto"
-            />
-          )}
+            >
+              <span className="text-xs">{t("visualize")}</span>
+            </Checkbox>
+            {definition.visualize && (
+              <Input
+                label={t("barMax")}
+                size="sm"
+                type="number"
+                className="w-24"
+                value={definition.visualizeMax != null ? String(definition.visualizeMax) : ""}
+                onValueChange={(v) =>
+                  onChangeDef(paramId, { ...definition, visualizeMax: v ? Number(v) || undefined : undefined })
+                }
+                placeholder="Auto"
+              />
+            )}
+            <Checkbox
+              size="sm"
+              isSelected={!!definition.displayOnStudentSide}
+              onValueChange={(checked) =>
+                onChangeDef(paramId, { ...definition, displayOnStudentSide: checked || undefined })
+              }
+            >
+              <span className="text-xs">{t("displayOnStudentSide")}</span>
+            </Checkbox>
+          </div>
+        )}
+
+        {!isNumericParam(definition) && (
           <Checkbox
             size="sm"
+            className="shrink-0"
             isSelected={!!definition.displayOnStudentSide}
             onValueChange={(checked) =>
               onChangeDef(paramId, { ...definition, displayOnStudentSide: checked || undefined })
@@ -574,32 +522,8 @@ function ParamRow({
           >
             <span className="text-xs">{t("displayOnStudentSide")}</span>
           </Checkbox>
-        </div>
-      )}
-
-      {!isNumericParam(definition) && (
-        <Checkbox
-          size="sm"
-          className="mt-2"
-          isSelected={!!definition.displayOnStudentSide}
-          onValueChange={(checked) =>
-            onChangeDef(paramId, { ...definition, displayOnStudentSide: checked || undefined })
-          }
-        >
-          <span className="text-xs">{t("displayOnStudentSide")}</span>
-        </Checkbox>
-      )}
-
-      <Button
-        isIconOnly
-        variant="light"
-        color="danger"
-        size="sm"
-        className="mt-2"
-        onPress={() => onRemove(paramId)}
-      >
-        <Trash2 className="w-4 h-4" />
-      </Button>
+        )}
+      </div>
     </div>
   );
 }
