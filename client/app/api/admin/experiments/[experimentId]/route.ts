@@ -53,7 +53,7 @@ export async function PATCH(
 
     const { experimentId } = await params;
     const body = await request.json();
-    const { name, description, status, config } = body;
+    const { name, description, status, config, accessCode } = body;
 
     const [updated] = await db
       .update(experiments)
@@ -62,6 +62,10 @@ export async function PATCH(
         ...(description !== undefined && { description }),
         ...(status !== undefined && { status }),
         ...(config !== undefined && { config }),
+        // Normalize to uppercase, store null when empty string passed
+        ...(accessCode !== undefined && {
+          accessCode: accessCode ? String(accessCode).toUpperCase().trim() || null : null,
+        }),
         updatedAt: new Date(),
       })
       .where(eq(experiments.id, experimentId))

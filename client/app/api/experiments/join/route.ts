@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAccessToken } from "@/lib/auth/cookies";
 import { verifyAccessToken } from "@/lib/auth/jwt";
 import { db } from "@/lib/db";
-import { experiments, experimentTrials } from "@/lib/db/schema";
+import { experiments, experimentTrials, experimentAccess } from "@/lib/db/schema";
 import { eq, and, isNull } from "drizzle-orm";
 
 function generateTrialCode(): string {
@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
     }
 
     const [experiment] = await db
-      .select({ id: experiments.id, status: experiments.status })
+      .select({ id: experiments.id, status: experiments.status, accessCode: experiments.accessCode })
       .from(experiments)
       .where(and(eq(experiments.id, experimentId), isNull(experiments.deletedAt)))
       .limit(1);
@@ -38,6 +38,24 @@ export async function POST(request: NextRequest) {
     }
     if (experiment.status !== "active") {
       return NextResponse.json({ error: "Experiment is not active" }, { status: 400 });
+    }
+
+    // If experiment requires an access code, verify the user has been granted access
+    if (experiment.accessCode) {
+      const [access] = await db
+        .select({ id: experimentAccess.id })
+        .from(experimentAccess)
+        .where(
+          and(
+            eq(experimentAccess.experimentId, experimentId),
+            eq(experimentAccess.userId, payload.userId),
+          ),
+        )
+        .limit(1);
+
+      if (!access) {
+        return NextResponse.json({ error: "Access denied" }, { status: 403 });
+      }
     }
 
     let trialCode: string;

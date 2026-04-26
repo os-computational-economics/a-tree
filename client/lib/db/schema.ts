@@ -8,6 +8,7 @@ import {
   jsonb,
   bigint,
   integer,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
 import type { ExperimentConfig, HistoryRow, ChatLogEntry } from "../experiment/types";
 
@@ -166,6 +167,7 @@ export const experiments = pgTable("experiments", {
   description: text("description"),
   status: varchar("status", { length: 20 }).notNull().default("draft"),
   config: jsonb("config").$type<ExperimentConfig>().notNull(),
+  accessCode: varchar("access_code", { length: 20 }),
   createdBy: uuid("created_by")
     .notNull()
     .references(() => users.id),
@@ -199,3 +201,25 @@ export const experimentTrials = pgTable("experiment_trials", {
 
 export type ExperimentTrial = typeof experimentTrials.$inferSelect;
 export type NewExperimentTrial = typeof experimentTrials.$inferInsert;
+
+/**
+ * Experiment Access table
+ * Tracks which users have unlocked which experiments via access code
+ */
+export const experimentAccess = pgTable(
+  "experiment_access",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    experimentId: uuid("experiment_id")
+      .notNull()
+      .references(() => experiments.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    grantedAt: timestamp("granted_at").defaultNow().notNull(),
+  },
+  (t) => [uniqueIndex("experiment_access_experiment_user_idx").on(t.experimentId, t.userId)],
+);
+
+export type ExperimentAccess = typeof experimentAccess.$inferSelect;
+export type NewExperimentAccess = typeof experimentAccess.$inferInsert;

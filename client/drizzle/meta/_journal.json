@@ -36,6 +36,27 @@
       "when": 1773699391899,
       "tag": "0004_soft_delete_experiments_trials",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1777173078799,
+      "tag": "0005_ambiguous_thunderbolts",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1777173360765,
+      "tag": "0006_tiny_prowler",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1777174827505,
+      "tag": "0007_fuzzy_human_robot",
+      "breakpoints": true
     }
   ]
 }
