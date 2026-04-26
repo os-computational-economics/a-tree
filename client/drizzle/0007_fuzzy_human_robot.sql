@@ -1,0 +1,1 @@
+ALTER TABLE "experiments" DROP CONSTRAINT "experiments_access_code_unique";

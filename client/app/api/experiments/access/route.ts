@@ -25,13 +25,11 @@ export async function POST(request: NextRequest) {
 
     const normalizedCode = code.trim().toUpperCase();
 
-    const [experiment] = await db
+    // Find ALL active experiments sharing this room code
+    const matched = await db
       .select({
         id: experiments.id,
         name: experiments.name,
-        description: experiments.description,
-        status: experiments.status,
-        config: experiments.config,
       })
       .from(experiments)
       .where(
@@ -40,28 +38,19 @@ export async function POST(request: NextRequest) {
           eq(experiments.status, "active"),
           isNull(experiments.deletedAt),
         ),
-      )
-      .limit(1);
+      );
 
-    if (!experiment) {
+    if (matched.length === 0) {
       return NextResponse.json({ error: "Invalid code" }, { status: 404 });
     }
 
-    // Upsert access record — idempotent if already granted
+    // Grant access to every experiment in this room (idempotent)
     await db
       .insert(experimentAccess)
-      .values({ experimentId: experiment.id, userId: payload.userId })
+      .values(matched.map((exp) => ({ experimentId: exp.id, userId: payload.userId })))
       .onConflictDoNothing();
 
-    return NextResponse.json({
-      experiment: {
-        id: experiment.id,
-        name: experiment.name,
-        description: experiment.description,
-        blockCount: experiment.config.blocks.length,
-        paramCount: Object.keys(experiment.config.params).length,
-      },
-    });
+    return NextResponse.json({ count: matched.length });
   } catch (error) {
     console.error("Error granting experiment access:", error);
     return NextResponse.json({ error: "Failed to process code" }, { status: 500 });

@@ -74,12 +74,9 @@ export async function GET(request: NextRequest) {
       )
       .orderBy(desc(experiments.createdAt));
 
-    // Show experiment if:
-    //   (a) no access code set → open to everyone
-    //   (b) user has an experiment_access row → explicitly granted
-    const accessible = rows.filter(
-      (row) => row.accessCode === null || row.accessGrantedId !== null,
-    );
+    // Show experiment only if the user has been explicitly granted access
+    // (entered the room code). Experiments with no code are invisible to students.
+    const accessible = rows.filter((row) => row.accessGrantedId !== null);
 
     const list = accessible.map((exp) => ({
       id: exp.id,

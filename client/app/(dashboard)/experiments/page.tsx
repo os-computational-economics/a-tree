@@ -56,12 +56,20 @@ function formatValue(val: number | string | boolean | null): string {
   return String(val);
 }
 
-function CompletedTrialHistory({ trial, roundLabel, viewLabel, hideLabel }: { trial: TrialItem; roundLabel: (n: number) => string; viewLabel: string; hideLabel: string }) {
+function CompletedTrialHistory({
+  trial,
+  roundLabel,
+  viewLabel,
+  hideLabel,
+}: {
+  trial: TrialItem;
+  roundLabel: (n: number) => string;
+  viewLabel: string;
+  hideLabel: string;
+}) {
   const [isOpen, setIsOpen] = useState(false);
 
-  if (!trial.historyTable || trial.historyTable.length === 0) return null;
-
-  const displayable = new Set(trial.displayableParamIds);
+  const displayable = useMemo(() => new Set(trial.displayableParamIds), [trial.displayableParamIds]);
 
   const filteredKeys = useMemo(() => {
     const keys = new Set<string>();
@@ -71,9 +79,9 @@ function CompletedTrialHistory({ trial, roundLabel, viewLabel, hideLabel }: { tr
       }
     }
     return Array.from(keys);
-  }, [trial.historyTable, trial.displayableParamIds]);
+  }, [trial.historyTable, displayable]);
 
-  if (filteredKeys.length === 0) return null;
+  if (!trial.historyTable || trial.historyTable.length === 0 || filteredKeys.length === 0) return null;
 
   const columns = [
     { key: "round", label: "ROUND" },
@@ -120,11 +128,16 @@ function CompletedTrialHistory({ trial, roundLabel, viewLabel, hideLabel }: { tr
   );
 }
 
+// View states for the student experiments page
+type PageView = "lobby" | "experiments";
+
 export default function StudentExperimentsPage() {
   const t = useTranslations("studentExperiments");
   const tCommon = useTranslations("common");
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
+
+  const [view, setView] = useState<PageView>("lobby");
   const [experiments, setExperiments] = useState<ExperimentListItem[]>([]);
   const [trials, setTrials] = useState<TrialItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -137,24 +150,35 @@ export default function StudentExperimentsPage() {
   const [codeError, setCodeError] = useState("");
   const [submittingCode, setSubmittingCode] = useState(false);
 
-  const fetchData = useCallback(async () => {
+  const fetchTrials = useCallback(async () => {
     try {
-      const [expData, trialData] = await Promise.all([
-        api.get<{ experiments: ExperimentListItem[] }>("/api/experiments"),
-        api.get<{ trials: TrialItem[] }>("/api/experiments/my-trials"),
-      ]);
-      setExperiments(expData.experiments);
-      setTrials(trialData.trials);
+      const data = await api.get<{ trials: TrialItem[] }>("/api/experiments/my-trials");
+      setTrials(data.trials);
+    } catch {
+      // non-fatal
+    }
+  }, []);
+
+  const fetchExperiments = useCallback(async () => {
+    try {
+      const data = await api.get<{ experiments: ExperimentListItem[] }>("/api/experiments");
+      setExperiments(data.experiments);
     } catch {
       addToast({ title: t("failedToLoad"), color: "danger" });
-    } finally {
-      setLoading(false);
     }
   }, [t]);
 
   useEffect(() => {
-    if (user) fetchData();
-  }, [user, fetchData]);
+    if (!user) return;
+    Promise.all([fetchExperiments(), fetchTrials()]).finally(() => setLoading(false));
+  }, [user, fetchExperiments, fetchTrials]);
+
+  // Admins skip the lobby and go straight to the experiment list
+  useEffect(() => {
+    if (user?.roles.includes("admin")) {
+      setView("experiments");
+    }
+  }, [user]);
 
   const trialsByExperiment = useMemo(() => {
     const map: Record<string, TrialItem[]> = {};
@@ -171,9 +195,9 @@ export default function StudentExperimentsPage() {
     setSubmittingCode(true);
     try {
       await api.post("/api/experiments/access", { code: codeInput.trim() });
-      // Refresh experiments list to show newly unlocked experiment
-      await fetchData();
+      await fetchExperiments();
       setCodeInput("");
+      setView("experiments");
     } catch (err: unknown) {
       const status = (err as { status?: number })?.status;
       if (status === 404) {
@@ -216,8 +240,8 @@ export default function StudentExperimentsPage() {
     );
   }
 
-  // LOBBY STATE — no accessible experiments yet
-  if (experiments.length === 0) {
+  // LOBBY — always shown first for non-admin students
+  if (view === "lobby") {
     return (
       <div className="flex items-center justify-center min-h-[70vh]">
         <Card className="w-full max-w-md shadow-lg">
@@ -259,13 +283,17 @@ export default function StudentExperimentsPage() {
     );
   }
 
-  // EXPERIMENT STATE — user has accessible experiment(s)
+  // EXPERIMENT LIST — shown after entering a valid code (or always for admins)
   return (
     <div className="max-w-5xl mx-auto space-y-6 p-6">
       <div className="flex items-center gap-3">
         <FlaskConical className="w-8 h-8 text-primary" />
         <h1 className="text-3xl font-bold">{t("title")}</h1>
       </div>
+
+      {experiments.length === 0 && (
+        <p className="text-default-500">{t("noExperimentsAvailable")}</p>
+      )}
 
       <div className="grid gap-4">
         {experiments.map((exp) => {

@@ -167,7 +167,7 @@ export const experiments = pgTable("experiments", {
   description: text("description"),
   status: varchar("status", { length: 20 }).notNull().default("draft"),
   config: jsonb("config").$type<ExperimentConfig>().notNull(),
-  accessCode: varchar("access_code", { length: 20 }).unique(),
+  accessCode: varchar("access_code", { length: 20 }),
   createdBy: uuid("created_by")
     .notNull()
     .references(() => users.id),

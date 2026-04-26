@@ -6,16 +6,10 @@ import { useAuth } from "@/hooks/use-auth";
 import { api } from "@/lib/api/client";
 import { Spinner } from "@heroui/spinner";
 import { Button } from "@heroui/button";
-import {
-  Table,
-  TableHeader,
-  TableColumn,
-  TableBody,
-  TableRow,
-  TableCell,
-} from "@heroui/table";
+import { Card, CardBody, CardFooter } from "@heroui/card";
 import { Chip } from "@heroui/chip";
 import { Input } from "@heroui/input";
+import { Divider } from "@heroui/divider";
 import {
   Modal,
   ModalContent,
@@ -39,6 +33,7 @@ interface ExperimentListItem {
   blockCount: number;
   paramCount: number;
   createdAt: string;
+  updatedAt: string;
 }
 
 const statusColorMap: Record<string, "default" | "primary" | "success" | "warning"> = {
@@ -177,33 +172,27 @@ export default function ExperimentsPage() {
         className="max-w-md"
       />
 
-      <Table aria-label="Experiments table">
-        <TableHeader>
-          <TableColumn>{t("nameColumn")}</TableColumn>
-          <TableColumn>{t("statusColumn")}</TableColumn>
-          <TableColumn>{t("accessCodeColumn")}</TableColumn>
-          <TableColumn>{t("blocksColumn")}</TableColumn>
-          <TableColumn>{t("paramsColumn")}</TableColumn>
-          <TableColumn>{t("createdColumn")}</TableColumn>
-          <TableColumn align="end">{t("actionsColumn")}</TableColumn>
-        </TableHeader>
-        <TableBody emptyContent={t("noExperiments")}>
-          {filtered.map((exp) => (
-            <TableRow key={exp.id}>
-              <TableCell>
-                <div>
-                  <p className="font-medium">{exp.name}</p>
+      {filtered.length === 0 && (
+        <p className="text-default-400 text-sm py-4">{t("noExperiments")}</p>
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+        {filtered.map((exp) => (
+          <Card key={exp.id} className="w-full">
+            <CardBody className="gap-3 pb-2">
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-base truncate">{exp.name}</p>
                   {exp.description && (
-                    <p className="text-tiny text-default-400">{exp.description}</p>
+                    <p className="text-xs text-default-400 mt-0.5 line-clamp-2">{exp.description}</p>
                   )}
                 </div>
-              </TableCell>
-              <TableCell>
-                <Chip size="sm" color={statusColorMap[exp.status] || "default"} variant="flat">
+                <Chip size="sm" color={statusColorMap[exp.status] || "default"} variant="flat" className="shrink-0">
                   {exp.status}
                 </Chip>
-              </TableCell>
-              <TableCell>
+              </div>
+
+              <div className="flex items-center gap-2 flex-wrap">
                 {exp.accessCode ? (
                   <Chip
                     size="sm"
@@ -215,57 +204,60 @@ export default function ExperimentsPage() {
                     {exp.accessCode}
                   </Chip>
                 ) : (
-                  <span className="text-xs text-default-400">{t("openAccess")}</span>
+                  <Chip size="sm" variant="flat" color="default">
+                    {t("openAccess")}
+                  </Chip>
                 )}
-              </TableCell>
-              <TableCell>{exp.blockCount}</TableCell>
-              <TableCell>{exp.paramCount}</TableCell>
-              <TableCell>{new Date(exp.createdAt).toLocaleDateString()}</TableCell>
-              <TableCell>
-                <div className="flex items-center justify-end gap-2">
-                  <Button
-                    size="sm"
-                    variant="flat"
-                    startContent={<Copy className="w-3.5 h-3.5" />}
-                    onPress={() => handleDuplicate(exp)}
-                  >
-                    {t("duplicateButton")}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="flat"
-                    startContent={<Pencil className="w-3.5 h-3.5" />}
-                    onPress={() => router.push(`/admin/experiments/${exp.id}`)}
-                  >
-                    {t("editButton")}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="flat"
-                    color="primary"
-                    startContent={<FlaskConical className="w-3.5 h-3.5" />}
-                    onPress={() => router.push(`/admin/experiments/${exp.id}/trials`)}
-                  >
-                    {t("viewTrialsButton")}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="flat"
-                    color="danger"
-                    startContent={<Trash2 className="w-3.5 h-3.5" />}
-                    onPress={() => {
-                      setDeleteTarget(exp);
-                      deleteModal.onOpen();
-                    }}
-                  >
-                    {tCommon("delete")}
-                  </Button>
-                </div>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+                <span className="text-xs text-default-400 ml-auto">
+                  {t("modifiedLabel")} {new Date(exp.updatedAt).toLocaleDateString()}
+                </span>
+              </div>
+            </CardBody>
+
+            <Divider />
+
+            <CardFooter className="gap-1 flex-wrap pt-2">
+              <Button
+                size="sm"
+                variant="flat"
+                startContent={<Pencil className="w-3.5 h-3.5" />}
+                onPress={() => router.push(`/admin/experiments/${exp.id}`)}
+              >
+                {t("editButton")}
+              </Button>
+              <Button
+                size="sm"
+                variant="flat"
+                color="primary"
+                startContent={<FlaskConical className="w-3.5 h-3.5" />}
+                onPress={() => router.push(`/admin/experiments/${exp.id}/trials`)}
+              >
+                {t("viewTrialsButton")}
+              </Button>
+              <Button
+                size="sm"
+                variant="flat"
+                startContent={<Copy className="w-3.5 h-3.5" />}
+                onPress={() => handleDuplicate(exp)}
+              >
+                {t("duplicateButton")}
+              </Button>
+              <Button
+                size="sm"
+                variant="flat"
+                color="danger"
+                startContent={<Trash2 className="w-3.5 h-3.5" />}
+                onPress={() => {
+                  setDeleteTarget(exp);
+                  deleteModal.onOpen();
+                }}
+              >
+                {tCommon("delete")}
+              </Button>
+            </CardFooter>
+          </Card>
+        ))}
+      </div>
 
       <Modal isOpen={isOpen} onOpenChange={onOpenChange}>
         <ModalContent>
