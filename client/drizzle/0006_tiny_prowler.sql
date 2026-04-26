@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "experiment_access_experiment_user_idx" ON "experiment_access" USING btree ("experiment_id","user_id");

@@ -45,14 +45,15 @@ export default function ExperimentDetailPage({
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [status, setStatus] = useState("draft");
+  const [accessCode, setAccessCode] = useState("");
   const [config, setConfig] = useState<ExperimentConfig | null>(null);
   const deleteModal = useDisclosure();
   const [experimentId, setExperimentId] = useState<string>("");
   const [savedSnapshot, setSavedSnapshot] = useState("");
 
   const currentSnapshot = useMemo(
-    () => JSON.stringify({ name, description, status, config }),
-    [name, description, status, config],
+    () => JSON.stringify({ name, description, status, accessCode, config }),
+    [name, description, status, accessCode, config],
   );
 
   const isDirty = savedSnapshot !== "" && currentSnapshot !== savedSnapshot;
@@ -71,12 +72,14 @@ export default function ExperimentDetailPage({
       setName(data.experiment.name);
       setDescription(data.experiment.description || "");
       setStatus(data.experiment.status);
+      setAccessCode(data.experiment.accessCode || "");
       setConfig(data.experiment.config);
       setSavedSnapshot(
         JSON.stringify({
           name: data.experiment.name,
           description: data.experiment.description || "",
           status: data.experiment.status,
+          accessCode: data.experiment.accessCode || "",
           config: data.experiment.config,
         }),
       );
@@ -99,7 +102,7 @@ export default function ExperimentDetailPage({
     try {
       const data = await api.patch<{ experiment: Experiment }>(
         `/api/admin/experiments/${experimentId}`,
-        { name, description: description || null, status, config },
+        { name, description: description || null, status, accessCode: accessCode || null, config },
       );
       setExperiment(data.experiment);
       setSavedSnapshot(currentSnapshot);
@@ -209,6 +212,29 @@ export default function ExperimentDetailPage({
             onValueChange={setDescription}
             placeholder={t("descriptionPlaceholder")}
           />
+          <div className="flex gap-2 items-end">
+            <Input
+              label={t("accessCodeLabel")}
+              description={t("accessCodeDesc")}
+              value={accessCode}
+              onValueChange={(v) => setAccessCode(v.toUpperCase())}
+              placeholder={t("accessCodePlaceholder")}
+              maxLength={20}
+              className="flex-1"
+            />
+            <Button
+              variant="flat"
+              size="sm"
+              className="mb-6"
+              onPress={() => {
+                const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+                const code = Array.from({ length: 6 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
+                setAccessCode(code);
+              }}
+            >
+              {t("generateCode")}
+            </Button>
+          </div>
           <Select
             label={t("roundProgressTriggerLabel")}
             description={t("roundProgressTriggerDesc")}

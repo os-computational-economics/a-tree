@@ -26,7 +26,7 @@ import {
 import { useDisclosure } from "@heroui/modal";
 import { Textarea } from "@heroui/input";
 import { addToast } from "@heroui/toast";
-import { Plus, Search, Pencil, FlaskConical, Copy, Trash2 } from "lucide-react";
+import { Plus, Search, Pencil, FlaskConical, Copy, Trash2, KeyRound } from "lucide-react";
 import type { ExperimentConfig } from "@/lib/experiment/types";
 import { useTranslations } from "next-intl";
 
@@ -35,6 +35,7 @@ interface ExperimentListItem {
   name: string;
   description: string | null;
   status: string;
+  accessCode: string | null;
   blockCount: number;
   paramCount: number;
   createdAt: string;
@@ -180,6 +181,7 @@ export default function ExperimentsPage() {
         <TableHeader>
           <TableColumn>{t("nameColumn")}</TableColumn>
           <TableColumn>{t("statusColumn")}</TableColumn>
+          <TableColumn>{t("accessCodeColumn")}</TableColumn>
           <TableColumn>{t("blocksColumn")}</TableColumn>
           <TableColumn>{t("paramsColumn")}</TableColumn>
           <TableColumn>{t("createdColumn")}</TableColumn>
@@ -200,6 +202,21 @@ export default function ExperimentsPage() {
                 <Chip size="sm" color={statusColorMap[exp.status] || "default"} variant="flat">
                   {exp.status}
                 </Chip>
+              </TableCell>
+              <TableCell>
+                {exp.accessCode ? (
+                  <Chip
+                    size="sm"
+                    variant="flat"
+                    color="secondary"
+                    startContent={<KeyRound className="w-3 h-3" />}
+                    classNames={{ content: "font-mono tracking-wider" }}
+                  >
+                    {exp.accessCode}
+                  </Chip>
+                ) : (
+                  <span className="text-xs text-default-400">{t("openAccess")}</span>
+                )}
               </TableCell>
               <TableCell>{exp.blockCount}</TableCell>
               <TableCell>{exp.paramCount}</TableCell>

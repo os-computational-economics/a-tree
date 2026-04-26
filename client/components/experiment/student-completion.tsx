@@ -11,7 +11,8 @@ import {
   TableRow,
   TableCell,
 } from "@heroui/table";
-import { LogOut } from "lucide-react";
+import { LogOut, ArrowLeft } from "lucide-react";
+import { useRouter } from "next/navigation";
 import type { HistoryRow, ExperimentConfig } from "@/lib/experiment/types";
 import { formatValue } from "./shared";
 
@@ -44,6 +45,8 @@ function getDisplayableParamIds(config: ExperimentConfig): Set<string> {
 
 export function StudentCompletion({ trialCode, historyTable, config, onExit }: StudentCompletionProps) {
   const t = useTranslations("experimentRunner");
+  const tExp = useTranslations("studentExperiments");
+  const router = useRouter();
   const displayableIds = useMemo(() => getDisplayableParamIds(config), [config]);
 
   const filteredKeys = useMemo(() => {
@@ -98,7 +101,14 @@ export function StudentCompletion({ trialCode, historyTable, config, onExit }: S
           </div>
         )}
 
-        <div className="flex justify-center">
+        <div className="flex justify-center gap-3">
+          <Button
+            variant="flat"
+            startContent={<ArrowLeft className="w-4 h-4" />}
+            onPress={() => router.push("/experiments")}
+          >
+            {tExp("backToLobby")}
+          </Button>
           <Button
             color="primary"
             variant="flat"
