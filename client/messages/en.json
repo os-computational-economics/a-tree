@@ -47,6 +47,7 @@
     "useDifferentEmail": "Use a different email",
     "resendCode": "Resend code",
     "signInWithPasskey": "Sign in with Passkey",
+    "signInWithCWRU": "Sign in with CWRU SSO",
     "newUserHint": "New user? First-time login requires email verification. You can set up passkey during onboarding for faster access next time.",
     "codeSentTo": "Code sent to:",
     "invalidOtpCode": "Invalid OTP code",

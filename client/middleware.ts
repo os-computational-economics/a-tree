@@ -20,6 +20,8 @@ function isPublicPath(pathname: string): boolean {
     "/api/auth/me",
     "/api/auth/passkey/login/options",
     "/api/auth/passkey/login/verify",
+    "/api/auth/cwru-sso/login",
+    "/api/auth/cwru-sso/callback",
   ];
 
   if (publicPaths.includes(pathname)) {

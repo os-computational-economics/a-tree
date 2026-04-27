@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Input } from "@heroui/input";
 import { InputOtp } from "@heroui/input-otp";
@@ -8,7 +8,7 @@ import { Button } from "@heroui/button";
 import { Card } from "@heroui/card";
 import { siteConfig } from "@/config/site";
 import { startAuthentication } from "@simplewebauthn/browser";
-import { Key } from "lucide-react";
+import { Key, GraduationCap } from "lucide-react";
 import { LanguageSwitch } from "@/components/language-switch";
 
 export default function LoginPage() {
@@ -21,6 +21,23 @@ export default function LoginPage() {
   const [error, setError] = useState("");
 
   const OTP_LENGTH = siteConfig.auth.otp.length;
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const err = params.get("error");
+    if (err) {
+      setError(decodeURIComponent(err));
+      params.delete("error");
+      const search = params.toString();
+      const newUrl =
+        window.location.pathname + (search ? `?${search}` : "") + window.location.hash;
+      window.history.replaceState({}, "", newUrl);
+    }
+  }, []);
+
+  const handleCWRULogin = () => {
+    window.location.href = "/api/auth/cwru-sso/login";
+  };
 
   const handleRequestOTP = async (e?: React.FormEvent) => {
     e?.preventDefault();
@@ -198,6 +215,19 @@ export default function LoginPage() {
                 startContent={<Key size={20} />}
               >
                 {t("auth.signInWithPasskey")}
+              </Button>
+
+              <Button
+                type="button"
+                color="primary"
+                variant="flat"
+                size="lg"
+                className="w-full"
+                onPress={handleCWRULogin}
+                isDisabled={loading || passkeyLoading}
+                startContent={<GraduationCap size={20} />}
+              >
+                {t("auth.signInWithCWRU")}
               </Button>
 
               <p className="text-xs text-center text-gray-500 dark:text-gray-400 mt-2">

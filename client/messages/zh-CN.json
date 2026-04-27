@@ -47,6 +47,7 @@
     "useDifferentEmail": "使用其他邮箱",
     "resendCode": "重新发送验证码",
     "signInWithPasskey": "使用通行密钥登录",
+    "signInWithCWRU": "使用 CWRU 单点登录",
     "newUserHint": "新用户？首次登录需要邮箱验证。您可以在引导流程中设置通行密钥以便下次更快登录。",
     "codeSentTo": "验证码已发送至：",
     "invalidOtpCode": "验证码无效",
