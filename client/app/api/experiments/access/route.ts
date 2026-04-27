@@ -25,12 +25,9 @@ export async function POST(request: NextRequest) {
 
     const normalizedCode = code.trim().toUpperCase();
 
-    // Find ALL active experiments sharing this room code
+    // Step 1: Validate — find all active experiments for this room code
     const matched = await db
-      .select({
-        id: experiments.id,
-        name: experiments.name,
-      })
+      .select({ id: experiments.id })
       .from(experiments)
       .where(
         and(
@@ -40,15 +37,21 @@ export async function POST(request: NextRequest) {
         ),
       );
 
+    // If code doesn't match anything, reject and leave existing access intact
     if (matched.length === 0) {
       return NextResponse.json({ error: "Invalid code" }, { status: 404 });
     }
 
-    // Grant access to every experiment in this room (idempotent)
+    // Step 2: Clear all existing access rows for this user (entering a new
+    // valid code means switching rooms — old room access is revoked)
+    await db
+      .delete(experimentAccess)
+      .where(eq(experimentAccess.userId, payload.userId));
+
+    // Step 3: Grant access to every experiment in the new room
     await db
       .insert(experimentAccess)
-      .values(matched.map((exp) => ({ experimentId: exp.id, userId: payload.userId })))
-      .onConflictDoNothing();
+      .values(matched.map((exp) => ({ experimentId: exp.id, userId: payload.userId })));
 
     return NextResponse.json({ count: matched.length });
   } catch (error) {
